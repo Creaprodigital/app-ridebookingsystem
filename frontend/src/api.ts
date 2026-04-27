@@ -1,0 +1,114 @@
+import axios, { AxiosError, AxiosInstance } from 'axios';
+import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
+
+const API_BASE = process.env.EXPO_PUBLIC_API_BASE as string;
+const TOKEN_KEY = 'sr_driver_token';
+
+const webStorage = {
+  async getItemAsync(key: string) {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return window.localStorage.getItem(key);
+    }
+    return null;
+  },
+  async setItemAsync(key: string, value: string) {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(key, value);
+    }
+  },
+  async deleteItemAsync(key: string) {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.removeItem(key);
+    }
+  },
+};
+
+const storage = Platform.OS === 'web' ? webStorage : SecureStore;
+
+export const tokenStore = {
+  get: () => storage.getItemAsync(TOKEN_KEY),
+  set: (v: string) => storage.setItemAsync(TOKEN_KEY, v),
+  clear: () => storage.deleteItemAsync(TOKEN_KEY),
+};
+
+export const api: AxiosInstance = axios.create({
+  baseURL: `${API_BASE}/api`,
+  timeout: 20000,
+});
+
+api.interceptors.request.use(async (config) => {
+  const token = await tokenStore.get();
+  if (token) {
+    config.headers = config.headers ?? {};
+    (config.headers as any).Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+export function apiError(e: unknown): string {
+  const err = e as AxiosError<any>;
+  const data = err?.response?.data;
+  if (data?.detail) {
+    if (typeof data.detail === 'string') return data.detail;
+    if (Array.isArray(data.detail) && data.detail[0]?.msg) return data.detail[0].msg;
+  }
+  return err?.message ?? 'Une erreur est survenue';
+}
+
+// ---------- Auth ----------
+export async function login(email: string, password: string) {
+  const { data } = await api.post('/auth/login', { email, password });
+  return data as { access_token: string; token_type?: string; user?: any };
+}
+
+export async function getMe() {
+  const { data } = await api.get('/auth/me');
+  return data;
+}
+
+// ---------- Driver ----------
+export async function getDriverProfile() {
+  const { data } = await api.get('/driver/profile');
+  return data;
+}
+
+export async function getDriverMissions() {
+  const { data } = await api.get('/driver/missions');
+  return data;
+}
+
+export async function updateMissionStatus(missionId: string, status: string) {
+  const { data } = await api.patch(`/driver/missions/${missionId}/status`, { status });
+  return data;
+}
+
+export async function getDriverWallet() {
+  const { data } = await api.get('/driver/wallet');
+  return data;
+}
+
+export async function setShift(onShift: boolean) {
+  const { data } = await api.patch('/driver/shift', { on_shift: onShift });
+  return data;
+}
+
+export async function pushLocation(coords: {
+  lat: number;
+  lng: number;
+  heading?: number | null;
+  speed?: number | null;
+}) {
+  const { data } = await api.post('/driver/location', coords);
+  return data;
+}
+
+export async function getMarketplace() {
+  const { data } = await api.get('/driver/internal-marketplace');
+  return data;
+}
+
+export async function claimMarketplace(id: string) {
+  const { data } = await api.post(`/driver/internal-marketplace/${id}/claim`, {});
+  return data;
+}
