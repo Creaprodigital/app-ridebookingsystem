@@ -113,7 +113,8 @@ export default function MissionsScreen() {
 
       if (prof.status === 'fulfilled') {
         const p: any = prof.value;
-        setOnShift(Boolean(p?.on_shift ?? p?.is_on_shift ?? p?.shift_active));
+        const shiftFlag = p?.user?.on_shift ?? p?.on_shift ?? p?.is_on_shift ?? p?.shift_active;
+        setOnShift(Boolean(shiftFlag));
       }
     } finally {
       if (!silent) setLoading(false);

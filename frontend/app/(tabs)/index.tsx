@@ -46,7 +46,8 @@ export default function HomeMap() {
       ]);
       if (p) {
         setProfile(p);
-        setOnShift(Boolean(p.on_shift ?? p.is_on_shift ?? p.shift_active));
+        const shiftFlag = p?.user?.on_shift ?? p?.on_shift ?? p?.is_on_shift ?? p?.shift_active;
+        setOnShift(Boolean(shiftFlag));
       }
       const assignedList = Array.isArray(missions) ? missions : missions?.items ?? [];
       const marketList = Array.isArray(market) ? market : market?.items ?? [];
