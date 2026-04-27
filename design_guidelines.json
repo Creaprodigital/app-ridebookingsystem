@@ -1,0 +1,85 @@
+{
+  "theme": "Dark",
+  "archetype": "2 (Performance Pro) / 5 (Jewel & Luxury) Hybrid",
+  "colors": {
+    "primary": "#F5B72E",
+    "primary_hover": "#D9A228",
+    "background_base": "#0A0A0A",
+    "background_surface": "#1A1A1A",
+    "background_elevated": "#27272A",
+    "text_primary": "#FFFFFF",
+    "text_secondary": "#A1A1AA",
+    "success": "#22C55E",
+    "danger": "#EF4444",
+    "warning": "#EAB308",
+    "info": "#3B82F6",
+    "border": "#27272A"
+  },
+  "typography": {
+    "font_family_heading": "Inter, sans-serif",
+    "font_family_body": "Inter, sans-serif",
+    "h1": "text-4xl font-black tracking-tighter text-white",
+    "h2": "text-2xl font-bold tracking-tight text-white",
+    "h3": "text-xl font-semibold text-white",
+    "body": "text-base font-medium text-zinc-300",
+    "caption": "text-sm font-medium text-zinc-400 uppercase tracking-widest"
+  },
+  "spacing_and_layout": {
+    "screen_padding": "p-4 md:p-6",
+    "card_padding": "p-4 md:p-6",
+    "gap_small": "gap-2",
+    "gap_medium": "gap-4",
+    "gap_large": "gap-6",
+    "touch_target_min_height": "h-14",
+    "border_radius_base": "rounded-2xl",
+    "border_radius_button": "rounded-full"
+  },
+  "components": {
+    "bottom_tab_bar": {
+      "style": "bg-[#0A0A0A]/90 backdrop-blur-xl border-t border-[#27272A] pb-safe pt-2",
+      "active_icon": "text-[#F5B72E]",
+      "inactive_icon": "text-[#A1A1AA]"
+    },
+    "go_online_button": {
+      "style": "h-20 w-20 rounded-full bg-[#F5B72E] flex items-center justify-center shadow-[0_0_30px_rgba(245,183,46,0.2)]",
+      "text_style": "text-[#0A0A0A] font-black text-lg uppercase tracking-tight"
+    },
+    "slide_to_confirm": {
+      "container": "h-16 bg-[#1A1A1A] border border-[#27272A] rounded-full flex items-center px-2 relative overflow-hidden",
+      "slider_knob": "h-12 w-12 bg-[#F5B72E] rounded-full flex items-center justify-center absolute z-10",
+      "text": "w-full text-center text-[#A1A1AA] font-bold text-base z-0 uppercase tracking-wider"
+    },
+    "mission_card": {
+      "style": "bg-[#1A1A1A] border border-[#27272A] rounded-2xl p-4 flex flex-col gap-4 shadow-sm",
+      "header": "flex justify-between items-center border-b border-[#27272A] pb-3",
+      "price_tag": "text-[#F5B72E] font-black text-2xl tracking-tighter"
+    },
+    "map_view": {
+      "theme": "Dark map style (Google Maps night mode JSON)",
+      "instructions": "Use custom map styling to match the #0A0A0A background. Roads should be dark grey, water should be deep charcoal, and route lines should use the primary color #F5B72E. Hide unnecessary POIs."
+    }
+  },
+  "images": {
+    "map_placeholder": {
+      "url": "https://images.pexels.com/photos/34634568/pexels-photo-34634568.jpeg",
+      "description": "Dark map navigation context"
+    },
+    "driver_portrait": {
+      "url": "https://images.pexels.com/photos/16702626/pexels-photo-16702626.jpeg",
+      "description": "Driver profile placeholder"
+    },
+    "vehicle_placeholder": {
+      "url": "https://images.pexels.com/photos/12970758/pexels-photo-12970758.jpeg",
+      "description": "Vehicle/car placeholder image"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Use NativeWind for Tailwind CSS styling in the React Native Expo app.",
+    "Ensure all critical buttons (like 'Accept Mission', 'Navigate') have a minimum height of 56dp (h-14) for easy tapping while driving.",
+    "Implement 'Slide to Confirm' interactions for status changes (assigned → en_route → arrived) using React Native Reanimated & Gesture Handler.",
+    "For the Map screen, use react-native-maps with a custom dark mode JSON style. The map is the primary hub, so the 'Go Online' toggle should float prominently over the map.",
+    "Add 'data-testid' to all interactive and key informational elements for automated testing (e.g., data-testid='login-button', data-testid='slide-confirm-assigned'). If Native components strip it, ensure 'testID' is mapped correctly.",
+    "Use the brand primary color #F5B72E specifically for key actions and highlights (Go Online, New Mission Alert, Earnings value). Use high-contrast #0A0A0A for text when placed inside a #F5B72E button.",
+    "Keep cognitive load low. Use large font sizes and bold weights for crucial info (Price, Distance, Passenger Name). Avoid clutter."
+  ]
+}
