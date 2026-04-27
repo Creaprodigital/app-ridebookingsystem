@@ -60,7 +60,17 @@ export default function Profile() {
       <View style={styles.topBar}>
         <View style={styles.iconBtn} />
         <Text style={styles.topTitle}>Mon profil</Text>
-        <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn} testID="close-btn">
+        <TouchableOpacity
+          onPress={() => {
+            if (router.canGoBack()) {
+              router.back();
+            } else {
+              router.replace('/(tabs)/menu');
+            }
+          }}
+          style={styles.iconBtn}
+          testID="close-btn"
+        >
           <Ionicons name="close" size={24} color={colors.text} />
         </TouchableOpacity>
       </View>

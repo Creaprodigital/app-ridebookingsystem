@@ -99,7 +99,19 @@ export default function MissionsScreen() {
         const v = av.value;
         const list = Array.isArray(v) ? v : v?.items ?? [];
         setAvailable(list);
-        setDebug(`Marketplace: ${list.length} course(s) reçue(s) · Type: ${typeof v} · Keys: ${typeof v === 'object' && v ? Object.keys(v).slice(0, 5).join(',') : 'n/a'}`);
+        // Useful diagnostic when list is empty
+        if (Array.isArray(v)) {
+          setDebug(`✓ Marketplace OK · ${list.length} course(s) disponible(s)`);
+        } else if (v && typeof v === 'object') {
+          const keys = Object.keys(v);
+          if (keys.length === 0) {
+            setDebug(`Marketplace renvoie un objet vide {} — probablement désactivé pour votre flotte`);
+          } else {
+            setDebug(`Marketplace: ${list.length} course(s) · Réponse: {${keys.slice(0, 3).join(', ')}}`);
+          }
+        } else {
+          setDebug(`Réponse inattendue: ${typeof v}`);
+        }
       } else {
         setAvailable([]);
         const msg = apiError(av.reason);
