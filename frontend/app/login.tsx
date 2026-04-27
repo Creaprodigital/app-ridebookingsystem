@@ -8,9 +8,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
-  Image,
-  Keyboard,
-  TouchableWithoutFeedback,
+  ScrollView,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -74,107 +72,109 @@ export default function Login() {
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-          <View style={styles.container}>
-            <View style={styles.brandWrap}>
-              <View style={styles.logoDot}>
-                <Ionicons name="car-sport" size={38} color={colors.bg} />
-              </View>
-              <Text style={styles.brandTitle}>SharedRide</Text>
-              <Text style={styles.brandKicker}>Driver</Text>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.brandWrap}>
+            <View style={styles.logoDot}>
+              <Ionicons name="car-sport" size={38} color={colors.bg} />
             </View>
-
-            <View style={styles.card}>
-              <Text style={styles.title}>Connexion</Text>
-              <Text style={styles.subtitle}>Bon retour. Prenez la route.</Text>
-
-              <View style={styles.field}>
-                <Ionicons name="mail-outline" size={18} color={colors.textSecondary} />
-                <TextInput
-                  testID="login-email-input"
-                  style={styles.input}
-                  placeholder="email@exemple.com"
-                  placeholderTextColor={colors.textMuted}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardType="email-address"
-                  value={email}
-                  onChangeText={setEmail}
-                />
-              </View>
-
-              <View style={styles.field}>
-                <Ionicons name="lock-closed-outline" size={18} color={colors.textSecondary} />
-                <TextInput
-                  testID="login-password-input"
-                  style={styles.input}
-                  placeholder="Mot de passe"
-                  placeholderTextColor={colors.textMuted}
-                  secureTextEntry={!showPwd}
-                  value={password}
-                  onChangeText={setPassword}
-                />
-                <TouchableOpacity onPress={() => setShowPwd((v) => !v)} testID="login-toggle-pwd">
-                  <Ionicons
-                    name={showPwd ? 'eye-off-outline' : 'eye-outline'}
-                    size={18}
-                    color={colors.textSecondary}
-                  />
-                </TouchableOpacity>
-              </View>
-
-              {error ? (
-                <View style={styles.errorBox} testID="login-error">
-                  <Ionicons name="alert-circle" size={16} color={colors.danger} />
-                  <Text style={styles.errorText}>{error}</Text>
-                </View>
-              ) : null}
-
-              {info ? (
-                <View style={styles.infoBox} testID="login-info">
-                  <Ionicons name="mail" size={16} color={colors.success} />
-                  <Text style={styles.infoText}>{info}</Text>
-                </View>
-              ) : null}
-
-              <TouchableOpacity
-                testID="login-submit-button"
-                style={[styles.submit, loading && { opacity: 0.7 }]}
-                onPress={onSubmit}
-                disabled={loading}
-                activeOpacity={0.85}
-              >
-                {loading ? (
-                  <ActivityIndicator color={colors.bg} />
-                ) : (
-                  <>
-                    <Text style={styles.submitText}>SE CONNECTER</Text>
-                    <Ionicons name="arrow-forward" size={18} color={colors.bg} />
-                  </>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={onForgot}
-                disabled={forgotLoading}
-                style={styles.forgotBtn}
-                testID="login-forgot-button"
-              >
-                {forgotLoading ? (
-                  <ActivityIndicator color={colors.primary} size="small" />
-                ) : (
-                  <Text style={styles.forgotText}>Mot de passe oublié ?</Text>
-                )}
-              </TouchableOpacity>
-
-              <Text style={styles.hint}>
-                Votre compte est créé par votre flotte. Contactez votre opérateur si besoin.
-              </Text>
-            </View>
-
-            <Text style={styles.footer}>© {new Date().getFullYear()} SharedRide Driver</Text>
+            <Text style={styles.brandTitle}>SharedRide</Text>
+            <Text style={styles.brandKicker}>Driver</Text>
           </View>
-        </TouchableWithoutFeedback>
+
+          <View style={styles.card}>
+            <Text style={styles.title}>Connexion</Text>
+            <Text style={styles.subtitle}>Bon retour. Prenez la route.</Text>
+
+            <View style={styles.field}>
+              <Ionicons name="mail-outline" size={18} color={colors.textSecondary} />
+              <TextInput
+                testID="login-email-input"
+                style={styles.input}
+                placeholder="email@exemple.com"
+                placeholderTextColor={colors.textMuted}
+                autoCapitalize="none"
+                autoCorrect={false}
+                keyboardType="email-address"
+                value={email}
+                onChangeText={setEmail}
+              />
+            </View>
+
+            <View style={styles.field}>
+              <Ionicons name="lock-closed-outline" size={18} color={colors.textSecondary} />
+              <TextInput
+                testID="login-password-input"
+                style={styles.input}
+                placeholder="Mot de passe"
+                placeholderTextColor={colors.textMuted}
+                secureTextEntry={!showPwd}
+                value={password}
+                onChangeText={setPassword}
+              />
+              <TouchableOpacity onPress={() => setShowPwd((v) => !v)} testID="login-toggle-pwd">
+                <Ionicons
+                  name={showPwd ? 'eye-off-outline' : 'eye-outline'}
+                  size={18}
+                  color={colors.textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
+
+            {error ? (
+              <View style={styles.errorBox} testID="login-error">
+                <Ionicons name="alert-circle" size={16} color={colors.danger} />
+                <Text style={styles.errorText}>{error}</Text>
+              </View>
+            ) : null}
+
+            {info ? (
+              <View style={styles.infoBox} testID="login-info">
+                <Ionicons name="mail" size={16} color={colors.success} />
+                <Text style={styles.infoText}>{info}</Text>
+              </View>
+            ) : null}
+
+            <TouchableOpacity
+              testID="login-submit-button"
+              style={[styles.submit, loading && { opacity: 0.7 }]}
+              onPress={onSubmit}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              {loading ? (
+                <ActivityIndicator color={colors.bg} />
+              ) : (
+                <>
+                  <Text style={styles.submitText}>SE CONNECTER</Text>
+                  <Ionicons name="arrow-forward" size={18} color={colors.bg} />
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={onForgot}
+              disabled={forgotLoading}
+              style={styles.forgotBtn}
+              testID="login-forgot-button"
+            >
+              {forgotLoading ? (
+                <ActivityIndicator color={colors.primary} size="small" />
+              ) : (
+                <Text style={styles.forgotText}>Mot de passe oublié ?</Text>
+              )}
+            </TouchableOpacity>
+
+            <Text style={styles.hint}>
+              Votre compte est créé par votre flotte. Contactez votre opérateur si besoin.
+            </Text>
+          </View>
+
+          <Text style={styles.footer}>© {new Date().getFullYear()} SharedRide Driver</Text>
+        </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -182,7 +182,7 @@ export default function Login() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  container: { flex: 1, padding: spacing.lg, justifyContent: 'center' },
+  container: { flexGrow: 1, padding: spacing.lg, justifyContent: 'center' },
   brandWrap: { alignItems: 'center', marginBottom: spacing.xl },
   logoDot: {
     width: 72, height: 72, borderRadius: 36, backgroundColor: colors.primary,
