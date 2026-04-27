@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../src/auth';
 import { colors, radius, spacing } from '../src/theme';
-import { apiError } from '../src/api';
+import { apiError, forgotPassword } from '../src/api';
 
 export default function Login() {
   const { signIn } = useAuth();
@@ -26,9 +26,32 @@ export default function Login() {
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [info, setInfo] = useState<string | null>(null);
+
+  const onForgot = async () => {
+    setError(null);
+    setInfo(null);
+    if (!email.trim()) {
+      setError('Saisissez votre email pour recevoir un lien');
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const res = await forgotPassword(email.trim());
+      const msg = res?.message || 'Si cet email existe, un lien vous a été envoyé.';
+      setInfo(msg);
+      if (Platform.OS !== 'web') Alert.alert('Email envoyé', msg);
+    } catch (e) {
+      setError(apiError(e));
+    } finally {
+      setForgotLoading(false);
+    }
+  };
 
   const onSubmit = async () => {
     setError(null);
+    setInfo(null);
     if (!email.trim() || !password) {
       setError('Veuillez saisir votre email et mot de passe');
       return;
@@ -107,6 +130,13 @@ export default function Login() {
                 </View>
               ) : null}
 
+              {info ? (
+                <View style={styles.infoBox} testID="login-info">
+                  <Ionicons name="mail" size={16} color={colors.success} />
+                  <Text style={styles.infoText}>{info}</Text>
+                </View>
+              ) : null}
+
               <TouchableOpacity
                 testID="login-submit-button"
                 style={[styles.submit, loading && { opacity: 0.7 }]}
@@ -121,6 +151,19 @@ export default function Login() {
                     <Text style={styles.submitText}>SE CONNECTER</Text>
                     <Ionicons name="arrow-forward" size={18} color={colors.bg} />
                   </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={onForgot}
+                disabled={forgotLoading}
+                style={styles.forgotBtn}
+                testID="login-forgot-button"
+              >
+                {forgotLoading ? (
+                  <ActivityIndicator color={colors.primary} size="small" />
+                ) : (
+                  <Text style={styles.forgotText}>Mot de passe oublié ?</Text>
                 )}
               </TouchableOpacity>
 
@@ -170,6 +213,14 @@ const styles = StyleSheet.create({
     borderRadius: radius.md, padding: spacing.sm,
   },
   errorText: { color: colors.danger, flex: 1, fontSize: 13, fontWeight: '600' },
+  infoBox: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    backgroundColor: '#22C55E20', borderColor: colors.success, borderWidth: 1,
+    borderRadius: radius.md, padding: spacing.sm,
+  },
+  infoText: { color: colors.success, flex: 1, fontSize: 13, fontWeight: '600' },
+  forgotBtn: { alignItems: 'center', paddingVertical: 8 },
+  forgotText: { color: colors.primary, fontSize: 13, fontWeight: '700' },
   submit: {
     height: 56, backgroundColor: colors.primary, borderRadius: radius.full,
     alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: spacing.sm,

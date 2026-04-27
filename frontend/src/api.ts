@@ -62,6 +62,16 @@ export async function login(email: string, password: string) {
   return data as { access_token: string; token_type?: string; user?: any };
 }
 
+export async function forgotPassword(email: string) {
+  const { data } = await api.post('/public/auth/forgot-password', { email });
+  return data as { ok?: boolean; message?: string };
+}
+
+export async function checkEmail(email: string) {
+  const { data } = await api.post('/public/auth/email-check', { email });
+  return data as { exists: boolean; role?: string };
+}
+
 export async function getMe() {
   const { data } = await api.get('/auth/me');
   return data;
