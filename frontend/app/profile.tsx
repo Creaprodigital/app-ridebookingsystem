@@ -57,6 +57,13 @@ export default function Profile() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.topBar}>
+        <View style={styles.iconBtn} />
+        <Text style={styles.topTitle}>Mon profil</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn} testID="close-btn">
+          <Ionicons name="close" size={24} color={colors.text} />
+        </TouchableOpacity>
+      </View>
       <ScrollView
         contentContainerStyle={{ padding: spacing.md, paddingBottom: 120, gap: spacing.md }}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.primary} />}
