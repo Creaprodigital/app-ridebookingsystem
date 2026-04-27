@@ -48,6 +48,8 @@ export default function HomeMap() {
         setProfile(p);
         const shiftFlag = p?.user?.on_shift ?? p?.on_shift ?? p?.is_on_shift ?? p?.shift_active;
         setOnShift(Boolean(shiftFlag));
+        // eslint-disable-next-line no-console
+        console.log('[shift-debug] profile keys:', Object.keys(p || {}), 'user.on_shift:', p?.user?.on_shift, 'top.on_shift:', p?.on_shift, '=> resolved:', Boolean(shiftFlag));
       }
       const assignedList = Array.isArray(missions) ? missions : missions?.items ?? [];
       const marketList = Array.isArray(market) ? market : market?.items ?? [];
@@ -124,9 +126,13 @@ export default function HomeMap() {
     setToggling(true);
     const next = !onShift;
     try {
-      await setShift(next);
-      setOnShift(next);
-      if (next && coords) {
+      const res: any = await setShift(next);
+      // Trust server response; fall back to optimistic value
+      const newShift = res?.user?.on_shift ?? res?.on_shift ?? next;
+      setOnShift(Boolean(newShift));
+      // eslint-disable-next-line no-console
+      console.log('[shift-debug] toggle response:', res, '=> set onShift:', Boolean(newShift));
+      if (newShift && coords) {
         try { await pushLocation(coords); } catch {}
       }
     } catch (e) {
