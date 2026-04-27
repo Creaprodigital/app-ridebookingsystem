@@ -59,7 +59,7 @@ export function apiError(e: unknown): string {
 // ---------- Auth ----------
 export async function login(email: string, password: string) {
   const { data } = await api.post('/auth/login', { email, password });
-  return data as { access_token: string; token_type?: string; user?: any };
+  return data as { token: string; user?: any; tenant?: any };
 }
 
 export async function forgotPassword(email: string) {
@@ -74,7 +74,8 @@ export async function checkEmail(email: string) {
 
 export async function getMe() {
   const { data } = await api.get('/auth/me');
-  return data;
+  // Backend returns { user: {...}, tenant: {...} }
+  return (data?.user ?? data) as any;
 }
 
 // ---------- Driver ----------

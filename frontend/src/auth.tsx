@@ -41,9 +41,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = useCallback(async (email: string, password: string) => {
     const res = await apiLogin(email, password);
-    if (!res.access_token) throw new Error('Token manquant');
-    await tokenStore.set(res.access_token);
-    const me = await getMe();
+    if (!res.token) throw new Error('Token manquant dans la réponse');
+    await tokenStore.set(res.token);
+    const me = res.user ?? (await getMe());
     setUser(me);
   }, []);
 
