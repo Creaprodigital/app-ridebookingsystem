@@ -19,6 +19,7 @@ function initials(first?: string, last?: string) {
 }
 
 export default function Profile() {
+  const router = useRouter();
   const { user, signOut } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(false);
