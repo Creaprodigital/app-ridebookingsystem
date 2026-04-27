@@ -17,6 +17,7 @@ import MapView from '../../src/components/MapView';
 import SlideButton from '../../src/components/SlideButton';
 import { colors, radius, spacing } from '../../src/theme';
 import { getDriverMissions, updateMissionStatus, apiError } from '../../src/api';
+import { getNavProvider, buildNavUrl } from '../../src/prefs';
 
 const NEXT: Record<string, { next: string; label: string }> = {
   assigned: { next: 'en_route', label: 'GLISSER POUR DÉMARRER' },
@@ -55,22 +56,23 @@ export default function MissionDetail() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const openNav = () => {
+  const openNav = async () => {
     if (!mission) return;
     const p = pickLatLng(mission, 'pickup');
     const d = pickLatLng(mission, 'dropoff');
     const target = mission.status === 'in_progress' ? d : p;
+    const provider = await getNavProvider();
     if (!target) {
       const q = encodeURIComponent(pickAddr(mission, mission.status === 'in_progress' ? 'dropoff' : 'pickup'));
-      const url = Platform.OS === 'ios'
-        ? `http://maps.apple.com/?q=${q}`
-        : `https://www.google.com/maps/search/?api=1&query=${q}`;
+      const url = provider === 'waze'
+        ? `https://waze.com/ul?q=${q}&navigate=yes`
+        : (Platform.OS === 'ios'
+            ? `http://maps.apple.com/?q=${q}`
+            : `https://www.google.com/maps/search/?api=1&query=${q}`);
       Linking.openURL(url);
       return;
     }
-    const url = Platform.OS === 'ios'
-      ? `http://maps.apple.com/?daddr=${target.lat},${target.lng}`
-      : `https://www.google.com/maps/dir/?api=1&destination=${target.lat},${target.lng}&travelmode=driving`;
+    const url = buildNavUrl(provider, target.lat, target.lng);
     Linking.openURL(url);
   };
 

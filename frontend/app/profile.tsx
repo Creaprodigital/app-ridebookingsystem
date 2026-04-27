@@ -6,15 +6,13 @@ import {
   TouchableOpacity,
   ScrollView,
   RefreshControl,
-  Platform,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
-import { colors, radius, spacing } from '../../src/theme';
-import { useAuth } from '../../src/auth';
-import { getDriverProfile } from '../../src/api';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { colors, radius, spacing } from '../src/theme';
+import { useAuth } from '../src/auth';
+import { getDriverProfile } from '../src/api';
 
 function initials(first?: string, last?: string) {
   return `${(first?.[0] || '').toUpperCase()}${(last?.[0] || '').toUpperCase()}` || 'D';
@@ -96,9 +94,16 @@ export default function Profile() {
           <Row icon="color-palette-outline" label="Couleur" value={vehicle?.color || '—'} />
         </View>
 
-        <TouchableOpacity style={styles.logoutBtn} onPress={confirmLogout} testID="logout-button">
-          <Ionicons name="log-out-outline" size={18} color={colors.danger} />
-          <Text style={styles.logoutTxt}>DÉCONNEXION</Text>
+        <TouchableOpacity style={styles.card} onPress={load} testID="refresh-profile">
+          <View style={styles.row}>
+            <View style={styles.rowIcon}>
+              <Ionicons name="refresh-outline" size={16} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.rowLabel}>Actualiser</Text>
+              <Text style={styles.rowValue}>Recharger vos informations</Text>
+            </View>
+          </View>
         </TouchableOpacity>
 
         <Text style={styles.footer}>SharedRide Driver · v1.0</Text>
@@ -123,6 +128,9 @@ function Row({ icon, label, value }: { icon: any; label: string; value: string }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
+  topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  iconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  topTitle: { flex: 1, textAlign: 'center', color: colors.text, fontSize: 16, fontWeight: '800' },
   heroCard: {
     alignItems: 'center', gap: 8,
     backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
@@ -158,11 +166,5 @@ const styles = StyleSheet.create({
   },
   rowLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 1 },
   rowValue: { color: colors.text, fontSize: 14, fontWeight: '600', marginTop: 2 },
-  logoutBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
-    backgroundColor: colors.danger + '1A', borderColor: colors.danger, borderWidth: 1,
-    borderRadius: radius.full, height: 52, marginTop: spacing.sm,
-  },
-  logoutTxt: { color: colors.danger, fontWeight: '900', letterSpacing: 1.2 },
   footer: { color: colors.textMuted, fontSize: 11, textAlign: 'center', marginTop: spacing.md },
 });

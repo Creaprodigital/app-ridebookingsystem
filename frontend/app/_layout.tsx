@@ -49,6 +49,11 @@ export default function RootLayout() {
               <Stack.Screen name="index" />
               <Stack.Screen name="login" />
               <Stack.Screen name="(tabs)" />
+              <Stack.Screen name="profile" options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="settings/index" options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="settings/sounds" options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="settings/navigation" options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="settings/permissions" options={{ animation: 'slide_from_right' }} />
               <Stack.Screen name="mission/[id]" options={{ presentation: 'card', animation: 'slide_from_right' }} />
             </Stack>
           </RouteGuard>
