@@ -27,73 +27,93 @@ const darkStyle = JSON.stringify([
   { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#52525b' }] },
 ]);
 
-function buildHtml(lat: number, lng: number, heading: number | null | undefined, markers: Marker[]) {
+function buildHtml(lat: number, lng: number, markers: Marker[]) {
   const markersJson = JSON.stringify(markers || []);
-  const h = heading ?? 0;
   return `<!DOCTYPE html><html><head>
 <meta charset="utf-8" />
 <meta name="viewport" content="initial-scale=1, maximum-scale=1" />
 <style>html,body,#map{height:100%;margin:0;padding:0;background:#0A0A0A;}
-.driver-dot{position:relative;width:20px;height:20px;}
-.driver-dot .pulse{position:absolute;inset:-10px;border-radius:9999px;background:rgba(245,183,46,.25);animation:pulse 2s infinite}
-.driver-dot .core{position:absolute;inset:0;border-radius:9999px;background:#F5B72E;border:3px solid #0A0A0A;box-shadow:0 0 10px rgba(245,183,46,.8)}
-@keyframes pulse{0%{transform:scale(1);opacity:.6}100%{transform:scale(2.2);opacity:0}}
+#err{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:#A1A1AA;font:600 13px -apple-system,Inter,sans-serif;text-align:center;padding:20px;z-index:10;background:#0A0A0A}
+#err.show{display:flex}
 </style></head>
 <body>
 <div id="map"></div>
+<div id="err">Chargement de la carte indisponible.<br/>Vérifiez votre connexion.</div>
 <script>
 let map, driverMarker, otherMarkers=[];
-function initMap(){
-  map = new google.maps.Map(document.getElementById('map'),{
-    center:{lat:${lat},lng:${lng}}, zoom:15, disableDefaultUI:true, zoomControl:false,
-    gestureHandling:'greedy', styles:${darkStyle}
-  });
-  const driverEl = document.createElement('div');
-  driverEl.className='driver-dot';
-  driverEl.innerHTML='<div class="pulse"></div><div class="core"></div>';
-  driverMarker = new google.maps.marker.AdvancedMarkerElement({
-    position:{lat:${lat},lng:${lng}}, map, content: driverEl, title:'Vous'
-  });
-  drawMarkers(${markersJson});
-  window.addEventListener('message', onMsg);
-  document.addEventListener('message', onMsg);
+const DOT_ICON = {
+  path: 0, // google.maps.SymbolPath.CIRCLE
+  fillColor: '#F5B72E',
+  fillOpacity: 1,
+  strokeColor: '#0A0A0A',
+  strokeWeight: 3,
+  scale: 9
+};
+function pinIcon(color){
+  return {
+    path: 'M12 0C7 0 3 4 3 9c0 6 9 15 9 15s9-9 9-15c0-5-4-9-9-9z',
+    fillColor: color || '#3B82F6',
+    fillOpacity: 1,
+    strokeColor: '#0A0A0A',
+    strokeWeight: 2,
+    scale: 1.4,
+    anchor: {x:12,y:24}
+  };
 }
+function initMap(){
+  try {
+    map = new google.maps.Map(document.getElementById('map'),{
+      center:{lat:${lat},lng:${lng}}, zoom:15,
+      disableDefaultUI:true, zoomControl:false, gestureHandling:'greedy',
+      styles:${darkStyle}
+    });
+    driverMarker = new google.maps.Marker({
+      position:{lat:${lat},lng:${lng}}, map, icon: DOT_ICON, title:'Vous'
+    });
+    drawMarkers(${markersJson});
+    window.addEventListener('message', onMsg);
+    document.addEventListener('message', onMsg);
+  } catch(e){ showErr(); }
+}
+window.gm_authFailure = function(){ showErr(); };
+function showErr(){ document.getElementById('err').classList.add('show'); }
 function onMsg(ev){
   try{
     const d = JSON.parse(ev.data);
     if(d.type==='center' && map){
-      map.panTo({lat:d.lat,lng:d.lng});
-      if(driverMarker) driverMarker.position={lat:d.lat,lng:d.lng};
+      const pos = {lat:d.lat,lng:d.lng};
+      map.panTo(pos);
+      if(driverMarker) driverMarker.setPosition(pos);
     }
     if(d.type==='markers'){ drawMarkers(d.markers||[]); }
   }catch(e){}
 }
 function drawMarkers(list){
-  otherMarkers.forEach(m=>m.map=null); otherMarkers=[];
+  otherMarkers.forEach(m=>m.setMap(null)); otherMarkers=[];
   (list||[]).forEach(m=>{
-    const el=document.createElement('div');
-    el.style.cssText='background:'+(m.color||'#3B82F6')+';color:#fff;padding:6px 10px;border-radius:9999px;font:bold 12px Inter,sans-serif;border:2px solid #0A0A0A;box-shadow:0 2px 6px rgba(0,0,0,.5)';
-    el.textContent = m.label || '•';
-    const mk = new google.maps.marker.AdvancedMarkerElement({position:{lat:m.lat,lng:m.lng},map,content:el});
+    const mk = new google.maps.Marker({
+      position:{lat:m.lat,lng:m.lng}, map,
+      icon: pinIcon(m.color), label: m.label ? {text:m.label,color:'#fff',fontWeight:'800',fontSize:'11px'} : null
+    });
     otherMarkers.push(mk);
   });
 }
 </script>
-<script async src="https://maps.googleapis.com/maps/api/js?key=${GMAPS_KEY}&callback=initMap&libraries=marker&loading=async&v=weekly&map_ids=DEMO_MAP_ID"></script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=${GMAPS_KEY}&callback=initMap&v=weekly"></script>
 </body></html>`;
 }
 
-export default function MapView({ lat, lng, heading, extraMarkers = [], style }: Props) {
+export default function MapView({ lat, lng, extraMarkers = [], style }: Props) {
   const latitude = lat ?? 48.8566;
   const longitude = lng ?? 2.3522;
-  const html = useMemo(() => buildHtml(latitude, longitude, heading, extraMarkers), []);
+  const html = useMemo(() => buildHtml(latitude, longitude, extraMarkers), []);
   const webviewRef = React.useRef<WebView>(null);
 
   React.useEffect(() => {
     if (lat == null || lng == null) return;
     const msg = JSON.stringify({ type: 'center', lat, lng });
     if (Platform.OS === 'web') {
-      const iframe = document.querySelector('iframe');
+      const iframe = document.querySelector('iframe[title="map"]') as HTMLIFrameElement | null;
       iframe?.contentWindow?.postMessage(msg, '*');
     } else {
       webviewRef.current?.postMessage(msg);
@@ -103,7 +123,7 @@ export default function MapView({ lat, lng, heading, extraMarkers = [], style }:
   React.useEffect(() => {
     const msg = JSON.stringify({ type: 'markers', markers: extraMarkers });
     if (Platform.OS === 'web') {
-      const iframe = document.querySelector('iframe');
+      const iframe = document.querySelector('iframe[title="map"]') as HTMLIFrameElement | null;
       iframe?.contentWindow?.postMessage(msg, '*');
     } else {
       webviewRef.current?.postMessage(msg);
@@ -128,10 +148,11 @@ export default function MapView({ lat, lng, heading, extraMarkers = [], style }:
       <WebView
         ref={webviewRef}
         originWhitelist={['*']}
-        source={{ html }}
+        source={{ html, baseUrl: 'https://localhost' }}
         style={{ backgroundColor: '#0A0A0A' }}
         javaScriptEnabled
         domStorageEnabled
+        mixedContentMode="always"
         setSupportMultipleWindows={false}
       />
     </View>
