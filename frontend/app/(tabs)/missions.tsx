@@ -17,7 +17,9 @@ import { colors, radius, spacing } from '../../src/theme';
 import {
   getDriverMissions,
   getMarketplace,
+  getMarketplaceConfig,
   claimMarketplace,
+  getDriverProfile,
   apiError,
 } from '../../src/api';
 
@@ -70,13 +72,21 @@ export default function MissionsScreen() {
   const [loading, setLoading] = useState(false);
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [config, setConfig] = useState<any>(null);
+  const [onShift, setOnShift] = useState<boolean | null>(null);
+  const [debug, setDebug] = useState<string>('');
   const pollRef = useRef<any>(null);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const [a, av] = await Promise.allSettled([getDriverMissions(), getMarketplace()]);
+      const [a, av, cfg, prof] = await Promise.allSettled([
+        getDriverMissions(),
+        getMarketplace(),
+        getMarketplaceConfig(),
+        getDriverProfile(),
+      ]);
 
       if (a.status === 'fulfilled') {
         const v = a.value;
@@ -87,10 +97,23 @@ export default function MissionsScreen() {
 
       if (av.status === 'fulfilled') {
         const v = av.value;
-        setAvailable(Array.isArray(v) ? v : v?.items ?? []);
+        const list = Array.isArray(v) ? v : v?.items ?? [];
+        setAvailable(list);
+        setDebug(`Marketplace: ${list.length} course(s) reçue(s) · Type: ${typeof v} · Keys: ${typeof v === 'object' && v ? Object.keys(v).slice(0, 5).join(',') : 'n/a'}`);
       } else {
         setAvailable([]);
-        setError(apiError(av.reason));
+        const msg = apiError(av.reason);
+        setError(msg);
+        setDebug(`Erreur marketplace: ${msg}`);
+      }
+
+      if (cfg.status === 'fulfilled') {
+        setConfig(cfg.value);
+      }
+
+      if (prof.status === 'fulfilled') {
+        const p: any = prof.value;
+        setOnShift(Boolean(p?.on_shift ?? p?.is_on_shift ?? p?.shift_active));
       }
     } finally {
       if (!silent) setLoading(false);
@@ -152,19 +175,48 @@ export default function MissionsScreen() {
         refreshControl={<RefreshControl refreshing={loading} onRefresh={() => load()} tintColor={colors.primary} />}
         contentContainerStyle={{ padding: spacing.md, paddingBottom: 120, gap: spacing.md }}
         ListHeaderComponent={
-          tab === 'available' && error ? (
-            <View style={styles.errorBanner} testID="market-error">
-              <Ionicons name="alert-circle" size={16} color={colors.danger} />
-              <Text style={styles.errorText}>{error}</Text>
-              <TouchableOpacity onPress={() => load()} style={styles.retryBtn} testID="retry-btn">
-                <Ionicons name="refresh" size={14} color={colors.primary} />
-                <Text style={styles.retryText}>Réessayer</Text>
-              </TouchableOpacity>
-            </View>
-          ) : tab === 'available' && available.length > 0 ? (
-            <View style={styles.liveRow}>
-              <View style={styles.liveDot} />
-              <Text style={styles.liveText}>EN DIRECT — Mises à jour automatiques</Text>
+          tab === 'available' ? (
+            <View style={{ gap: 8 }}>
+              {/* Marketplace status banners */}
+              {config && config.enabled === false ? (
+                <View style={styles.warnBanner} testID="market-disabled">
+                  <Ionicons name="lock-closed" size={16} color={colors.warning} />
+                  <Text style={styles.warnText}>
+                    Le marketplace est désactivé pour votre flotte. Demandez à votre opérateur de l’activer.
+                  </Text>
+                </View>
+              ) : null}
+
+              {onShift === false ? (
+                <View style={styles.warnBanner} testID="not-on-shift">
+                  <Ionicons name="information-circle" size={16} color={colors.warning} />
+                  <Text style={styles.warnText}>
+                    Vous êtes hors service. Passez en service depuis l’onglet Carte pour voir et accepter les courses.
+                  </Text>
+                </View>
+              ) : null}
+
+              {error ? (
+                <View style={styles.errorBanner} testID="market-error">
+                  <Ionicons name="alert-circle" size={16} color={colors.danger} />
+                  <Text style={styles.errorText}>{error}</Text>
+                  <TouchableOpacity onPress={() => load()} style={styles.retryBtn} testID="retry-btn">
+                    <Ionicons name="refresh" size={14} color={colors.primary} />
+                    <Text style={styles.retryText}>Réessayer</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
+              {available.length > 0 ? (
+                <View style={styles.liveRow}>
+                  <View style={styles.liveDot} />
+                  <Text style={styles.liveText}>EN DIRECT — Mises à jour automatiques</Text>
+                </View>
+              ) : null}
+
+              {debug ? (
+                <Text style={styles.debugTxt} testID="market-debug">{debug}</Text>
+              ) : null}
             </View>
           ) : null
         }
@@ -316,6 +368,16 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   retryText: { color: colors.primary, fontSize: 12, fontWeight: '800' },
+  warnBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.warning + '15', borderColor: colors.warning,
+    borderWidth: 1, borderRadius: radius.lg, padding: 10,
+  },
+  warnText: { color: colors.warning, fontSize: 12, fontWeight: '600', flex: 1 },
+  debugTxt: {
+    color: colors.textMuted, fontSize: 10, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    backgroundColor: colors.surface, padding: 6, borderRadius: 6,
+  },
   card: {
     backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
     borderRadius: radius.xl, padding: spacing.md, gap: spacing.md,

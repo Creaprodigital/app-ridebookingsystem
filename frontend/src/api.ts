@@ -119,6 +119,11 @@ export async function getMarketplace() {
   return data;
 }
 
+export async function getMarketplaceConfig() {
+  const { data } = await api.get('/driver/internal-marketplace-config');
+  return data;
+}
+
 export async function claimMarketplace(id: string) {
   const { data } = await api.post(`/driver/internal-marketplace/${id}/claim`, {});
   return data;
