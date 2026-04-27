@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -69,26 +69,42 @@ export default function MissionsScreen() {
   const [available, setAvailable] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [claimingId, setClaimingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const pollRef = useRef<any>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    setError(null);
     try {
-      const [a, av] = await Promise.all([
-        getDriverMissions().catch(() => []),
-        getMarketplace().catch(() => []),
-      ]);
-      const aList = Array.isArray(a) ? a : a?.items ?? [];
-      const avList = Array.isArray(av) ? av : av?.items ?? [];
-      setAssigned(aList);
-      setAvailable(avList);
+      const [a, av] = await Promise.allSettled([getDriverMissions(), getMarketplace()]);
+
+      if (a.status === 'fulfilled') {
+        const v = a.value;
+        setAssigned(Array.isArray(v) ? v : v?.items ?? []);
+      } else {
+        setAssigned([]);
+      }
+
+      if (av.status === 'fulfilled') {
+        const v = av.value;
+        setAvailable(Array.isArray(v) ? v : v?.items ?? []);
+      } else {
+        setAvailable([]);
+        setError(apiError(av.reason));
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
       load();
+      // Auto refresh marketplace every 20s while focused
+      pollRef.current = setInterval(() => load(true), 20000);
+      return () => {
+        if (pollRef.current) clearInterval(pollRef.current);
+      };
     }, [load])
   );
 
@@ -133,8 +149,25 @@ export default function MissionsScreen() {
       <FlatList
         data={data}
         keyExtractor={(item, i) => String(item.id ?? item._id ?? i)}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.primary} />}
+        refreshControl={<RefreshControl refreshing={loading} onRefresh={() => load()} tintColor={colors.primary} />}
         contentContainerStyle={{ padding: spacing.md, paddingBottom: 120, gap: spacing.md }}
+        ListHeaderComponent={
+          tab === 'available' && error ? (
+            <View style={styles.errorBanner} testID="market-error">
+              <Ionicons name="alert-circle" size={16} color={colors.danger} />
+              <Text style={styles.errorText}>{error}</Text>
+              <TouchableOpacity onPress={() => load()} style={styles.retryBtn} testID="retry-btn">
+                <Ionicons name="refresh" size={14} color={colors.primary} />
+                <Text style={styles.retryText}>Réessayer</Text>
+              </TouchableOpacity>
+            </View>
+          ) : tab === 'available' && available.length > 0 ? (
+            <View style={styles.liveRow}>
+              <View style={styles.liveDot} />
+              <Text style={styles.liveText}>EN DIRECT — Mises à jour automatiques</Text>
+            </View>
+          ) : null
+        }
         ListEmptyComponent={
           loading ? (
             <View style={styles.empty}><ActivityIndicator color={colors.primary} /></View>
@@ -147,8 +180,14 @@ export default function MissionsScreen() {
               <Text style={styles.emptySub}>
                 {tab === 'assigned'
                   ? 'Passez en service pour recevoir des courses.'
-                  : 'Revenez bientôt, de nouvelles courses sont ajoutées régulièrement.'}
+                  : 'Aucune course dans le marketplace pour le moment. Cette page se rafraîchit automatiquement toutes les 20 secondes.'}
               </Text>
+              {tab === 'available' ? (
+                <TouchableOpacity onPress={() => load()} style={styles.retryBtn} testID="empty-refresh-btn">
+                  <Ionicons name="refresh" size={14} color={colors.primary} />
+                  <Text style={styles.retryText}>Rafraîchir maintenant</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           )
         }
@@ -256,6 +295,27 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', paddingTop: 80, gap: 10 },
   emptyTitle: { color: colors.text, fontSize: 16, fontWeight: '800', marginTop: 4 },
   emptySub: { color: colors.textSecondary, fontSize: 13, textAlign: 'center', paddingHorizontal: 40 },
+  liveRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: spacing.sm, paddingVertical: 6,
+    backgroundColor: colors.success + '15', borderRadius: radius.full,
+    borderWidth: 1, borderColor: colors.success + '40', alignSelf: 'flex-start',
+  },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
+  liveText: { color: colors.success, fontWeight: '800', fontSize: 11, letterSpacing: 1 },
+  errorBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.danger + '20', borderColor: colors.danger,
+    borderWidth: 1, borderRadius: radius.lg, padding: 10,
+  },
+  errorText: { color: colors.danger, fontSize: 12, fontWeight: '600', flex: 1 },
+  retryBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.full,
+    backgroundColor: colors.primary + '22', borderWidth: 1, borderColor: colors.primary,
+    marginTop: 8,
+  },
+  retryText: { color: colors.primary, fontSize: 12, fontWeight: '800' },
   card: {
     backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
     borderRadius: radius.xl, padding: spacing.md, gap: spacing.md,
