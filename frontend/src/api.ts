@@ -7,7 +7,7 @@ import { Platform } from 'react-native';
 // whose URL is intrinsic to the product (NOT our own backend).
 const API_BASE =
   (process.env.EXPO_PUBLIC_API_BASE as string | undefined) ||
-  'https://shared-ride-pool.preview.emergentagent.com';
+  'https://shared-ride-pool.emergent.host';
 const TOKEN_KEY = 'sr_driver_token';
 
 const webStorage = {
