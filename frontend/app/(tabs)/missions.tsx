@@ -97,21 +97,32 @@ export default function MissionsScreen() {
 
       if (av.status === 'fulfilled') {
         const v = av.value;
-        const list = Array.isArray(v) ? v : v?.items ?? [];
+        const list = Array.isArray(v) ? v : v?.items ?? v?.listings ?? [];
         setAvailable(list);
-        // Useful diagnostic when list is empty
+        // Detailed diagnostic
+        const driverInfo: any = prof.status === 'fulfilled' ? prof.value : {};
+        const u = driverInfo?.user || {};
+        const tenantInfo = driverInfo?.tenant || {};
+        const dbg: string[] = [];
         if (Array.isArray(v)) {
-          setDebug(`✓ Marketplace OK · ${list.length} course(s) disponible(s)`);
+          dbg.push(`✓ Marketplace OK: ${list.length} course(s)`);
         } else if (v && typeof v === 'object') {
           const keys = Object.keys(v);
-          if (keys.length === 0) {
-            setDebug(`Marketplace renvoie un objet vide {} — probablement désactivé pour votre flotte`);
-          } else {
-            setDebug(`Marketplace: ${list.length} course(s) · Réponse: {${keys.slice(0, 3).join(', ')}}`);
-          }
-        } else {
-          setDebug(`Réponse inattendue: ${typeof v}`);
+          dbg.push(keys.length === 0
+            ? `Réponse vide {} → marketplace désactivée pour votre tenant`
+            : `Marketplace: ${list.length} course(s) · Wrapper keys: ${keys.join(',')}`
+          );
         }
+        if (u.email) dbg.push(`Driver: ${u.email}`);
+        if (u.tenant_id || tenantInfo.id) dbg.push(`Tenant: ${u.tenant_id || tenantInfo.id}${tenantInfo.name ? ` (${tenantInfo.name})` : ''}`);
+        if (u.id) dbg.push(`Driver ID: ${u.id}`);
+        if (u.vehicle_id) dbg.push(`Vehicle: ${u.vehicle_id}`);
+        if (cfg.status === 'fulfilled' && cfg.value) {
+          const c: any = cfg.value;
+          if (c.enabled !== undefined) dbg.push(`Config enabled: ${c.enabled}`);
+          if (c.auto_post_delay_minutes !== undefined) dbg.push(`Auto-post: ${c.auto_post_delay_minutes}min`);
+        }
+        setDebug(dbg.join('\n'));
       } else {
         setAvailable([]);
         const msg = apiError(av.reason);
