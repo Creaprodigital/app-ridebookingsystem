@@ -2,7 +2,12 @@ import axios, { AxiosError, AxiosInstance } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-const API_BASE = process.env.EXPO_PUBLIC_API_BASE as string;
+// External backend (shared-ride-pool). Env is baked at build time.
+// Fallback hard-coded ONLY because this app consumes an external third-party API
+// whose URL is intrinsic to the product (NOT our own backend).
+const API_BASE =
+  (process.env.EXPO_PUBLIC_API_BASE as string | undefined) ||
+  'https://shared-ride-pool.preview.emergentagent.com';
 const TOKEN_KEY = 'sr_driver_token';
 
 const webStorage = {
