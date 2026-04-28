@@ -161,8 +161,26 @@ export default function Wallet() {
         }
         renderItem={({ item }) => {
           const meta = TYPE_LABELS[item.type] ?? { label: item.type ?? 'Mouvement', icon: 'cash-outline', color: colors.textSecondary };
-          const amount = (item.amount_cents ?? 0) / 100;
-          const isCredit = item.direction === 'credit' || amount > 0;
+          const rawAmount = (item.amount_cents ?? 0) / 100;
+          const type = String(item.type || '');
+          // Debit types — money leaving the wallet — must always render as negative
+          const isDebitType =
+            type.startsWith('commission_') ||
+            type === 'payout' ||
+            type === 'fee' ||
+            type === 'chargeback';
+          const isCreditType =
+            type === 'topup' ||
+            type === 'refund' ||
+            type === 'adjustment_credit' ||
+            type === 'bonus';
+          let isCredit: boolean;
+          if (isDebitType) isCredit = false;
+          else if (isCreditType) isCredit = true;
+          else if (item.direction === 'credit') isCredit = true;
+          else if (item.direction === 'debit') isCredit = false;
+          else isCredit = rawAmount > 0;
+          const displayAmount = isCredit ? Math.abs(rawAmount) : -Math.abs(rawAmount);
           const isPending = item.type === 'topup_pending';
           return (
             <View style={styles.txRow} testID={`tx-${item.id ?? item._id}`}>
@@ -175,7 +193,7 @@ export default function Wallet() {
                 {isPending ? <Text style={styles.pendingTag}>EN ATTENTE</Text> : null}
               </View>
               <Text style={[styles.txAmt, { color: isCredit ? colors.success : colors.danger }]}>
-                {isCredit ? '+' : ''}{fmtEur(amount)}
+                {isCredit ? '+' : ''}{fmtEur(displayAmount)}
               </Text>
             </View>
           );

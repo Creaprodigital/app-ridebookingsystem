@@ -59,7 +59,7 @@ export default function HomeMap() {
       const marketList = Array.isArray(market) ? market : market?.items ?? [];
       setCounts({ assigned: assignedList.length, available: marketList.length });
 
-      // Compute today's earnings from wallet transactions
+      // Compute today's earnings from wallet transactions (commissions count as gains for the driver's day)
       if (wal) {
         const txs: any[] = (wal as any).transactions || (wal as any).movements || (wal as any).history || [];
         const todayStart = new Date();
@@ -68,7 +68,10 @@ export default function HomeMap() {
         let count = 0;
         txs.forEach((t: any) => {
           const dt = new Date(t.created_at || t.date || t.at);
-          if (dt >= todayStart && (t.type === 'commission_internal' || t.type === 'commission_external' || (t.direction === 'credit' && (t.amount_cents ?? 0) > 0))) {
+          const type = String(t.type || '');
+          const isRideCommission =
+            type === 'commission_internal' || type === 'commission_external';
+          if (dt >= todayStart && isRideCommission) {
             total += Math.abs((t.amount_cents ?? 0) / 100);
             count += 1;
           }
