@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
+import { Modal } from 'react-native';
 import { colors, radius, spacing } from '../../src/theme';
 import {
   getDriverMissions,
@@ -20,6 +21,7 @@ import {
   getMarketplaceConfig,
   claimMarketplace,
   getDriverProfile,
+  getDriverWallet,
   apiError,
 } from '../../src/api';
 
@@ -116,17 +118,20 @@ export default function MissionsScreen() {
   const [config, setConfig] = useState<any>(null);
   const [onShift, setOnShift] = useState<boolean | null>(null);
   const [debug, setDebug] = useState<string>('');
+  const [walletBal, setWalletBal] = useState<number>(0);
+  const [showTopupModal, setShowTopupModal] = useState<boolean>(false);
   const pollRef = useRef<any>(null);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     setError(null);
     try {
-      const [a, av, cfg, prof] = await Promise.allSettled([
+      const [a, av, cfg, prof, wal] = await Promise.allSettled([
         getDriverMissions(),
         getMarketplace(),
         getMarketplaceConfig(),
         getDriverProfile(),
+        getDriverWallet(),
       ]);
 
       if (a.status === 'fulfilled') {
@@ -189,6 +194,11 @@ export default function MissionsScreen() {
         const shiftFlag = p?.user?.on_shift ?? p?.on_shift ?? p?.is_on_shift ?? p?.shift_active;
         setOnShift(Boolean(shiftFlag));
       }
+
+      if (wal.status === 'fulfilled') {
+        const w: any = wal.value;
+        setWalletBal(Number(w?.balance_eur ?? 0));
+      }
     } finally {
       if (!silent) setLoading(false);
     }
@@ -205,7 +215,14 @@ export default function MissionsScreen() {
     }, [load])
   );
 
+  const requiredMinBalance = Number(config?.min_balance_eur ?? 0);
+  const balanceTooLow = Boolean(config?.require_min_balance) && walletBal < requiredMinBalance;
+
   const claim = async (id: string) => {
+    if (balanceTooLow) {
+      setShowTopupModal(true);
+      return;
+    }
     setClaimingId(id);
     try {
       await claimMarketplace(id);
@@ -213,7 +230,14 @@ export default function MissionsScreen() {
       setTab('assigned');
     } catch (e) {
       const msg = apiError(e);
-      if (Platform.OS !== 'web') Alert.alert('Erreur', msg);
+      // Backend may also return balance error
+      if (/solde|balance|seuil|recharg/i.test(msg)) {
+        setShowTopupModal(true);
+      } else if (Platform.OS !== 'web') {
+        Alert.alert('Erreur', msg);
+      } else {
+        window.alert(msg);
+      }
     } finally {
       setClaimingId(null);
     }
@@ -277,6 +301,26 @@ export default function MissionsScreen() {
                   <TouchableOpacity onPress={() => load()} style={styles.retryBtn} testID="retry-btn">
                     <Ionicons name="refresh" size={14} color={colors.primary} />
                     <Text style={styles.retryText}>Réessayer</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+
+              {balanceTooLow && tab === 'available' ? (
+                <View style={styles.lowBalanceBanner} testID="low-balance-banner">
+                  <Ionicons name="wallet" size={18} color={colors.danger} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.lowBalanceTitle}>Portefeuille sous le seuil requis</Text>
+                    <Text style={styles.lowBalanceSub}>
+                      Vous devez avoir au moins {requiredMinBalance.toFixed(2)} € pour prendre une course.
+                      Solde actuel : {walletBal.toFixed(2)} €.
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.lowBalanceBtn}
+                    onPress={() => setShowTopupModal(true)}
+                    testID="low-balance-recharge"
+                  >
+                    <Text style={styles.lowBalanceBtnText}>RECHARGER</Text>
                   </TouchableOpacity>
                 </View>
               ) : null}
@@ -424,6 +468,56 @@ export default function MissionsScreen() {
           );
         }}
       />
+
+      {/* Low balance — Top-up modal */}
+      <Modal visible={showTopupModal} animationType="fade" transparent onRequestClose={() => setShowTopupModal(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard} testID="balance-modal">
+            <View style={styles.modalIconWrap}>
+              <Ionicons name="wallet" size={36} color={colors.danger} />
+            </View>
+            <Text style={styles.modalTitle}>Solde insuffisant</Text>
+            <Text style={styles.modalText}>
+              Votre solde de portefeuille est sous le seuil minimum exigé par votre flotte pour
+              prendre une nouvelle course.
+            </Text>
+
+            <View style={styles.modalRow}>
+              <View style={styles.modalCell}>
+                <Text style={styles.modalCellLbl}>SOLDE ACTUEL</Text>
+                <Text style={[styles.modalCellVal, { color: colors.danger }]}>
+                  {walletBal.toFixed(2)} €
+                </Text>
+              </View>
+              <View style={styles.modalCell}>
+                <Text style={styles.modalCellLbl}>SEUIL REQUIS</Text>
+                <Text style={[styles.modalCellVal, { color: colors.primary }]}>
+                  {requiredMinBalance.toFixed(2)} €
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={styles.modalPrimaryBtn}
+              onPress={() => {
+                setShowTopupModal(false);
+                router.push('/(tabs)/earnings');
+              }}
+              testID="modal-recharge-btn"
+            >
+              <Ionicons name="add-circle" size={18} color={colors.bg} />
+              <Text style={styles.modalPrimaryText}>RECHARGER LE PORTEFEUILLE</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalGhostBtn}
+              onPress={() => setShowTopupModal(false)}
+              testID="modal-cancel-btn"
+            >
+              <Text style={styles.modalGhostText}>Plus tard</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -475,6 +569,48 @@ const styles = StyleSheet.create({
     color: colors.textMuted, fontSize: 10, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     backgroundColor: colors.surface, padding: 6, borderRadius: 6,
   },
+  lowBalanceBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: colors.danger + '15', borderColor: colors.danger,
+    borderWidth: 1, borderRadius: radius.lg, padding: 12,
+  },
+  lowBalanceTitle: { color: colors.danger, fontWeight: '900', fontSize: 13 },
+  lowBalanceSub: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
+  lowBalanceBtn: {
+    backgroundColor: colors.danger, paddingHorizontal: 12, paddingVertical: 8,
+    borderRadius: radius.full,
+  },
+  lowBalanceBtnText: { color: '#fff', fontWeight: '900', fontSize: 11, letterSpacing: 0.8 },
+  modalBackdrop: {
+    flex: 1, justifyContent: 'center', alignItems: 'center',
+    backgroundColor: '#000000CC', padding: spacing.lg,
+  },
+  modalCard: {
+    width: '100%', maxWidth: 420, backgroundColor: colors.surface,
+    borderRadius: radius.xl, padding: spacing.lg, gap: spacing.md, alignItems: 'center',
+    borderColor: colors.border, borderWidth: 1,
+  },
+  modalIconWrap: {
+    width: 76, height: 76, borderRadius: 38, backgroundColor: colors.danger + '22',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  modalTitle: { color: colors.text, fontSize: 22, fontWeight: '900', textAlign: 'center' },
+  modalText: { color: colors.textSecondary, fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  modalRow: { flexDirection: 'row', gap: 10, alignSelf: 'stretch', marginVertical: 6 },
+  modalCell: {
+    flex: 1, backgroundColor: colors.bg, borderRadius: radius.lg,
+    padding: 12, alignItems: 'center', borderWidth: 1, borderColor: colors.border,
+  },
+  modalCellLbl: { color: colors.textMuted, fontSize: 10, fontWeight: '800', letterSpacing: 1.2 },
+  modalCellVal: { fontSize: 22, fontWeight: '900', marginTop: 4 },
+  modalPrimaryBtn: {
+    alignSelf: 'stretch', height: 56, borderRadius: radius.full, backgroundColor: colors.primary,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+    shadowColor: colors.primary, shadowOpacity: 0.4, shadowRadius: 16, shadowOffset: { width: 0, height: 0 },
+  },
+  modalPrimaryText: { color: colors.bg, fontWeight: '900', fontSize: 14, letterSpacing: 1 },
+  modalGhostBtn: { paddingVertical: 8 },
+  modalGhostText: { color: colors.textSecondary, fontWeight: '600' },
   card: {
     backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
     borderRadius: radius.xl, padding: spacing.md, gap: spacing.md,
@@ -486,6 +622,11 @@ const styles = StyleSheet.create({
   statusDot: { width: 8, height: 8, borderRadius: 4 },
   statusText: { color: colors.textSecondary, fontWeight: '800', fontSize: 11, letterSpacing: 1 },
   price: { color: colors.primary, fontSize: 22, fontWeight: '900', letterSpacing: -0.8 },
+  priceLbl: { color: colors.textMuted, fontSize: 9, fontWeight: '800', letterSpacing: 1.2 },
+  badge: {
+    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1,
+  },
+  badgeText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
   route: { flexDirection: 'row', gap: 12, alignItems: 'stretch' },
   routeLine: { alignItems: 'center', paddingTop: 6, paddingBottom: 6, width: 14 },
   routeDot: { width: 10, height: 10, borderRadius: 5 },
