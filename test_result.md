@@ -103,6 +103,30 @@
 #====================================================================================================
 
 frontend:
+  - task: "Block ride access when off-shift"
+    implemented: true
+    working: "NA"
+    file: "app/(tabs)/missions.tsx, app/mission/[id].tsx, src/ridesContext.tsx, app/(tabs)/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "RidesProvider now exposes onShift globally (fetched from /api/driver/profile, refreshed on toggle, on AppState=active and every 20s). Missions screen: cards are dimmed when off-shift, the claim button becomes 'PASSEZ EN SERVICE' (disabled-looking) and tapping any assigned mission card or claim button surfaces an Alert prompting the driver to go on-shift. A persistent banner with a CTA to the Carte tab is shown at the top of the missions list. Mission detail: when off-shift, the slide-button footer is replaced with a 'Hors service' banner + CTA. Toggling shift from the home tab calls refreshShift() so the gating reflects instantly across screens."
+
+  - task: "End-of-ride summary modal with payment instructions"
+    implemented: true
+    working: "NA"
+    file: "app/mission/[id].tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "When the driver slides 'GLISSER POUR TERMINER' on the in_progress mission, the backend status is set to completed and a fullscreen completion modal opens showing: amount of the ride (large yellow value) and a colour-coded payment block. If payment is online (card, stripe, app, prepaid, paid_online, payment_status=paid…) the modal shows a yellow info block 'N'encaissez pas le client. Le paiement a été effectué en ligne.' If payment is cash/onboard the modal shows a warning block 'Encaissez le client à bord. Le paiement doit être effectué directement auprès de vous.' Closing the modal returns to the missions list."
+
   - task: "Floating ride bubble (in-app, draggable, always on top)"
     implemented: true
     working: "NA"

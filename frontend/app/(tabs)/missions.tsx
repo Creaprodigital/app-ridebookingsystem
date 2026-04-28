@@ -234,7 +234,19 @@ export default function MissionsScreen() {
   const requiredMinBalance = Number(config?.min_balance_eur ?? 0);
   const balanceTooLow = Boolean(config?.require_min_balance) && walletBal < requiredMinBalance;
 
+  const requireOnShift = useCallback(() => {
+    if (onShift === false) {
+      haptic('warning');
+      const msg = 'Vous êtes hors service. Veuillez passer en service depuis l’onglet Carte pour accéder aux courses.';
+      if (Platform.OS !== 'web') Alert.alert('Hors service', msg);
+      else if (typeof window !== 'undefined') window.alert(msg);
+      return false;
+    }
+    return true;
+  }, [onShift]);
+
   const claim = async (id: string) => {
+    if (!requireOnShift()) return;
     if (balanceTooLow) {
       haptic('warning');
       setShowTopupModal(true);
@@ -261,6 +273,11 @@ export default function MissionsScreen() {
     } finally {
       setClaimingId(null);
     }
+  };
+
+  const openMission = (id: string) => {
+    if (!requireOnShift()) return;
+    router.push(`/mission/${id}`);
   };
 
   const data = tab === 'assigned' ? assigned : available;
@@ -293,70 +310,82 @@ export default function MissionsScreen() {
         refreshControl={<RefreshControl refreshing={loading} onRefresh={() => load()} tintColor={colors.primary} />}
         contentContainerStyle={{ padding: spacing.md, paddingBottom: 120, gap: spacing.md }}
         ListHeaderComponent={
-          tab === 'available' ? (
-            <View style={{ gap: 8 }}>
-              {/* Marketplace status banners */}
-              {config && config.enabled === false ? (
-                <View style={styles.warnBanner} testID="market-disabled">
-                  <Ionicons name="lock-closed" size={16} color={colors.warning} />
-                  <Text style={styles.warnText}>
-                    Le marketplace est désactivé pour votre flotte. Demandez à votre opérateur de l’activer.
+          <View style={{ gap: 8 }}>
+            {onShift === false ? (
+              <View style={styles.offShiftBanner} testID="off-shift-banner">
+                <Ionicons name="lock-closed" size={18} color={colors.warning} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.offShiftTitle}>Vous êtes hors service</Text>
+                  <Text style={styles.offShiftSub}>
+                    Veuillez passer en service pour accéder aux courses et démarrer une mission.
                   </Text>
                 </View>
-              ) : null}
+                <TouchableOpacity
+                  style={styles.offShiftBtn}
+                  onPress={() => router.push('/(tabs)')}
+                  testID="off-shift-cta"
+                >
+                  <Text style={styles.offShiftBtnText}>EN SERVICE</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
 
-              {onShift === false ? (
-                <View style={styles.warnBanner} testID="not-on-shift">
-                  <Ionicons name="information-circle" size={16} color={colors.warning} />
-                  <Text style={styles.warnText}>
-                    Vous êtes hors service. Passez en service depuis l’onglet Carte pour voir et accepter les courses.
-                  </Text>
-                </View>
-              ) : null}
-
-              {error ? (
-                <View style={styles.errorBanner} testID="market-error">
-                  <Ionicons name="alert-circle" size={16} color={colors.danger} />
-                  <Text style={styles.errorText}>{error}</Text>
-                  <TouchableOpacity onPress={() => load()} style={styles.retryBtn} testID="retry-btn">
-                    <Ionicons name="refresh" size={14} color={colors.primary} />
-                    <Text style={styles.retryText}>Réessayer</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : null}
-
-              {balanceTooLow && tab === 'available' ? (
-                <View style={styles.lowBalanceBanner} testID="low-balance-banner">
-                  <Ionicons name="wallet" size={18} color={colors.danger} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.lowBalanceTitle}>Portefeuille sous le seuil requis</Text>
-                    <Text style={styles.lowBalanceSub}>
-                      Vous devez avoir au moins {requiredMinBalance.toFixed(2)} € pour prendre une course.
-                      Solde actuel : {walletBal.toFixed(2)} €.
+            {tab === 'available' ? (
+              <>
+                {/* Marketplace status banners */}
+                {config && config.enabled === false ? (
+                  <View style={styles.warnBanner} testID="market-disabled">
+                    <Ionicons name="lock-closed" size={16} color={colors.warning} />
+                    <Text style={styles.warnText}>
+                      Le marketplace est désactivé pour votre flotte. Demandez à votre opérateur de l’activer.
                     </Text>
                   </View>
-                  <TouchableOpacity
-                    style={styles.lowBalanceBtn}
-                    onPress={() => setShowTopupModal(true)}
-                    testID="low-balance-recharge"
-                  >
-                    <Text style={styles.lowBalanceBtnText}>RECHARGER</Text>
-                  </TouchableOpacity>
-                </View>
-              ) : null}
+                ) : null}
 
-              {available.length > 0 ? (
-                <View style={styles.liveRow}>
-                  <View style={styles.liveDot} />
-                  <Text style={styles.liveText}>EN DIRECT — Mises à jour automatiques</Text>
-                </View>
-              ) : null}
+                {error ? (
+                  <View style={styles.errorBanner} testID="market-error">
+                    <Ionicons name="alert-circle" size={16} color={colors.danger} />
+                    <Text style={styles.errorText}>{error}</Text>
+                    <TouchableOpacity onPress={() => load()} style={styles.retryBtn} testID="retry-btn">
+                      <Ionicons name="refresh" size={14} color={colors.primary} />
+                      <Text style={styles.retryText}>Réessayer</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : null}
 
-              {debug && false ? (
-                <Text style={styles.debugTxt} testID="market-debug">{debug}</Text>
-              ) : null}
-            </View>
-          ) : null
+                {balanceTooLow && tab === 'available' ? (
+                  <View style={styles.lowBalanceBanner} testID="low-balance-banner">
+                    <Ionicons name="wallet" size={18} color={colors.danger} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.lowBalanceTitle}>Portefeuille sous le seuil requis</Text>
+                      <Text style={styles.lowBalanceSub}>
+                        Vous devez avoir au moins {requiredMinBalance.toFixed(2)} € pour prendre une course.
+                        Solde actuel : {walletBal.toFixed(2)} €.
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      style={styles.lowBalanceBtn}
+                      onPress={() => setShowTopupModal(true)}
+                      testID="low-balance-recharge"
+                    >
+                      <Text style={styles.lowBalanceBtnText}>RECHARGER</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : null}
+
+                {available.length > 0 ? (
+                  <View style={styles.liveRow}>
+                    <View style={styles.liveDot} />
+                    <Text style={styles.liveText}>EN DIRECT — Mises à jour automatiques</Text>
+                  </View>
+                ) : null}
+
+                {debug && false ? (
+                  <Text style={styles.debugTxt} testID="market-debug">{debug}</Text>
+                ) : null}
+              </>
+            ) : null}
+          </View>
         }
         ListEmptyComponent={
           loading ? (
@@ -391,8 +420,8 @@ export default function MissionsScreen() {
           return (
             <TouchableOpacity
               activeOpacity={tab === 'assigned' ? 0.8 : 1}
-              onPress={() => tab === 'assigned' && router.push(`/mission/${item.id ?? item._id}`)}
-              style={styles.card}
+              onPress={() => tab === 'assigned' && openMission(String(item.id ?? item._id))}
+              style={[styles.card, onShift === false && styles.cardDimmed]}
               testID={`mission-card-${item.id ?? item._id}`}
             >
               <View style={styles.cardHead}>
@@ -464,7 +493,7 @@ export default function MissionsScreen() {
 
               {tab === 'available' ? (
                 <TouchableOpacity
-                  style={styles.claimBtn}
+                  style={[styles.claimBtn, onShift === false && styles.claimBtnDisabled]}
                   onPress={() => claim(item.id ?? item._id)}
                   disabled={claimingId === (item.id ?? item._id)}
                   testID={`claim-${item.id ?? item._id}`}
@@ -473,15 +502,23 @@ export default function MissionsScreen() {
                     <ActivityIndicator color={colors.bg} />
                   ) : (
                     <>
-                      <Ionicons name="flash" size={16} color={colors.bg} />
-                      <Text style={styles.claimText}>ACCEPTER LA COURSE</Text>
+                      <Ionicons name={onShift === false ? 'lock-closed' : 'flash'} size={16} color={colors.bg} />
+                      <Text style={styles.claimText}>
+                        {onShift === false ? 'PASSEZ EN SERVICE' : 'ACCEPTER LA COURSE'}
+                      </Text>
                     </>
                   )}
                 </TouchableOpacity>
               ) : (
                 <View style={styles.openHint}>
-                  <Text style={styles.openHintText}>Voir détails</Text>
-                  <Ionicons name="arrow-forward" size={16} color={colors.primary} />
+                  <Text style={[styles.openHintText, onShift === false && { color: colors.textMuted }]}>
+                    {onShift === false ? 'Passez en service pour ouvrir' : 'Voir détails'}
+                  </Text>
+                  <Ionicons
+                    name={onShift === false ? 'lock-closed' : 'arrow-forward'}
+                    size={16}
+                    color={onShift === false ? colors.textMuted : colors.primary}
+                  />
                 </View>
               )}
             </TouchableOpacity>
@@ -664,7 +701,21 @@ const styles = StyleSheet.create({
     height: 52, backgroundColor: colors.primary, borderRadius: radius.full,
     alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8,
   },
+  claimBtnDisabled: { backgroundColor: colors.textMuted, opacity: 0.6 },
   claimText: { color: colors.bg, fontWeight: '900', fontSize: 13, letterSpacing: 1.2 },
+  cardDimmed: { opacity: 0.55 },
+  offShiftBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: colors.warning + '15', borderColor: colors.warning,
+    borderWidth: 1, borderRadius: radius.lg, padding: 12,
+  },
+  offShiftTitle: { color: colors.warning, fontWeight: '900', fontSize: 13 },
+  offShiftSub: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
+  offShiftBtn: {
+    backgroundColor: colors.warning, paddingHorizontal: 12, paddingVertical: 8,
+    borderRadius: radius.full,
+  },
+  offShiftBtnText: { color: '#000', fontWeight: '900', fontSize: 11, letterSpacing: 0.8 },
   openHint: {
     flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 6,
   },

@@ -24,11 +24,13 @@ import {
   apiError,
 } from '../../src/api';
 import { haptic } from '../../src/feedback';
+import { useRides } from '../../src/ridesContext';
 
 type Coords = { lat: number; lng: number; heading?: number | null; speed?: number | null };
 
 export default function HomeMap() {
   const router = useRouter();
+  const { refreshShift } = useRides();
   const [coords, setCoords] = useState<Coords | null>(null);
   const [onShift, setOnShift] = useState(false);
   const [toggling, setToggling] = useState(false);
@@ -149,6 +151,8 @@ export default function HomeMap() {
       const res: any = await setShift(next);
       const newShift = res?.user?.on_shift ?? res?.on_shift ?? next;
       setOnShift(Boolean(newShift));
+      // Sync the global rides context so off-shift gating is instant across screens
+      try { await refreshShift(); } catch {}
       haptic('success');
       if (newShift && coords) {
         try { await pushLocation(coords); } catch {}

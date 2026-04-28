@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { AppState, Platform } from 'react-native';
-import { getMarketplace, getDriverMissions } from './api';
+import { getMarketplace, getDriverMissions, getDriverProfile } from './api';
 import { haptic, playSound, notifyNewRide } from './feedback';
 import { NOTIF_SOUNDS, getNotifSoundId } from './prefs';
 import { useAuth } from './auth';
@@ -13,6 +13,8 @@ type RidesCtx = {
   latest: any[];
   hasNew: boolean;
   acknowledge: () => void;
+  onShift: boolean;
+  refreshShift: () => Promise<void>;
 };
 
 const Ctx = createContext<RidesCtx | null>(null);
@@ -21,6 +23,7 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [latest, setLatest] = useState<any[]>([]);
   const [newRidesCount, setNewRidesCount] = useState<number>(0);
+  const [onShift, setOnShift] = useState<boolean>(false);
   const knownIds = useRef<Set<string>>(new Set());
   const firstLoad = useRef<boolean>(true);
   const soundIdRef = useRef<string>('classic');
@@ -31,6 +34,14 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
     (async () => {
       soundIdRef.current = await getNotifSoundId();
     })();
+  }, []);
+
+  const refreshShift = useCallback(async () => {
+    try {
+      const p: any = await getDriverProfile();
+      const shiftFlag = p?.user?.on_shift ?? p?.on_shift ?? p?.is_on_shift ?? p?.shift_active;
+      setOnShift(Boolean(shiftFlag));
+    } catch {}
   }, []);
 
   const tick = useCallback(async () => {
@@ -81,12 +92,16 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
       firstLoad.current = true;
       setLatest([]);
       setNewRidesCount(0);
+      setOnShift(false);
       return;
     }
 
+    // Initial shift fetch
+    refreshShift();
+
     // Marketplace polling
     tick();
-    timer.current = setInterval(tick, POLL_INTERVAL_MS);
+    timer.current = setInterval(() => { tick(); refreshShift(); }, POLL_INTERVAL_MS);
 
     // Reminder scheduling — every 5 min
     refreshReminders();
@@ -96,6 +111,7 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
     const sub = AppState.addEventListener('change', (state) => {
       if (state === 'active') {
         tick();
+        refreshShift();
         refreshReminders();
       }
     });
@@ -105,7 +121,7 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
       if (reminderTimer.current) clearInterval(reminderTimer.current);
       sub.remove();
     };
-  }, [user, tick, refreshReminders]);
+  }, [user, tick, refreshReminders, refreshShift]);
 
   const acknowledge = useCallback(() => {
     setNewRidesCount(0);
@@ -116,6 +132,8 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
     latest,
     hasNew: newRidesCount > 0,
     acknowledge,
+    onShift,
+    refreshShift,
   };
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
@@ -124,7 +142,14 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
 export function useRides() {
   const c = useContext(Ctx);
   if (!c) {
-    return { newRidesCount: 0, latest: [], hasNew: false, acknowledge: () => {} } as RidesCtx;
+    return {
+      newRidesCount: 0,
+      latest: [],
+      hasNew: false,
+      acknowledge: () => {},
+      onShift: false,
+      refreshShift: async () => {},
+    } as RidesCtx;
   }
   return c;
 }
