@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Platform,
   Alert,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,13 +26,43 @@ import {
 } from '../../src/api';
 import { haptic } from '../../src/feedback';
 import { useRides } from '../../src/ridesContext';
+import { getNotifications, subscribe } from '../../src/notificationsHistory';
 
 type Coords = { lat: number; lng: number; heading?: number | null; speed?: number | null };
 
 export default function HomeMap() {
   const router = useRouter();
-  const { refreshShift } = useRides();
+  const { refreshShift, latest, pendingCount } = useRides();
   const [coords, setCoords] = useState<Coords | null>(null);
+  const [unreadNotif, setUnreadNotif] = useState(0);
+  const counterAnim = useRef(new Animated.Value(0)).current;
+  const lastCount = useRef(0);
+
+  // Live counter animation when number of available rides increases
+  useEffect(() => {
+    const count = latest?.length ?? 0;
+    if (count > lastCount.current) {
+      Animated.sequence([
+        Animated.timing(counterAnim, { toValue: 1, duration: 250, useNativeDriver: true }),
+        Animated.timing(counterAnim, { toValue: 0, duration: 250, useNativeDriver: true }),
+      ]).start();
+    }
+    lastCount.current = count;
+  }, [latest, counterAnim]);
+
+  // Unread notifications counter
+  useEffect(() => {
+    let mounted = true;
+    getNotifications().then((items) => {
+      if (mounted) setUnreadNotif(items.filter((e) => !e.read).length);
+    });
+    const unsub = subscribe((items) => {
+      if (mounted) setUnreadNotif(items.filter((e) => !e.read).length);
+    });
+    return () => { mounted = false; unsub(); };
+  }, []);
+
+  const counterScale = counterAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 1.25] });
   const [onShift, setOnShift] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [profile, setProfile] = useState<any>(null);
@@ -186,6 +217,37 @@ export default function HomeMap() {
             <Text style={styles.pillText}>{onShift ? 'EN LIGNE' : 'HORS LIGNE'}</Text>
           </View>
 
+          {/* Live ride counter (animated when increasing) */}
+          {(latest?.length ?? 0) > 0 ? (
+            <Animated.View
+              style={[styles.liveCounter, { transform: [{ scale: counterScale }] }]}
+              testID="live-counter"
+            >
+              <View style={styles.liveDot} />
+              <Text style={styles.liveCounterText}>
+                {latest.length} dispo{latest.length > 1 ? 's' : ''}
+              </Text>
+            </Animated.View>
+          ) : null}
+
+          <View style={{ flex: 1 }} />
+
+          {/* Notifications bell */}
+          <TouchableOpacity
+            style={styles.bellBtn}
+            onPress={() => router.push('/notifications' as any)}
+            testID="bell-btn"
+          >
+            <Ionicons name="notifications-outline" size={22} color={colors.text} />
+            {unreadNotif > 0 ? (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>
+                  {unreadNotif > 9 ? '9+' : unreadNotif}
+                </Text>
+              </View>
+            ) : null}
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={styles.greetBtn}
             onPress={() => router.push('/(tabs)/menu')}
@@ -277,8 +339,28 @@ const styles = StyleSheet.create({
   mapWrap: { flex: 1, position: 'relative' },
   topBar: {
     position: 'absolute', top: 12, left: 16, right: 16,
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', zIndex: 5,
+    flexDirection: 'row', alignItems: 'center', gap: 8, zIndex: 5,
   },
+  liveCounter: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.success,
+    paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999,
+    shadowColor: colors.success, shadowOpacity: 0.6, shadowRadius: 10, shadowOffset: { width: 0, height: 0 },
+  },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
+  liveCounterText: { color: '#fff', fontWeight: '900', fontSize: 11, letterSpacing: 0.6 },
+  bellBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: colors.bg + 'E6', alignItems: 'center', justifyContent: 'center',
+    borderWidth: 1, borderColor: colors.border,
+  },
+  bellBadge: {
+    position: 'absolute', top: -2, right: -2,
+    minWidth: 18, height: 18, paddingHorizontal: 4, borderRadius: 9,
+    backgroundColor: colors.danger, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: colors.bg,
+  },
+  bellBadgeText: { color: '#fff', fontWeight: '900', fontSize: 9 },
   pill: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999,

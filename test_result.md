@@ -139,6 +139,18 @@ frontend:
           agent: "main"
           comment: "New global PiP component rendered above all screens (mounted in _layout.tsx). Appears in the bottom-right corner whenever a new ride is detected by the global RidesProvider. Card shows: client name, scheduled date/time, service category, status pill (NOUVELLE/ASSIGNÉE/EN COURS/TERMINÉE) and amount. Two states: expanded card (default at appearance) and minimized circular pill with badge. Actions: minimize/expand, close, open full reservation (deep-links to /mission/[id] for assigned rides or /(tabs)/missions for marketplace). Discrete entrance animation: translate-Y + scale + fade with back ease. When count > 1, a yellow pulsing ring around the minimized pill plus a +N indicator on the expanded card. Hidden on login and on mission detail screens. Width responsive (max 360px, full-width-minus-32 on small phones). Uses pointerEvents='box-none' so it never blocks navigation underneath."
 
+  - task: "Premium Uber-style ride request system"
+    implemented: true
+    working: "NA"
+    file: "src/components/RideRequestModal.tsx, src/ridesContext.tsx, src/notificationsHistory.ts, app/notifications.tsx, app/_layout.tsx, app/(tabs)/index.tsx, app/(tabs)/menu.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "FULL REPLACEMENT of old FloatingRideBubble + PiP system. New flow: 1) RidesProvider polls every 3s in foreground, 20s in background, dedups via known IDs and a 10-min dismiss memory. 2) Maintains a queue of pending ride requests. Top of queue surfaces in RideRequestModal — full-screen Modal with darkened backdrop, slides from top with translate+scale+back-easing animation, triple haptic burst on appearance, sound from prefs, AND a local push so it shows when backgrounded. 3) Modal contains: 80px circular SVG countdown ring (green→red), 15s timer with auto-refuse, big yellow commission, payment pill, client avatar+name, datetime+distance row, route block (departure/destination), error banner on accept failure. Actions: green ACCEPTER (calls claimMarketplace, retries with extra 8s if fails), gray REFUSER (marks dismissed for 10 min, advances queue), 'Voir les détails' link to missions tab, swipe-up=accept / swipe-down=refuse. Queue badge '+N en attente' shown when pendingCount>1. 4) New /notifications history screen (AsyncStorage backed via prefs). Bell icon with red unread badge added to home top bar. Live counter pill 'N dispos' near the shift pill, pulses when ride count grows. 5) Old FloatingRideBubble.tsx, PiPReservation.tsx and androidOverlayService.ts deleted. 6) Push notifications still fire when a ride arrives so the driver is alerted out-of-app."
+
   - task: "Floating ride bubble (Android background-only via sticky notification)"
     implemented: true
     working: "NA"

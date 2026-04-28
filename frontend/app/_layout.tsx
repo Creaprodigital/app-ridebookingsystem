@@ -8,8 +8,7 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { colors } from '../src/theme';
 import { setupPushNotifications } from '../src/pushService';
 import { RidesProvider } from '../src/ridesContext';
-import FloatingRideBubble from '../src/components/FloatingRideBubble';
-import PiPReservation from '../src/components/PiPReservation';
+import RideRequestModal from '../src/components/RideRequestModal';
 
 function RouteGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -26,7 +25,6 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
     }
   }, [user, loading, segments, router]);
 
-  // Setup push notifications once user is authenticated
   React.useEffect(() => {
     if (!user) return;
     let cancelled = false;
@@ -73,6 +71,7 @@ export default function RootLayout() {
                 <Stack.Screen name="login" />
                 <Stack.Screen name="(tabs)" />
                 <Stack.Screen name="profile" options={{ animation: 'slide_from_right' }} />
+                <Stack.Screen name="notifications" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="settings/index" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="settings/sounds" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="settings/navigation" options={{ animation: 'slide_from_right' }} />
@@ -80,8 +79,8 @@ export default function RootLayout() {
                 <Stack.Screen name="settings/permissions" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="mission/[id]" options={{ presentation: 'card', animation: 'slide_from_right' }} />
               </Stack>
-              <FloatingRideBubble />
-              <PiPReservation />
+              {/* Premium Uber-style ride request modal — globally available */}
+              <RideRequestModal />
             </RouteGuard>
           </RidesProvider>
         </AuthProvider>

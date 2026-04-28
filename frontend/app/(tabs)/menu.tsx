@@ -46,6 +46,13 @@ export default function MenuScreen() {
       onPress: () => router.push('/profile'),
       testID: 'menu-profile',
     },
+    {
+      icon: 'notifications-outline',
+      label: 'Notifications',
+      sub: 'Historique des courses & alertes',
+      onPress: () => router.push('/notifications' as any),
+      testID: 'menu-notifications',
+    },
   ];
 
   const app: Row[] = [
