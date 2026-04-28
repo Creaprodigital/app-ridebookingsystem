@@ -41,17 +41,42 @@ function fmtMoney(v: any) {
 }
 
 function pickAddress(m: any, type: 'pickup' | 'dropoff') {
+  const b = m?.booking || {};
   return (
+    b[`${type}_address`] ||
     m?.[`${type}_address`] ||
     m?.[type]?.address ||
     m?.[`${type}`] ||
     m?.[`${type}_location`]?.address ||
-    '—'
+    (type === 'dropoff' ? 'À disposition' : '—')
   );
 }
 
 function pickDt(m: any) {
-  return m?.pickup_at || m?.scheduled_at || m?.pickup_time || m?.created_at;
+  return (
+    m?.booking?.pickup_at ||
+    m?.pickup_at ||
+    m?.scheduled_at ||
+    m?.pickup_time ||
+    m?.created_at
+  );
+}
+
+function pickPax(m: any) {
+  return m?.booking?.pax ?? m?.pax ?? m?.passengers ?? m?.passenger_count;
+}
+
+function pickVehicleCategory(m: any) {
+  return (
+    m?.booking?.vehicle_category_label ||
+    m?.vehicle_category_label ||
+    m?.booking?.vehicle_category ||
+    m?.vehicle_category
+  );
+}
+
+function pickAmount(m: any) {
+  return m?.amount ?? m?.price ?? m?.fare ?? m?.total ?? m?.booking?.price;
 }
 
 function fmtDate(dt?: string) {
@@ -268,10 +293,12 @@ export default function MissionsScreen() {
           )
         }
         renderItem={({ item }) => {
-          const status = item.status || 'assigned';
+          const status = item.status || (tab === 'available' ? 'open' : 'assigned');
           const meta = STATUS_META[status] ?? { label: status, color: colors.textSecondary };
-          const price = item.price ?? item.fare ?? item.amount ?? item.total;
-          const pax = item.pax ?? item.passengers ?? item.passenger_count;
+          const price = pickAmount(item);
+          const pax = pickPax(item);
+          const vehicleCat = pickVehicleCategory(item);
+          const isMarketplace = tab === 'available';
           return (
             <TouchableOpacity
               activeOpacity={tab === 'assigned' ? 0.8 : 1}
@@ -280,10 +307,25 @@ export default function MissionsScreen() {
               testID={`mission-card-${item.id ?? item._id}`}
             >
               <View style={styles.cardHead}>
-                <View style={[styles.statusDot, { backgroundColor: meta.color }]} />
-                <Text style={styles.statusText}>{meta.label.toUpperCase()}</Text>
+                {isMarketplace ? (
+                  <View style={[styles.badge, { backgroundColor: colors.primary + '22', borderColor: colors.primary }]}>
+                    <Text style={[styles.badgeText, { color: colors.primary }]}>
+                      {item.auto_posted ? 'AUTO-PUBLIÉE' : 'PUBLIÉE PAR LA COMPAGNIE'}
+                    </Text>
+                  </View>
+                ) : (
+                  <>
+                    <View style={[styles.statusDot, { backgroundColor: meta.color }]} />
+                    <Text style={styles.statusText}>{meta.label.toUpperCase()}</Text>
+                  </>
+                )}
                 <View style={{ flex: 1 }} />
-                <Text style={styles.price}>{fmtMoney(price)}</Text>
+                <View style={{ alignItems: 'flex-end' }}>
+                  {isMarketplace ? (
+                    <Text style={styles.priceLbl}>COMMISSION</Text>
+                  ) : null}
+                  <Text style={styles.price}>{fmtMoney(price)}</Text>
+                </View>
               </View>
 
               <View style={styles.route}>
@@ -309,17 +351,23 @@ export default function MissionsScreen() {
                   <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />
                   <Text style={styles.metaText}>{fmtDate(pickDt(item)) || '—'}</Text>
                 </View>
-                {pax ? (
-                  <View style={styles.metaChip}>
-                    <Ionicons name="people-outline" size={13} color={colors.textSecondary} />
-                    <Text style={styles.metaText}>{pax}</Text>
+                {vehicleCat ? (
+                  <View style={styles.metaChip} testID={`vehicle-cat-${item.id ?? item._id}`}>
+                    <Ionicons name="car-outline" size={13} color={colors.textSecondary} />
+                    <Text style={styles.metaText}>{vehicleCat}</Text>
                   </View>
                 ) : null}
-                {item.distance_km || item.distance ? (
+                {pax ? (
+                  <View style={styles.metaChip} testID={`pax-${item.id ?? item._id}`}>
+                    <Ionicons name="people-outline" size={13} color={colors.textSecondary} />
+                    <Text style={styles.metaText}>{pax} pax</Text>
+                  </View>
+                ) : null}
+                {item.distance_km || item.distance || item.booking?.distance_km ? (
                   <View style={styles.metaChip}>
                     <Ionicons name="navigate-outline" size={13} color={colors.textSecondary} />
                     <Text style={styles.metaText}>
-                      {Number(item.distance_km ?? item.distance).toFixed(1)} km
+                      {Number(item.distance_km ?? item.distance ?? item.booking?.distance_km).toFixed(1)} km
                     </Text>
                   </View>
                 ) : null}
