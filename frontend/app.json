@@ -69,7 +69,9 @@
           "sounds": []
         }
       ],
-      "./plugins/with-incoming-ride-notifications"
+      "./plugins/with-incoming-ride-notifications",
+      "expo-font",
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true
