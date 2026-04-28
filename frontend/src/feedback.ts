@@ -117,25 +117,48 @@ export async function ensureNotifPermission(): Promise<boolean> {
   }
 }
 
+export type PushTokenResult =
+  | { ok: true; token: string }
+  | { ok: false; reason: string };
+
 export async function getExpoPushToken(): Promise<string | null> {
-  if (Platform.OS === 'web' || !Notifications) return null;
+  const r = await getExpoPushTokenDetailed();
+  return r.ok ? r.token : null;
+}
+
+export async function getExpoPushTokenDetailed(): Promise<PushTokenResult> {
+  if (Platform.OS === 'web' || !Notifications) {
+    return { ok: false, reason: 'Notifications non supportées sur cette plateforme.' };
+  }
   try {
     if (Device && Device.isDevice === false) {
-      // Simulator doesn't yield real push tokens
-      return null;
+      return { ok: false, reason: 'Émulateur détecté · les push tokens nécessitent un appareil physique.' };
     }
     const granted = await ensureNotifPermission();
-    if (!granted) return null;
+    if (!granted) {
+      return { ok: false, reason: 'Permission refusée par le système.' };
+    }
     const projectId =
       Constants?.expoConfig?.extra?.eas?.projectId ||
       Constants?.easConfig?.projectId ||
+      (Constants as any)?.manifest?.extra?.eas?.projectId ||
       undefined;
-    const tokenData = await Notifications.getExpoPushTokenAsync(
-      projectId ? { projectId } : undefined
-    );
-    return tokenData?.data ?? null;
-  } catch {
-    return null;
+    if (!projectId) {
+      return {
+        ok: false,
+        reason: 'EAS projectId manquant dans app.json (extra.eas.projectId).',
+      };
+    }
+    const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+    if (!tokenData?.data) {
+      return { ok: false, reason: 'L’API Expo n’a renvoyé aucun token.' };
+    }
+    return { ok: true, token: tokenData.data };
+  } catch (e: any) {
+    return {
+      ok: false,
+      reason: String(e?.message || e || 'Erreur inconnue').slice(0, 200),
+    };
   }
 }
 

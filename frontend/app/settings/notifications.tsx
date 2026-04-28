@@ -30,6 +30,7 @@ export default function NotificationsSettings() {
   const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [registered, setRegistered] = useState<boolean>(false);
+  const [errorReason, setErrorReason] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     const en = await isPushEnabled();
@@ -62,6 +63,7 @@ export default function NotificationsSettings() {
         setPermission(r.permission);
         setToken(r.token);
         setRegistered(r.registered);
+        setErrorReason(r.error ?? null);
         if (!r.permission) {
           Alert.alert(
             'Permission refusée',
@@ -73,6 +75,7 @@ export default function NotificationsSettings() {
         setEnabled(false);
         setToken(null);
         setRegistered(false);
+        setErrorReason(null);
       }
     } finally {
       setBusy(false);
@@ -187,6 +190,11 @@ export default function NotificationsSettings() {
               {token ? (
                 <Text style={[styles.rowSub, { color: registered ? colors.success : colors.warning }]}>
                   {registered ? '✓ Enregistré côté serveur' : '⚠ Enregistrement serveur en attente'}
+                </Text>
+              ) : null}
+              {!token && errorReason ? (
+                <Text style={[styles.rowSub, { color: colors.danger, marginTop: 4 }]}>
+                  ⚠ {errorReason}
                 </Text>
               ) : null}
             </View>

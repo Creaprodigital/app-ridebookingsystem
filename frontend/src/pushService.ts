@@ -3,7 +3,7 @@ import {
   configureNotificationHandler,
   ensureAndroidChannel,
   ensureNotifPermission,
-  getExpoPushToken,
+  getExpoPushTokenDetailed,
 } from './feedback';
 import { registerPushToken, unregisterPushToken } from './api';
 import { prefGet, prefSet } from './prefs';
@@ -37,6 +37,8 @@ export type PushSetupResult = {
   permission: boolean;
   token: string | null;
   registered: boolean;
+  /** Diagnostic message when the token cannot be retrieved. */
+  error?: string;
 };
 
 export type PushSetupOptions = {
@@ -70,16 +72,21 @@ export async function setupPushNotifications(opts?: PushSetupOptions): Promise<P
   if (!result.enabled) return result;
 
   result.permission = await ensureNotifPermission();
-  if (!result.permission) return result;
-
-  const token = await getExpoPushToken();
-  result.token = token;
-
-  if (token) {
-    await prefSet(PUSH_TOKEN_KEY, token);
-    const reg = await registerPushToken(token, Platform.OS);
-    result.registered = !!reg;
+  if (!result.permission) {
+    result.error = 'Permission notifications refusée par le système.';
+    return result;
   }
+
+  const tk = await getExpoPushTokenDetailed();
+  if (!tk.ok) {
+    result.error = tk.reason;
+    return result;
+  }
+  result.token = tk.token;
+
+  await prefSet(PUSH_TOKEN_KEY, tk.token);
+  const reg = await registerPushToken(tk.token, Platform.OS);
+  result.registered = !!reg;
 
   // Set up listeners once
   if (!setupDone) {
