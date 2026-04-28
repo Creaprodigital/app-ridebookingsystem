@@ -127,17 +127,17 @@ frontend:
           agent: "main"
           comment: "When the driver slides 'GLISSER POUR TERMINER' on the in_progress mission, the backend status is set to completed and a fullscreen completion modal opens showing: amount of the ride (large yellow value) and a colour-coded payment block. If payment is online (card, stripe, app, prepaid, paid_online, payment_status=paid…) the modal shows a yellow info block 'N'encaissez pas le client. Le paiement a été effectué en ligne.' If payment is cash/onboard the modal shows a warning block 'Encaissez le client à bord. Le paiement doit être effectué directement auprès de vous.' Closing the modal returns to the missions list."
 
-  - task: "Floating ride bubble (in-app, draggable, always on top)"
+  - task: "Floating ride bubble (Android background-only via sticky notification)"
     implemented: true
     working: "NA"
-    file: "src/components/FloatingRideBubble.tsx, src/ridesContext.tsx, app/_layout.tsx"
+    file: "src/components/FloatingRideBubble.tsx, src/androidOverlayService.ts, app.json"
     stuck_count: 0
     priority: "high"
     needs_retesting: false
     status_history:
         - working: "NA"
           agent: "main"
-          comment: "New global RidesProvider polls the marketplace every 20s while authenticated and exposes the live count + last entries. The FloatingRideBubble component is rendered globally in the root layout, hidden on the login screen, draggable with snap-to-edge behaviour, and shows a pulsing badge when new rides arrive. Tapping it opens an expanded card preview, then routes the driver to the missions tab. The previous in-screen polling/notification trigger in missions.tsx was removed to avoid duplicate alerts. NOTE: this overlay is in-app only — a true system-wide overlay (over other apps) requires a custom Android dev build with SYSTEM_ALERT_WINDOW; not feasible in managed Expo workflow."
+          comment: "Refactored to be Android-only and background-only. The component now renders nothing on screen — it acts as a manager that wires the global RidesProvider data into androidOverlayService.ts. Logic: AppState=background → posts a sticky high-priority notification on the 'floating_bubble' channel showing count + first pickup + commission, with deep-link data → /(tabs)/missions. AppState=active → notification dismissed automatically. iOS / Web: no-op. SYSTEM_ALERT_WINDOW added to android.permissions for a future native overlay module; requestOverlayPermission() opens the corresponding Android settings page (sendIntent ACTION_MANAGE_OVERLAY_PERMISSION). Bubble UI removed from foreground (per user spec)."
 
   - task: "Auto reminder 1h before each mission"
     implemented: true

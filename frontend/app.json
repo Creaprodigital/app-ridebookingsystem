@@ -32,7 +32,8 @@
         "RECORD_AUDIO",
         "READ_CONTACTS",
         "CALL_PHONE",
-        "VIBRATE"
+        "VIBRATE",
+        "SYSTEM_ALERT_WINDOW"
       ]
     },
     "web": {
