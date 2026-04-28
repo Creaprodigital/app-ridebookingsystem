@@ -6,6 +6,7 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { AuthProvider, useAuth } from '../src/auth';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { colors } from '../src/theme';
+import { setupPushNotifications } from '../src/pushService';
 
 function RouteGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -21,6 +22,24 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
       router.replace('/(tabs)');
     }
   }, [user, loading, segments, router]);
+
+  // Setup push notifications once user is authenticated
+  React.useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await setupPushNotifications({
+          onTap: (data: any) => {
+            if (cancelled) return;
+            const route = data?.route || '/(tabs)/missions';
+            try { router.push(route); } catch {}
+          },
+        });
+      } catch {}
+    })();
+    return () => { cancelled = true; };
+  }, [user, router]);
 
   if (loading) {
     return (
@@ -53,6 +72,7 @@ export default function RootLayout() {
               <Stack.Screen name="settings/index" options={{ animation: 'slide_from_right' }} />
               <Stack.Screen name="settings/sounds" options={{ animation: 'slide_from_right' }} />
               <Stack.Screen name="settings/navigation" options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="settings/notifications" options={{ animation: 'slide_from_right' }} />
               <Stack.Screen name="settings/permissions" options={{ animation: 'slide_from_right' }} />
               <Stack.Screen name="mission/[id]" options={{ presentation: 'card', animation: 'slide_from_right' }} />
             </Stack>

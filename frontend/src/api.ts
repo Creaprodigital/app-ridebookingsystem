@@ -133,3 +133,35 @@ export async function claimMarketplace(id: string) {
   const { data } = await api.post(`/driver/internal-marketplace/${id}/claim`, {});
   return data;
 }
+
+// ---------- Push notifications ----------
+export async function registerPushToken(token: string, platform: string) {
+  // Try the most common shapes — the backend will accept the first one it understands.
+  const payload = {
+    token,
+    expo_token: token,
+    push_token: token,
+    platform,
+    device_type: platform,
+  };
+  try {
+    const { data } = await api.post('/driver/push-token', payload);
+    return data;
+  } catch (e) {
+    // Swallow registration errors — push is non-critical for app function.
+    return null;
+  }
+}
+
+export async function unregisterPushToken(token?: string) {
+  try {
+    if (token) {
+      const { data } = await api.delete('/driver/push-token', { data: { token } });
+      return data;
+    }
+    const { data } = await api.delete('/driver/push-token');
+    return data;
+  } catch {
+    return null;
+  }
+}

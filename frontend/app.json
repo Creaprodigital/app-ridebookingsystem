@@ -59,7 +59,15 @@
       ],
       "expo-secure-store",
       "expo-web-browser",
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#F5B72E",
+          "sounds": []
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

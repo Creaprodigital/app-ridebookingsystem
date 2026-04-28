@@ -18,6 +18,13 @@ export default function SettingsIndex() {
 
   const rows: Row[] = [
     {
+      icon: 'notifications-outline',
+      label: 'Notifications push',
+      sub: 'Recevez les nouvelles courses en temps réel',
+      onPress: () => router.push('/settings/notifications'),
+      testID: 'settings-notifications',
+    },
+    {
       icon: 'musical-notes-outline',
       label: 'Sons',
       sub: 'Choisissez votre sonnerie de notification',

@@ -1,5 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
+import React, { useCallback, useEffect, useRef, useState } from 'react';import {
   View,
   Text,
   StyleSheet,
@@ -15,6 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Modal } from 'react-native';
 import { colors, radius, spacing } from '../../src/theme';
+import { haptic, playSound, ensureNotifPermission, notifyNewRide } from '../../src/feedback';
+import { NOTIF_SOUNDS, getNotifSoundId } from '../../src/prefs';
 import {
   getDriverMissions,
   getMarketplace,
@@ -121,6 +122,16 @@ export default function MissionsScreen() {
   const [walletBal, setWalletBal] = useState<number>(0);
   const [showTopupModal, setShowTopupModal] = useState<boolean>(false);
   const pollRef = useRef<any>(null);
+  const knownIdsRef = useRef<Set<string>>(new Set());
+  const firstLoadRef = useRef<boolean>(true);
+  const soundIdRef = useRef<string>('classic');
+
+  useEffect(() => {
+    (async () => {
+      soundIdRef.current = await getNotifSoundId();
+      ensureNotifPermission();
+    })();
+  }, []);
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -147,6 +158,25 @@ export default function MissionsScreen() {
         const v = av.value;
         const list = Array.isArray(v) ? v : v?.items ?? v?.listings ?? [];
         setAvailable(list);
+
+        // Detect newly arrived rides since last poll
+        const currentIds = new Set<string>(list.map((it: any) => String(it.id ?? it._id)));
+        if (!firstLoadRef.current) {
+          const newOnes = list.filter((it: any) => !knownIdsRef.current.has(String(it.id ?? it._id)));
+          if (newOnes.length > 0) {
+            const sound = NOTIF_SOUNDS.find((s) => s.id === soundIdRef.current) ?? NOTIF_SOUNDS[0];
+            playSound(sound.url);
+            haptic('success');
+            const first = newOnes[0];
+            const amt = pickAmount(first);
+            notifyNewRide({
+              title: `${newOnes.length} nouvelle${newOnes.length > 1 ? 's' : ''} course${newOnes.length > 1 ? 's' : ''} !`,
+              body: amt ? `Commission: ${Number(amt).toFixed(2)} €` : 'Disponibles dans le marketplace',
+            });
+          }
+        }
+        firstLoadRef.current = false;
+        knownIdsRef.current = currentIds;
         // Detailed diagnostic
         const driverInfo: any = prof.status === 'fulfilled' ? prof.value : {};
         const u = driverInfo?.user || {};
@@ -220,15 +250,19 @@ export default function MissionsScreen() {
 
   const claim = async (id: string) => {
     if (balanceTooLow) {
+      haptic('warning');
       setShowTopupModal(true);
       return;
     }
+    haptic('medium');
     setClaimingId(id);
     try {
       await claimMarketplace(id);
+      haptic('success');
       await load();
       setTab('assigned');
     } catch (e) {
+      haptic('error');
       const msg = apiError(e);
       // Backend may also return balance error
       if (/solde|balance|seuil|recharg/i.test(msg)) {
@@ -332,7 +366,7 @@ export default function MissionsScreen() {
                 </View>
               ) : null}
 
-              {debug ? (
+              {debug && false ? (
                 <Text style={styles.debugTxt} testID="market-debug">{debug}</Text>
               ) : null}
             </View>

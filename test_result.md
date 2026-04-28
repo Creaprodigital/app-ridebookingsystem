@@ -101,3 +101,45 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+frontend:
+  - task: "Push notifications setup (Expo Notifications)"
+    implemented: true
+    working: "NA"
+    file: "src/feedback.ts, src/pushService.ts, app/_layout.tsx, app/settings/notifications.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Added expo-notifications integration. New `pushService.ts` handles permission, Android channel, expo push token retrieval and registration with backend (`POST /api/driver/push-token`). New `app/settings/notifications.tsx` screen lets driver enable/disable push, test a notification and view their device token. `_layout.tsx` calls `setupPushNotifications()` once authenticated and routes notification taps to `/(tabs)/missions`. The settings index now exposes the notifications entry."
+
+  - task: "Fix incorrect profile route"
+    implemented: true
+    working: "NA"
+    file: "app/(tabs)/index.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Profile header button was pointing to non-existent /(tabs)/profile route. Changed to /(tabs)/menu which is the actual screen."
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 0
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Push notifications setup (Expo Notifications)"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+    - agent: "main"
+      message: "Implemented Expo Push Notifications: permission flow, Android channel, getExpoPushTokenAsync, register with backend at /api/driver/push-token, foreground handler with banner, and settings screen with toggle + test button. Tap on a notification routes the user to the Missions tab. App compiles fine; full e2e validation requires a real device + driver credentials."

@@ -18,10 +18,12 @@ import {
   getDriverProfile,
   getDriverMissions,
   getMarketplace,
+  getDriverWallet,
   setShift,
   pushLocation,
   apiError,
 } from '../../src/api';
+import { haptic } from '../../src/feedback';
 
 type Coords = { lat: number; lng: number; heading?: number | null; speed?: number | null };
 
@@ -32,6 +34,7 @@ export default function HomeMap() {
   const [toggling, setToggling] = useState(false);
   const [profile, setProfile] = useState<any>(null);
   const [counts, setCounts] = useState({ assigned: 0, available: 0 });
+  const [todayEarn, setTodayEarn] = useState({ total: 0, count: 0 });
   const [locError, setLocError] = useState<string | null>(null);
   const watchSub = useRef<Location.LocationSubscription | null>(null);
   const pushTimer = useRef<any>(null);
@@ -39,21 +42,37 @@ export default function HomeMap() {
 
   const loadOverview = useCallback(async () => {
     try {
-      const [p, missions, market] = await Promise.all([
+      const [p, missions, market, wal] = await Promise.all([
         getDriverProfile().catch(() => null),
         getDriverMissions().catch(() => []),
         getMarketplace().catch(() => []),
+        getDriverWallet().catch(() => null),
       ]);
       if (p) {
         setProfile(p);
         const shiftFlag = p?.user?.on_shift ?? p?.on_shift ?? p?.is_on_shift ?? p?.shift_active;
         setOnShift(Boolean(shiftFlag));
-        // eslint-disable-next-line no-console
-        console.log('[shift-debug] profile keys:', Object.keys(p || {}), 'user.on_shift:', p?.user?.on_shift, 'top.on_shift:', p?.on_shift, '=> resolved:', Boolean(shiftFlag));
       }
       const assignedList = Array.isArray(missions) ? missions : missions?.current ?? missions?.items ?? [];
       const marketList = Array.isArray(market) ? market : market?.items ?? [];
       setCounts({ assigned: assignedList.length, available: marketList.length });
+
+      // Compute today's earnings from wallet transactions
+      if (wal) {
+        const txs: any[] = (wal as any).transactions || (wal as any).movements || (wal as any).history || [];
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        let total = 0;
+        let count = 0;
+        txs.forEach((t: any) => {
+          const dt = new Date(t.created_at || t.date || t.at);
+          if (dt >= todayStart && (t.type === 'commission_internal' || t.type === 'commission_external' || (t.direction === 'credit' && (t.amount_cents ?? 0) > 0))) {
+            total += Math.abs((t.amount_cents ?? 0) / 100);
+            count += 1;
+          }
+        });
+        setTodayEarn({ total, count });
+      }
     } catch {}
   }, []);
 
@@ -123,19 +142,19 @@ export default function HomeMap() {
   }, [onShift, coords]);
 
   const toggleShift = async () => {
+    haptic('medium');
     setToggling(true);
     const next = !onShift;
     try {
       const res: any = await setShift(next);
-      // Trust server response; fall back to optimistic value
       const newShift = res?.user?.on_shift ?? res?.on_shift ?? next;
       setOnShift(Boolean(newShift));
-      // eslint-disable-next-line no-console
-      console.log('[shift-debug] toggle response:', res, '=> set onShift:', Boolean(newShift));
+      haptic('success');
       if (newShift && coords) {
         try { await pushLocation(coords); } catch {}
       }
     } catch (e) {
+      haptic('error');
       const msg = apiError(e);
       if (Platform.OS !== 'web') Alert.alert('Erreur', msg);
     } finally {
@@ -162,7 +181,7 @@ export default function HomeMap() {
 
           <TouchableOpacity
             style={styles.greetBtn}
-            onPress={() => router.push('/(tabs)/profile')}
+            onPress={() => router.push('/(tabs)/menu')}
             testID="profile-header-btn"
           >
             <Ionicons name="person-circle" size={28} color={colors.primary} />
@@ -179,6 +198,20 @@ export default function HomeMap() {
 
         {/* Bottom overlay */}
         <View style={styles.bottomOverlay}>
+          {todayEarn.total > 0 ? (
+            <View style={styles.earnRow} testID="today-earnings">
+              <View style={styles.earnIcon}>
+                <Ionicons name="trending-up" size={16} color={colors.bg} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.earnLabel}>GAINS DU JOUR</Text>
+                <Text style={styles.earnValue}>
+                  {todayEarn.total.toFixed(2)} € · {todayEarn.count} course{todayEarn.count > 1 ? 's' : ''}
+                </Text>
+              </View>
+            </View>
+          ) : null}
+
           <View style={styles.statsRow}>
             <TouchableOpacity
               style={styles.statCard}
@@ -282,4 +315,15 @@ const styles = StyleSheet.create({
   shiftBtnOn: { backgroundColor: colors.elevated, borderWidth: 1, borderColor: colors.border },
   shiftText: { fontWeight: '900', fontSize: 14, letterSpacing: 1.5 },
   hello: { color: colors.textSecondary, fontSize: 12, textAlign: 'center', fontWeight: '600' },
+  earnRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: colors.primary, borderRadius: radius.lg,
+    paddingHorizontal: 14, paddingVertical: 10,
+  },
+  earnIcon: {
+    width: 30, height: 30, borderRadius: 15, backgroundColor: colors.bg + '33',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  earnLabel: { color: colors.bg + 'CC', fontSize: 9, fontWeight: '900', letterSpacing: 1.5 },
+  earnValue: { color: colors.bg, fontSize: 16, fontWeight: '900' },
 });
