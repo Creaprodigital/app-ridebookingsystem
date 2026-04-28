@@ -9,6 +9,7 @@ import { colors } from '../src/theme';
 import { setupPushNotifications } from '../src/pushService';
 import { RidesProvider } from '../src/ridesContext';
 import FloatingRideBubble from '../src/components/FloatingRideBubble';
+import PiPReservation from '../src/components/PiPReservation';
 
 function RouteGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -80,6 +81,7 @@ export default function RootLayout() {
                 <Stack.Screen name="mission/[id]" options={{ presentation: 'card', animation: 'slide_from_right' }} />
               </Stack>
               <FloatingRideBubble />
+              <PiPReservation />
             </RouteGuard>
           </RidesProvider>
         </AuthProvider>

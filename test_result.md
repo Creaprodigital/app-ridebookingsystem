@@ -127,6 +127,18 @@ frontend:
           agent: "main"
           comment: "When the driver slides 'GLISSER POUR TERMINER' on the in_progress mission, the backend status is set to completed and a fullscreen completion modal opens showing: amount of the ride (large yellow value) and a colour-coded payment block. If payment is online (card, stripe, app, prepaid, paid_online, payment_status=paid…) the modal shows a yellow info block 'N'encaissez pas le client. Le paiement a été effectué en ligne.' If payment is cash/onboard the modal shows a warning block 'Encaissez le client à bord. Le paiement doit être effectué directement auprès de vous.' Closing the modal returns to the missions list."
 
+  - task: "Picture-in-Picture reservation preview"
+    implemented: true
+    working: "NA"
+    file: "src/components/PiPReservation.tsx, app/_layout.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "New global PiP component rendered above all screens (mounted in _layout.tsx). Appears in the bottom-right corner whenever a new ride is detected by the global RidesProvider. Card shows: client name, scheduled date/time, service category, status pill (NOUVELLE/ASSIGNÉE/EN COURS/TERMINÉE) and amount. Two states: expanded card (default at appearance) and minimized circular pill with badge. Actions: minimize/expand, close, open full reservation (deep-links to /mission/[id] for assigned rides or /(tabs)/missions for marketplace). Discrete entrance animation: translate-Y + scale + fade with back ease. When count > 1, a yellow pulsing ring around the minimized pill plus a +N indicator on the expanded card. Hidden on login and on mission detail screens. Width responsive (max 360px, full-width-minus-32 on small phones). Uses pointerEvents='box-none' so it never blocks navigation underneath."
+
   - task: "Floating ride bubble (Android background-only via sticky notification)"
     implemented: true
     working: "NA"
