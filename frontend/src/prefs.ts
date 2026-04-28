@@ -89,3 +89,13 @@ export async function getNotifSoundId(): Promise<string> {
 export async function setNotifSoundId(id: string) {
   await prefSet('notif_sound', id);
 }
+
+// ─── Course immédiate (auto-popup ride request modal) ────────────────────
+export async function getImmediateEnabled(): Promise<boolean> {
+  const v = await prefGet('immediate_enabled', '1');
+  return v !== '0';
+}
+export async function setImmediateEnabled(enabled: boolean) {
+  await prefSet('immediate_enabled', enabled ? '1' : '0');
+}
+

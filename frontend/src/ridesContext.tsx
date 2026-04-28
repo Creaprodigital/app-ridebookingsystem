@@ -2,10 +2,11 @@ import React, { createContext, useContext, useEffect, useRef, useState, useCallb
 import { AppState, Platform } from 'react-native';
 import { getMarketplace, getDriverMissions, getDriverProfile, claimMarketplace } from './api';
 import { haptic, playSound, notifyNewRide } from './feedback';
-import { NOTIF_SOUNDS, getNotifSoundId, prefGet, prefSet } from './prefs';
+import { NOTIF_SOUNDS, getNotifSoundId, prefGet, prefSet, getImmediateEnabled } from './prefs';
 import { useAuth } from './auth';
 import { scheduleMissionReminders } from './reminderService';
 import { addNotification } from './notificationsHistory';
+import { isImmediateRide } from './rideTypes';
 
 const FOREGROUND_POLL_MS = 1500; // sub-2s feel
 const BACKGROUND_POLL_MS = 15000;
@@ -29,6 +30,8 @@ type RidesCtx = {
   refreshShift: () => Promise<void>;
   /** Force an immediate marketplace fetch (called when a push arrives). */
   forceRefresh: () => Promise<void>;
+  /** Toggle whether immediate rides should pop up the Uber-style modal. */
+  setImmediateModeEnabled: (enabled: boolean) => Promise<void>;
 };
 
 const Ctx = createContext<RidesCtx | null>(null);
@@ -56,11 +59,13 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
   const timer = useRef<any>(null);
   const reminderTimer = useRef<any>(null);
   const inForeground = useRef<boolean>(true);
+  const immediateEnabledRef = useRef<boolean>(true);
 
   useEffect(() => {
     (async () => {
       soundIdRef.current = await getNotifSoundId();
       dismissedRef.current = await loadDismissed();
+      immediateEnabledRef.current = await getImmediateEnabled();
     })();
   }, []);
 
@@ -95,41 +100,51 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
           const id = String(it.id ?? it._id);
           return !knownIds.current.has(id) && !isDismissed(id);
         });
-        if (newOnes.length > 0) {
+        // Only IMMEDIATE rides should pop the Uber-style modal. Scheduled
+        // rides remain in the marketplace ("Disponibles") tab for manual
+        // claim. If the driver disabled "Course immédiate" in settings,
+        // skip the modal queue entirely.
+        const immediateNew = immediateEnabledRef.current
+          ? newOnes.filter(isImmediateRide)
+          : [];
+
+        if (immediateNew.length > 0) {
           // append to queue (no duplicates)
           setQueue((prev) => {
             const seen = new Set(prev.map((p) => String(p.id ?? p._id)));
-            const append = newOnes.filter((n: any) => !seen.has(String(n.id ?? n._id)));
+            const append = immediateNew.filter((n: any) => !seen.has(String(n.id ?? n._id)));
             return [...prev, ...append];
           });
-          setNewRidesCount((c) => c + newOnes.length);
+          setNewRidesCount((c) => c + immediateNew.length);
 
-          // High-priority feedback: haptic + sound + push (background)
+          // High-priority feedback for immediate rides
           haptic('success');
           try {
             const sound = NOTIF_SOUNDS.find((s) => s.id === soundIdRef.current) ?? NOTIF_SOUNDS[0];
             playSound(sound.url);
           } catch {}
-          const first = newOnes[0];
+          const first = immediateNew[0];
           const amt = first?.amount ?? first?.pricing?.final ?? first?.price;
           notifyNewRide({
-            title: `🚗 ${newOnes.length > 1 ? newOnes.length + ' nouvelles courses' : 'Nouvelle course'}`,
+            title: `🚗 ${immediateNew.length > 1 ? immediateNew.length + ' courses immédiates' : 'Course immédiate'}`,
             body: amt ? `Commission : ${Number(amt).toFixed(2)} €` : 'Tap pour voir',
             data: { route: '/(tabs)/missions' },
           });
-          // Persist to history
-          newOnes.forEach((n: any) => {
-            addNotification({
-              id: `ride-${n.id ?? n._id}-${Date.now()}`,
-              type: 'new_ride',
-              title: 'Nouvelle course',
-              body: pickPickup(n),
-              amount: pickAmount(n),
-              ride_id: String(n.id ?? n._id),
-              created_at: new Date().toISOString(),
-            });
-          });
         }
+
+        // History entries for ALL new rides (immediate + scheduled),
+        // even when the modal is suppressed.
+        newOnes.forEach((n: any) => {
+          addNotification({
+            id: `ride-${n.id ?? n._id}-${Date.now()}`,
+            type: 'new_ride',
+            title: isImmediateRide(n) ? 'Course immédiate' : 'Réservation planifiée',
+            body: pickPickup(n),
+            amount: pickAmount(n),
+            ride_id: String(n.id ?? n._id),
+            created_at: new Date().toISOString(),
+          });
+        });
 
         // Remove queued items that are no longer in marketplace (claimed by someone else / expired)
         setQueue((prev) => prev.filter((p) => ids.has(String(p.id ?? p._id))));
@@ -242,6 +257,15 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
     acknowledge,
     refreshShift,
     forceRefresh: async () => { await tick(); await refreshShift(); },
+    setImmediateModeEnabled: async (enabled: boolean) => {
+      immediateEnabledRef.current = enabled;
+      try { await prefSet('immediate_enabled', enabled ? '1' : '0'); } catch {}
+      if (!enabled) {
+        // immediately empty the queue so any open modal closes
+        setQueue([]);
+        setNewRidesCount(0);
+      }
+    },
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -262,6 +286,7 @@ export function useRides(): RidesCtx {
       acknowledge: () => {},
       refreshShift: async () => {},
       forceRefresh: async () => {},
+      setImmediateModeEnabled: async () => {},
     };
   }
   return c;

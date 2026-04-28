@@ -18,6 +18,13 @@ export default function SettingsIndex() {
 
   const rows: Row[] = [
     {
+      icon: 'flash-outline',
+      label: 'Course immédiate',
+      sub: 'Recevoir les demandes immédiates en plein écran',
+      onPress: () => router.push('/settings/immediate' as any),
+      testID: 'settings-immediate',
+    },
+    {
       icon: 'notifications-outline',
       label: 'Notifications push',
       sub: 'Recevez les nouvelles courses en temps réel',

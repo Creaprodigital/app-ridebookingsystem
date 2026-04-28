@@ -139,6 +139,18 @@ frontend:
           agent: "main"
           comment: "New global PiP component rendered above all screens (mounted in _layout.tsx). Appears in the bottom-right corner whenever a new ride is detected by the global RidesProvider. Card shows: client name, scheduled date/time, service category, status pill (NOUVELLE/ASSIGNÉE/EN COURS/TERMINÉE) and amount. Two states: expanded card (default at appearance) and minimized circular pill with badge. Actions: minimize/expand, close, open full reservation (deep-links to /mission/[id] for assigned rides or /(tabs)/missions for marketplace). Discrete entrance animation: translate-Y + scale + fade with back ease. When count > 1, a yellow pulsing ring around the minimized pill plus a +N indicator on the expanded card. Hidden on login and on mission detail screens. Width responsive (max 360px, full-width-minus-32 on small phones). Uses pointerEvents='box-none' so it never blocks navigation underneath."
 
+  - task: "Séparation immédiat / planifié + toggle Course immédiate"
+    implemented: true
+    working: "NA"
+    file: "src/rideTypes.ts, src/ridesContext.tsx, src/prefs.ts, app/(tabs)/missions.tsx, app/settings/immediate.tsx, app/settings/index.tsx, app/_layout.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Helper isImmediateRide checks explicit backend fields (is_immediate, is_now, type/kind/mode/category/ride_type containing 'immediate|now|instant|asap') with time-based fallback (pickup_at within 30 min). Marketplace tab renamed 'Planifiées' and filters out immediate rides. The Uber-style RideRequestModal queue ONLY receives immediate rides; scheduled rides never trigger the modal but are still recorded in notifications history with title 'Réservation planifiée'. New settings screen app/settings/immediate.tsx with toggle 'Recevoir les courses immédiates' (persisted in prefs, default ON, clears queue on OFF). Settings menu shows 'Course immédiate' entry. Driver always accepts/refuses manually."
+
   - task: "Incoming-call style notifications (max priority + config plugin)"
     implemented: true
     working: "NA"

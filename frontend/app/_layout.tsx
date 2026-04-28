@@ -86,6 +86,7 @@ export default function RootLayout() {
                 <Stack.Screen name="settings/sounds" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="settings/navigation" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="settings/notifications" options={{ animation: 'slide_from_right' }} />
+                <Stack.Screen name="settings/immediate" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="settings/permissions" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="mission/[id]" options={{ presentation: 'card', animation: 'slide_from_right' }} />
               </Stack>

@@ -70,8 +70,7 @@
         }
       ],
       "./plugins/with-incoming-ride-notifications",
-      "expo-font",
-      "expo-image"
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true

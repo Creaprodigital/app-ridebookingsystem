@@ -16,6 +16,8 @@ import { Modal } from 'react-native';
 import { colors, radius, spacing } from '../../src/theme';
 import { haptic, playSound, ensureNotifPermission, notifyNewRide } from '../../src/feedback';
 import { NOTIF_SOUNDS, getNotifSoundId } from '../../src/prefs';
+import { isImmediateRide } from '../../src/rideTypes';
+import { useRides } from '../../src/ridesContext';
 import {
   getDriverMissions,
   getMarketplace,
@@ -280,7 +282,10 @@ export default function MissionsScreen() {
     router.push(`/mission/${id}`);
   };
 
-  const data = tab === 'assigned' ? assigned : available;
+  // Marketplace ("Disponibles") shows ONLY scheduled (planned) rides.
+  // Immediate rides are handled by the Uber-style RideRequestModal.
+  const visibleAvailable = available.filter((it) => !isImmediateRide(it));
+  const data = tab === 'assigned' ? assigned : visibleAvailable;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -298,7 +303,7 @@ export default function MissionsScreen() {
             testID={`tab-${t}`}
           >
             <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-              {t === 'assigned' ? `Mes missions (${assigned.length})` : `Disponibles (${available.length})`}
+              {t === 'assigned' ? `Mes missions (${assigned.length})` : `Planifiées (${visibleAvailable.length})`}
             </Text>
           </TouchableOpacity>
         ))}
