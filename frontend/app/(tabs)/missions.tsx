@@ -237,8 +237,8 @@ export default function MissionsScreen() {
   const requireOnShift = useCallback(() => {
     if (onShift === false) {
       haptic('warning');
-      const msg = 'Vous êtes hors service. Veuillez passer en service depuis l’onglet Carte pour accéder aux courses.';
-      if (Platform.OS !== 'web') Alert.alert('Hors service', msg);
+      const msg = 'Vous êtes hors ligne. Veuillez passer en ligne depuis l’onglet Carte pour accéder aux courses.';
+      if (Platform.OS !== 'web') Alert.alert('Hors ligne', msg);
       else if (typeof window !== 'undefined') window.alert(msg);
       return false;
     }
@@ -315,9 +315,9 @@ export default function MissionsScreen() {
               <View style={styles.offShiftBanner} testID="off-shift-banner">
                 <Ionicons name="lock-closed" size={18} color={colors.warning} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.offShiftTitle}>Vous êtes hors service</Text>
+                  <Text style={styles.offShiftTitle}>Vous êtes hors ligne</Text>
                   <Text style={styles.offShiftSub}>
-                    Veuillez passer en service pour accéder aux courses et démarrer une mission.
+                    Veuillez passer en ligne pour accéder aux courses et démarrer une mission.
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -325,7 +325,7 @@ export default function MissionsScreen() {
                   onPress={() => router.push('/(tabs)')}
                   testID="off-shift-cta"
                 >
-                  <Text style={styles.offShiftBtnText}>EN SERVICE</Text>
+                  <Text style={styles.offShiftBtnText}>EN LIGNE</Text>
                 </TouchableOpacity>
               </View>
             ) : null}
@@ -398,7 +398,7 @@ export default function MissionsScreen() {
               </Text>
               <Text style={styles.emptySub}>
                 {tab === 'assigned'
-                  ? 'Passez en service pour recevoir des courses.'
+                  ? 'Passez en ligne pour recevoir des courses.'
                   : 'Aucune course dans le marketplace pour le moment. Cette page se rafraîchit automatiquement toutes les 20 secondes.'}
               </Text>
               {tab === 'available' ? (
@@ -504,7 +504,7 @@ export default function MissionsScreen() {
                     <>
                       <Ionicons name={onShift === false ? 'lock-closed' : 'flash'} size={16} color={colors.bg} />
                       <Text style={styles.claimText}>
-                        {onShift === false ? 'PASSEZ EN SERVICE' : 'ACCEPTER LA COURSE'}
+                        {onShift === false ? 'PASSEZ EN LIGNE' : 'ACCEPTER LA COURSE'}
                       </Text>
                     </>
                   )}
@@ -512,7 +512,7 @@ export default function MissionsScreen() {
               ) : (
                 <View style={styles.openHint}>
                   <Text style={[styles.openHintText, onShift === false && { color: colors.textMuted }]}>
-                    {onShift === false ? 'Passez en service pour ouvrir' : 'Voir détails'}
+                    {onShift === false ? 'Passez en ligne pour ouvrir' : 'Voir détails'}
                   </Text>
                   <Ionicons
                     name={onShift === false ? 'lock-closed' : 'arrow-forward'}

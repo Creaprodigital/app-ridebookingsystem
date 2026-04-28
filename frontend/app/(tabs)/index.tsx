@@ -180,7 +180,7 @@ export default function HomeMap() {
         <View style={styles.topBar} pointerEvents="box-none">
           <View style={[styles.pill, onShift ? styles.pillOn : styles.pillOff]} testID="shift-pill">
             <View style={[styles.dot, { backgroundColor: onShift ? colors.success : colors.textMuted }]} />
-            <Text style={styles.pillText}>{onShift ? 'EN SERVICE' : 'HORS SERVICE'}</Text>
+            <Text style={styles.pillText}>{onShift ? 'EN LIGNE' : 'HORS LIGNE'}</Text>
           </View>
 
           <TouchableOpacity
@@ -252,7 +252,7 @@ export default function HomeMap() {
                   color={onShift ? colors.text : colors.bg}
                 />
                 <Text style={[styles.shiftText, { color: onShift ? colors.text : colors.bg }]}>
-                  {onShift ? 'TERMINER LA SESSION' : 'DÉMARRER LA SESSION'}
+                  {onShift ? 'PASSEZ HORS LIGNE' : 'PASSEZ EN LIGNE'}
                 </Text>
               </>
             )}

@@ -154,8 +154,8 @@ export default function MissionDetail() {
     if (!mission) return;
     if (!onShift) {
       haptic('warning');
-      const msg = 'Vous êtes hors service. Veuillez passer en service depuis l’onglet Carte pour démarrer ou poursuivre la course.';
-      if (Platform.OS !== 'web') Alert.alert('Hors service', msg);
+      const msg = 'Vous êtes hors ligne. Veuillez passer en ligne depuis l’onglet Carte pour démarrer ou poursuivre la course.';
+      if (Platform.OS !== 'web') Alert.alert('Hors ligne', msg);
       else if (typeof window !== 'undefined') window.alert(msg);
       return;
     }
@@ -307,9 +307,9 @@ export default function MissionDetail() {
           <View style={styles.lockBanner} testID="off-shift-mission-banner">
             <Ionicons name="lock-closed" size={18} color={colors.warning} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.lockTitle}>Hors service</Text>
+              <Text style={styles.lockTitle}>Hors ligne</Text>
               <Text style={styles.lockSub}>
-                Veuillez passer en service depuis l’onglet Carte pour continuer la course.
+                Veuillez passer en ligne depuis l’onglet Carte pour continuer la course.
               </Text>
             </View>
             <TouchableOpacity
@@ -317,7 +317,7 @@ export default function MissionDetail() {
               onPress={() => router.push('/(tabs)')}
               testID="off-shift-mission-cta"
             >
-              <Text style={styles.lockBtnText}>EN SERVICE</Text>
+              <Text style={styles.lockBtnText}>EN LIGNE</Text>
             </TouchableOpacity>
           </View>
         </View>
