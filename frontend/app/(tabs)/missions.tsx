@@ -138,14 +138,21 @@ export default function MissionsScreen() {
             : `Marketplace: ${list.length} course(s) · Wrapper keys: ${keys.join(',')}`
           );
         }
+        // Inspect first listing to find correct field names
+        if (list.length > 0) {
+          const first = list[0];
+          const topKeys = Object.keys(first || {}).slice(0, 12).join(',');
+          dbg.push(`Item keys: ${topKeys}`);
+          if (first?.booking) {
+            const bk = Object.keys(first.booking).slice(0, 12).join(',');
+            dbg.push(`booking keys: ${bk}`);
+          }
+        }
         if (u.email) dbg.push(`Driver: ${u.email}`);
-        if (u.tenant_id || tenantInfo.id) dbg.push(`Tenant: ${u.tenant_id || tenantInfo.id}${tenantInfo.name ? ` (${tenantInfo.name})` : ''}`);
-        if (u.id) dbg.push(`Driver ID: ${u.id}`);
-        if (u.vehicle_id) dbg.push(`Vehicle: ${u.vehicle_id}`);
+        if (u.tenant_id || tenantInfo.id) dbg.push(`Tenant: ${u.tenant_id || tenantInfo.id}`);
         if (cfg.status === 'fulfilled' && cfg.value) {
           const c: any = cfg.value;
           if (c.enabled !== undefined) dbg.push(`Config enabled: ${c.enabled}`);
-          if (c.auto_post_delay_minutes !== undefined) dbg.push(`Auto-post: ${c.auto_post_delay_minutes}min`);
         }
         setDebug(dbg.join('\n'));
       } else {
