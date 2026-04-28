@@ -103,6 +103,30 @@
 #====================================================================================================
 
 frontend:
+  - task: "Floating ride bubble (in-app, draggable, always on top)"
+    implemented: true
+    working: "NA"
+    file: "src/components/FloatingRideBubble.tsx, src/ridesContext.tsx, app/_layout.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "New global RidesProvider polls the marketplace every 20s while authenticated and exposes the live count + last entries. The FloatingRideBubble component is rendered globally in the root layout, hidden on the login screen, draggable with snap-to-edge behaviour, and shows a pulsing badge when new rides arrive. Tapping it opens an expanded card preview, then routes the driver to the missions tab. The previous in-screen polling/notification trigger in missions.tsx was removed to avoid duplicate alerts. NOTE: this overlay is in-app only — a true system-wide overlay (over other apps) requires a custom Android dev build with SYSTEM_ALERT_WINDOW; not feasible in managed Expo workflow."
+
+  - task: "Auto reminder 1h before each mission"
+    implemented: true
+    working: "NA"
+    file: "src/reminderService.ts, src/ridesContext.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "New reminderService schedules a local notification 1h before each upcoming mission with the exact text 'Votre mission commence bientôt. Veuillez démarrer la course.' Idempotent: identical pickups are kept, stale ones cancelled, and reminders are removed when missions are completed/cancelled. Triggered every 5 min and on app foreground via the RidesProvider."
+
   - task: "Push notifications setup (Expo Notifications)"
     implemented: true
     working: "NA"

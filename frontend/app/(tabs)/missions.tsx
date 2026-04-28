@@ -159,22 +159,8 @@ export default function MissionsScreen() {
         const list = Array.isArray(v) ? v : v?.items ?? v?.listings ?? [];
         setAvailable(list);
 
-        // Detect newly arrived rides since last poll
+        // Track ids; the global RidesProvider handles cross-screen notifications & sounds.
         const currentIds = new Set<string>(list.map((it: any) => String(it.id ?? it._id)));
-        if (!firstLoadRef.current) {
-          const newOnes = list.filter((it: any) => !knownIdsRef.current.has(String(it.id ?? it._id)));
-          if (newOnes.length > 0) {
-            const sound = NOTIF_SOUNDS.find((s) => s.id === soundIdRef.current) ?? NOTIF_SOUNDS[0];
-            playSound(sound.url);
-            haptic('success');
-            const first = newOnes[0];
-            const amt = pickAmount(first);
-            notifyNewRide({
-              title: `${newOnes.length} nouvelle${newOnes.length > 1 ? 's' : ''} course${newOnes.length > 1 ? 's' : ''} !`,
-              body: amt ? `Commission: ${Number(amt).toFixed(2)} €` : 'Disponibles dans le marketplace',
-            });
-          }
-        }
         firstLoadRef.current = false;
         knownIdsRef.current = currentIds;
         // Detailed diagnostic
