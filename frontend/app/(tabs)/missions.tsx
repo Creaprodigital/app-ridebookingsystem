@@ -76,7 +76,23 @@ function pickVehicleCategory(m: any) {
 }
 
 function pickAmount(m: any) {
-  return m?.amount ?? m?.price ?? m?.fare ?? m?.total ?? m?.booking?.price;
+  return (
+    m?.amount ??
+    m?.pricing?.final ??
+    m?.price ??
+    m?.fare ??
+    m?.total ??
+    m?.booking?.price
+  );
+}
+
+function pickDistance(m: any) {
+  return (
+    m?.distance_km ??
+    m?.pricing?.distance_km ??
+    m?.distance ??
+    m?.booking?.distance_km
+  );
 }
 
 function fmtDate(dt?: string) {
@@ -372,11 +388,11 @@ export default function MissionsScreen() {
                     <Text style={styles.metaText}>{pax} pax</Text>
                   </View>
                 ) : null}
-                {item.distance_km || item.distance || item.booking?.distance_km ? (
+                {pickDistance(item) ? (
                   <View style={styles.metaChip}>
                     <Ionicons name="navigate-outline" size={13} color={colors.textSecondary} />
                     <Text style={styles.metaText}>
-                      {Number(item.distance_km ?? item.distance ?? item.booking?.distance_km).toFixed(1)} km
+                      {Number(pickDistance(item)).toFixed(1)} km
                     </Text>
                   </View>
                 ) : null}
