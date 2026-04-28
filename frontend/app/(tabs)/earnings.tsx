@@ -73,10 +73,11 @@ export default function Wallet() {
     }
     setSubmitting(true);
     try {
+      // For payment redirects, prefer window.location.origin on web; on native, use API base.
       const origin =
-        Platform.OS === 'web'
+        Platform.OS === 'web' && typeof window !== 'undefined'
           ? window.location.origin
-          : (process.env.EXPO_PUBLIC_BACKEND_URL as string);
+          : (process.env.EXPO_PUBLIC_API_BASE as string);
       const { data } = await api.post('/driver/wallet/topup', { amount: amt, origin_url: origin });
       if (data?.url) {
         if (Platform.OS === 'web') window.location.href = data.url;
