@@ -51,7 +51,7 @@ export default function HomeMap() {
         // eslint-disable-next-line no-console
         console.log('[shift-debug] profile keys:', Object.keys(p || {}), 'user.on_shift:', p?.user?.on_shift, 'top.on_shift:', p?.on_shift, '=> resolved:', Boolean(shiftFlag));
       }
-      const assignedList = Array.isArray(missions) ? missions : missions?.items ?? [];
+      const assignedList = Array.isArray(missions) ? missions : missions?.current ?? missions?.items ?? [];
       const marketList = Array.isArray(market) ? market : market?.items ?? [];
       setCounts({ assigned: assignedList.length, available: marketList.length });
     } catch {}

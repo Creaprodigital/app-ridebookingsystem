@@ -45,8 +45,8 @@ export default function MissionDetail() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const list = await getDriverMissions();
-      const arr = Array.isArray(list) ? list : list?.items ?? [];
+      const list: any = await getDriverMissions();
+      const arr = Array.isArray(list) ? list : (list?.current ?? list?.items ?? []);
       const m = arr.find((x: any) => String(x.id ?? x._id) === String(id));
       setMission(m || null);
     } finally {

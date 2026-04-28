@@ -114,8 +114,10 @@ export default function MissionsScreen() {
       ]);
 
       if (a.status === 'fulfilled') {
-        const v = a.value;
-        setAssigned(Array.isArray(v) ? v : v?.items ?? []);
+        const v: any = a.value;
+        // Backend returns { current: [...], history: [...] }
+        const list = Array.isArray(v) ? v : (v?.current ?? v?.items ?? []);
+        setAssigned(list);
       } else {
         setAssigned([]);
       }
