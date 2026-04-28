@@ -78,9 +78,6 @@ export default function Login() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.brandWrap}>
-            <View style={styles.logoDot}>
-              <Ionicons name="car-sport" size={38} color={colors.bg} />
-            </View>
             <Text style={styles.brandTitle}>SharedRide</Text>
             <Text style={styles.brandKicker}>Driver</Text>
           </View>
