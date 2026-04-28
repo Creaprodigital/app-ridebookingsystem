@@ -39,6 +39,12 @@ export type PushSetupResult = {
   registered: boolean;
 };
 
+export type PushSetupOptions = {
+  onTap?: (data: any) => void;
+  /** Fired when an `incoming_ride` notification is received in foreground. */
+  onIncoming?: (data: any) => void;
+};
+
 /**
  * Initialise push notifications:
  *   - configure handler & Android channel
@@ -47,9 +53,7 @@ export type PushSetupResult = {
  *   - register it with the backend
  * Idempotent — safe to call multiple times.
  */
-export async function setupPushNotifications(opts?: {
-  onTap?: (data: any) => void;
-}): Promise<PushSetupResult> {
+export async function setupPushNotifications(opts?: PushSetupOptions): Promise<PushSetupResult> {
   const result: PushSetupResult = {
     enabled: false,
     permission: false,
@@ -77,14 +81,25 @@ export async function setupPushNotifications(opts?: {
     result.registered = !!reg;
   }
 
-  // Set up tap listener once
+  // Set up listeners once
   if (!setupDone) {
     setupDone = true;
     try {
+      // 1) Tap on banner / lockscreen → bring app forward, route to data.route
       responseSub = Notifications.addNotificationResponseReceivedListener((resp: any) => {
         try {
           const data = resp?.notification?.request?.content?.data ?? {};
           opts?.onTap?.(data);
+        } catch {}
+      });
+      // 2) Notification received in foreground → trigger an immediate
+      //    marketplace refresh so the RideRequestModal pops up <1s later.
+      receivedSub = Notifications.addNotificationReceivedListener((notif: any) => {
+        try {
+          const data = notif?.request?.content?.data ?? {};
+          if (data?.kind === 'incoming_ride') {
+            opts?.onIncoming?.(data);
+          }
         } catch {}
       });
     } catch {}

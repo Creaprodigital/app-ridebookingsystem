@@ -139,6 +139,18 @@ frontend:
           agent: "main"
           comment: "New global PiP component rendered above all screens (mounted in _layout.tsx). Appears in the bottom-right corner whenever a new ride is detected by the global RidesProvider. Card shows: client name, scheduled date/time, service category, status pill (NOUVELLE/ASSIGNÉE/EN COURS/TERMINÉE) and amount. Two states: expanded card (default at appearance) and minimized circular pill with badge. Actions: minimize/expand, close, open full reservation (deep-links to /mission/[id] for assigned rides or /(tabs)/missions for marketplace). Discrete entrance animation: translate-Y + scale + fade with back ease. When count > 1, a yellow pulsing ring around the minimized pill plus a +N indicator on the expanded card. Hidden on login and on mission detail screens. Width responsive (max 360px, full-width-minus-32 on small phones). Uses pointerEvents='box-none' so it never blocks navigation underneath."
 
+  - task: "Incoming-call style notifications (max priority + config plugin)"
+    implemented: true
+    working: "NA"
+    file: "plugins/with-incoming-ride-notifications.js, app.json, src/feedback.ts, src/pushService.ts, src/ridesContext.tsx, app/_layout.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "1) New Expo config plugin `plugins/with-incoming-ride-notifications.js` injects USE_FULL_SCREEN_INTENT, WAKE_LOCK, DISABLE_KEYGUARD, SCHEDULE_EXACT_ALARM, POST_NOTIFICATIONS, RECEIVE_BOOT_COMPLETED, FOREGROUND_SERVICE permissions and sets the MainActivity flags android:showWhenLocked=true, android:turnScreenOn=true, android:launchMode=singleTask. iOS Info.plist updated with UIBackgroundModes (remote-notification, audio, fetch). Plugin only runs at EAS prebuild — managed runtime is unaffected. 2) New Android channel 'incoming_ride' with IMPORTANCE_MAX, bypassDnd, lockscreenVisibility=PUBLIC, aggressive 5-cycle vibration pattern, lights, default sound. 3) `notifyNewRide` updated with priority='max', interruptionLevel='time-sensitive', relevanceScore=1.0, vibrate pattern, kind='incoming_ride' data. 4) Foreground polling reduced from 3s to 1.5s (sub-2s perception). 5) New `forceRefresh` method on RidesProvider triggered in `pushService.onIncoming` listener — when a server-pushed notification arrives in foreground a fresh marketplace fetch happens immediately so the modal pops within ~1s. 6) Tap on notification banner (system tray / lockscreen) brings the app forward and routes to /(tabs)/missions which lets the global RideRequestModal surface. LIMITS DOCUMENTED: real Android full-screen-intent (NotificationCompat.Builder#setFullScreenIntent) and iOS CallKit-style imitation require a custom native module + EAS dev build; managed Expo cannot post a full-screen-intent. The config plugin prepares the manifest so a future native module can plug in seamlessly."
+
   - task: "Premium Uber-style ride request system"
     implemented: true
     working: "NA"

@@ -68,7 +68,8 @@
           "color": "#F5B72E",
           "sounds": []
         }
-      ]
+      ],
+      "./plugins/with-incoming-ride-notifications"
     ],
     "experiments": {
       "typedRoutes": true

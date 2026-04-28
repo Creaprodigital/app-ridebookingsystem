@@ -7,13 +7,15 @@ import { AuthProvider, useAuth } from '../src/auth';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { colors } from '../src/theme';
 import { setupPushNotifications } from '../src/pushService';
-import { RidesProvider } from '../src/ridesContext';
+import { RidesProvider, useRides } from '../src/ridesContext';
 import RideRequestModal from '../src/components/RideRequestModal';
+import { haptic } from '../src/feedback';
 
 function RouteGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const { refreshShift, forceRefresh } = useRides();
 
   React.useEffect(() => {
     if (loading) return;
@@ -33,14 +35,22 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
         await setupPushNotifications({
           onTap: (data: any) => {
             if (cancelled) return;
+            // Bring the user to the most relevant screen on tap
             const route = data?.route || '/(tabs)/missions';
             try { router.push(route); } catch {}
+            haptic('light');
+          },
+          onIncoming: (_data: any) => {
+            // Push received in foreground → force an immediate marketplace
+            // refresh so the RideRequestModal opens within ~1 second.
+            haptic('heavy');
+            try { forceRefresh(); } catch {}
           },
         });
       } catch {}
     })();
     return () => { cancelled = true; };
-  }, [user, router]);
+  }, [user, router, refreshShift, forceRefresh]);
 
   if (loading) {
     return (

@@ -70,9 +70,32 @@ export function configureNotificationHandler() {
 export async function ensureAndroidChannel() {
   if (Platform.OS !== 'android' || !Notifications) return;
   try {
-    await Notifications.setNotificationChannelAsync('marketplace', {
-      name: 'Nouvelles courses',
+    // ──────────────────────────────────────────────────────────────────────
+    // Highest-priority "incoming ride" channel
+    //  • IMPORTANCE_MAX   → pop heads-up over current app even on lock-screen
+    //  • bypassDnd        → ignore Do-Not-Disturb
+    //  • lockscreen PUBLIC → show full content over lock-screen
+    //  • aggressive vibration pattern (5 cycles) like an incoming call
+    //  • lights flashing + default sound
+    // ──────────────────────────────────────────────────────────────────────
+    await Notifications.setNotificationChannelAsync('incoming_ride', {
+      name: 'Nouvelles courses (priorité maximale)',
+      description: 'Notifications urgentes pour les nouvelles réservations',
       importance: Notifications.AndroidImportance?.MAX ?? 5,
+      vibrationPattern: [0, 600, 300, 600, 300, 600, 300, 600, 300, 600],
+      lightColor: '#F5B72E',
+      sound: 'default',
+      bypassDnd: true,
+      enableVibrate: true,
+      enableLights: true,
+      showBadge: true,
+      lockscreenVisibility:
+        Notifications.AndroidNotificationVisibility?.PUBLIC ?? 1,
+    });
+    // Keep the legacy 'marketplace' channel for less-urgent alerts (reminders)
+    await Notifications.setNotificationChannelAsync('marketplace', {
+      name: 'Rappels & alertes',
+      importance: Notifications.AndroidImportance?.HIGH ?? 4,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#F5B72E',
       sound: 'default',
@@ -123,11 +146,21 @@ export async function notifyNewRide(opts: { title: string; body: string; data?: 
       content: {
         title: opts.title,
         body: opts.body,
-        sound: true,
-        data: opts.data ?? { route: '/(tabs)/missions' },
+        sound: 'default',
+        priority: Notifications.AndroidNotificationPriority?.MAX ?? 'max',
+        // iOS — Time-Sensitive: pop on lock screen and bypass focus modes
+        interruptionLevel: 'time-sensitive',
+        // Make iOS rank this above other notifications
+        relevanceScore: 1.0,
+        // Vibrate strongly on Android (pattern of an incoming-call style)
+        vibrate: [0, 600, 300, 600, 300, 600, 300, 600],
+        sticky: false,
+        autoDismiss: false,
+        data: { ...(opts.data ?? { route: '/(tabs)/missions' }), kind: 'incoming_ride' },
+        color: '#F5B72E',
       },
       trigger: Platform.OS === 'android'
-        ? { channelId: 'marketplace' } as any
+        ? ({ channelId: 'incoming_ride' } as any)
         : null,
     });
   } catch {}

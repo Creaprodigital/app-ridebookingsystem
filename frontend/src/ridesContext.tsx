@@ -7,8 +7,8 @@ import { useAuth } from './auth';
 import { scheduleMissionReminders } from './reminderService';
 import { addNotification } from './notificationsHistory';
 
-const FOREGROUND_POLL_MS = 3000; // ultra-fast polling for Uber-like instant feel
-const BACKGROUND_POLL_MS = 20000;
+const FOREGROUND_POLL_MS = 1500; // sub-2s feel
+const BACKGROUND_POLL_MS = 15000;
 const DISMISS_TTL_MS = 10 * 60 * 1000; // remember dismissed rides for 10 min
 
 type RidesCtx = {
@@ -27,6 +27,8 @@ type RidesCtx = {
   dismissCurrent: () => void;
   acknowledge: () => void;
   refreshShift: () => Promise<void>;
+  /** Force an immediate marketplace fetch (called when a push arrives). */
+  forceRefresh: () => Promise<void>;
 };
 
 const Ctx = createContext<RidesCtx | null>(null);
@@ -239,6 +241,7 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
     dismissCurrent,
     acknowledge,
     refreshShift,
+    forceRefresh: async () => { await tick(); await refreshShift(); },
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -258,6 +261,7 @@ export function useRides(): RidesCtx {
       dismissCurrent: () => {},
       acknowledge: () => {},
       refreshShift: async () => {},
+      forceRefresh: async () => {},
     };
   }
   return c;
