@@ -23,7 +23,7 @@ const ICONS: Record<string, { active: IconName; inactive: IconName }> = {
 const LABELS: Record<string, string> = {
   index: 'Carte',
   missions: 'Missions',
-  earnings: 'Gains',
+  earnings: 'Portefeuille',
   menu: 'Menu',
 };
 
