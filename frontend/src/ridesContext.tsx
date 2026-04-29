@@ -10,6 +10,7 @@ import { isImmediateRide } from './rideTypes';
 
 const FOREGROUND_POLL_MS = 1500; // sub-2s feel
 const BACKGROUND_POLL_MS = 15000;
+const DISMISS_TTL_MS = 5 * 60 * 1000; // 5 min — short enough to honour backend re-dispatch waves
 const DISMISS_TTL_MS = 10 * 60 * 1000; // remember dismissed rides for 10 min
 
 type RidesCtx = {
