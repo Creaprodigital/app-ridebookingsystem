@@ -33,8 +33,26 @@
         "READ_CONTACTS",
         "CALL_PHONE",
         "VIBRATE",
-        "SYSTEM_ALERT_WINDOW"
-      ]
+        "SYSTEM_ALERT_WINDOW",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "FOREGROUND_SERVICE",
+        "CAMERA",
+        "RECORD_AUDIO",
+        "READ_CONTACTS",
+        "CALL_PHONE",
+        "VIBRATE",
+        "SYSTEM_ALERT_WINDOW",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS"
+      ],
+      "package": "com.anonymous.sharedridedriver"
     },
     "web": {
       "bundler": "metro",
@@ -70,7 +88,8 @@
         }
       ],
       "./plugins/with-incoming-ride-notifications",
-      "expo-font"
+      "expo-font",
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true
