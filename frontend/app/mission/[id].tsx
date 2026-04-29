@@ -108,7 +108,7 @@ function pickPaymentInfo(m: any): PaymentInfo {
 export default function MissionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { onShift } = useRides();
+  const { onShift, clearActiveMission } = useRides();
   const [mission, setMission] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [completion, setCompletion] = useState<{
@@ -235,6 +235,11 @@ export default function MissionDetail() {
         haptic('success');
         const price = Number(pickPrice(mission) ?? 0);
         const payment = pickPaymentInfo(mission);
+        // Immediately mark the mission as completed locally so the screen
+        // unlocks and the global active-mission flag clears (prevents the
+        // _layout auto-redirect from sending the driver back here).
+        setMission((prev: any) => prev ? { ...prev, status: 'completed' } : prev);
+        clearActiveMission();
         setCompletion({
           visible: true,
           price: Number.isFinite(price) ? price : null,
@@ -253,7 +258,9 @@ export default function MissionDetail() {
 
   const closeCompletion = () => {
     setCompletion({ visible: false, price: null, payment: null });
-    router.back();
+    // Use replace to avoid coming back to the now-completed mission screen
+    try { router.replace('/(tabs)/missions' as any); }
+    catch { router.back(); }
   };
 
   if (loading) {

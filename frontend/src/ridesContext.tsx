@@ -40,6 +40,10 @@ type RidesCtx = {
   forceRefresh: () => Promise<void>;
   /** Toggle whether immediate rides should pop up the Uber-style modal. */
   setImmediateModeEnabled: (enabled: boolean) => Promise<void>;
+  /** Mark the active mission as completed locally — clears hasActiveMission /
+   *  activeMissionId immediately so the screen-lock and auto-redirect release
+   *  without waiting for the next polling cycle. */
+  clearActiveMission: () => void;
 };
 
 const Ctx = createContext<RidesCtx | null>(null);
@@ -350,6 +354,11 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
         setNewRidesCount(0);
       }
     },
+    clearActiveMission: () => {
+      hasActiveMissionRef.current = false;
+      setHasActiveMission(false);
+      setActiveMissionId(null);
+    },
   };
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
@@ -373,6 +382,7 @@ export function useRides(): RidesCtx {
       refreshShift: async () => {},
       forceRefresh: async () => {},
       setImmediateModeEnabled: async () => {},
+      clearActiveMission: () => {},
     };
   }
   return c;
