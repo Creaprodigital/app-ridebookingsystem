@@ -52,6 +52,13 @@ export default function SettingsIndex() {
       onPress: () => router.push('/settings/permissions'),
       testID: 'settings-permissions',
     },
+    {
+      icon: 'bug-outline',
+      label: 'Diagnostic (debug)',
+      sub: 'Vérifier les données reçues par l’app',
+      onPress: () => router.push('/settings/debug' as any),
+      testID: 'settings-debug',
+    },
   ];
 
   return (
