@@ -10,7 +10,11 @@ import { isImmediateRide } from './rideTypes';
 
 const FOREGROUND_POLL_MS = 1500; // sub-2s feel
 const BACKGROUND_POLL_MS = 15000;
-const DISMISS_TTL_MS = 5 * 60 * 1000; // 5 min — short enough to honour backend re-dispatch waves
+// After a refuse / no-answer, wait 60 s before re-prompting the same driver.
+// Combined with the marketplace polling, this creates a re-broadcast loop:
+// the modal will pop up again every 60 s as long as the ride is still in
+// the marketplace (i.e. nobody else has accepted it).
+const DISMISS_TTL_MS = 60 * 1000;
 
 type RidesCtx = {
   // pending queue (head = currently displayed request)
@@ -249,6 +253,11 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
     const id = String(head.id ?? head._id);
     dismissedRef.current[id] = Date.now();
     saveDismissed(dismissedRef.current);
+    // Important: also remove from knownIds so that once the dismiss-TTL
+    // expires, the ride is detected as "new" again on the next poll.
+    // This creates a client-side re-broadcast loop: every DISMISS_TTL_MS,
+    // any unaccepted ride still present in the marketplace pops back up.
+    knownIds.current.delete(id);
     setQueue((prev) => prev.slice(1));
   }, [queue]);
 
