@@ -125,9 +125,21 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
           } catch {}
           const first = immediateNew[0];
           const amt = first?.amount ?? first?.pricing?.final ?? first?.price;
+          const fromAddr = pickPickup(first);
+          const toAddr = pickDropoff(first);
+          // Build notification body: "depart → arrivée · 12,50 €"
+          const parts: string[] = [];
+          if (fromAddr) parts.push(fromAddr);
+          if (toAddr) parts.push(toAddr);
+          let body = parts.join(' → ');
+          if (amt != null) {
+            const price = `${Number(amt).toFixed(2)} €`;
+            body = body ? `${body}\n${price}` : price;
+          }
+          if (!body) body = 'Tap pour voir';
           notifyNewRide({
             title: `🚗 ${immediateNew.length > 1 ? immediateNew.length + ' courses immédiates' : 'Course immédiate'}`,
-            body: amt ? `Commission : ${Number(amt).toFixed(2)} €` : 'Tap pour voir',
+            body,
             data: { route: '/(tabs)/missions' },
           });
         }
@@ -294,7 +306,10 @@ export function useRides(): RidesCtx {
 
 // helpers shared with notification persistence
 function pickPickup(item: any) {
-  return item?.booking?.pickup_address || item?.pickup_address || 'Course disponible';
+  return item?.booking?.pickup_address || item?.pickup_address || '';
+}
+function pickDropoff(item: any) {
+  return item?.booking?.dropoff_address || item?.dropoff_address || '';
 }
 function pickAmount(item: any) {
   const v = item?.amount ?? item?.pricing?.final ?? item?.price ?? item?.fare;
