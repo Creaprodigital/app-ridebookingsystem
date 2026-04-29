@@ -94,7 +94,16 @@ export default function Wallet() {
   };
 
   const balance = Number(wallet?.balance_eur ?? 0);
-  const txs: any[] = wallet?.transactions || wallet?.movements || wallet?.history || [];
+  const allTxs: any[] = wallet?.transactions || wallet?.movements || wallet?.history || [];
+  // Hide pending top-ups — only show confirmed transactions in the list.
+  // We treat "pending" as: type=='topup_pending' OR status starts with pending/incomplete/await
+  const txs: any[] = allTxs.filter((t: any) => {
+    const type = String(t?.type || '').toLowerCase();
+    const status = String(t?.status || '').toLowerCase();
+    if (type === 'topup_pending') return false;
+    if (status === 'pending' || status === 'incomplete' || status === 'awaiting' || status === 'requires_payment_method' || status === 'processing') return false;
+    return true;
+  });
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -181,7 +190,6 @@ export default function Wallet() {
           else if (item.direction === 'debit') isCredit = false;
           else isCredit = rawAmount > 0;
           const displayAmount = isCredit ? Math.abs(rawAmount) : -Math.abs(rawAmount);
-          const isPending = item.type === 'topup_pending';
           return (
             <View style={styles.txRow} testID={`tx-${item.id ?? item._id}`}>
               <View style={[styles.txIcon, { backgroundColor: meta.color + '22' }]}>
@@ -190,7 +198,6 @@ export default function Wallet() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.txTitle} numberOfLines={1}>{meta.label}</Text>
                 <Text style={styles.txDate}>{fmtDt(item.created_at || item.date || item.at)}</Text>
-                {isPending ? <Text style={styles.pendingTag}>EN ATTENTE</Text> : null}
               </View>
               <Text style={[styles.txAmt, { color: isCredit ? colors.success : colors.danger }]}>
                 {isCredit ? '+' : ''}{fmtEur(displayAmount)}
