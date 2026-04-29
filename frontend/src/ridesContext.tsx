@@ -27,8 +27,10 @@ type RidesCtx = {
   newRidesCount: number;
   // shift status (global)
   onShift: boolean;
+  /** True if the driver currently has an active (non-completed) mission. */
+  hasActiveMission: boolean;
   // actions
-  acceptCurrent: () => Promise<{ ok: boolean; error?: string }>;
+  acceptCurrent: () => Promise<{ ok: boolean; error?: string; missionId?: string }>;
   dismissCurrent: () => void;
   acknowledge: () => void;
   refreshShift: () => Promise<void>;
@@ -55,6 +57,7 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
   const [queue, setQueue] = useState<any[]>([]);
   const [newRidesCount, setNewRidesCount] = useState<number>(0);
   const [onShift, setOnShift] = useState<boolean>(false);
+  const [hasActiveMission, setHasActiveMission] = useState<boolean>(false);
 
   const knownIds = useRef<Set<string>>(new Set());
   const dismissedRef = useRef<Record<string, number>>({});
@@ -64,6 +67,7 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
   const reminderTimer = useRef<any>(null);
   const inForeground = useRef<boolean>(true);
   const immediateEnabledRef = useRef<boolean>(true);
+  const hasActiveMissionRef = useRef<boolean>(false);
 
   useEffect(() => {
     (async () => {
@@ -107,8 +111,8 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
         // Only IMMEDIATE rides should pop the Uber-style modal. Scheduled
         // rides remain in the marketplace ("Disponibles") tab for manual
         // claim. If the driver disabled "Course immédiate" in settings,
-        // skip the modal queue entirely.
-        const immediateNew = immediateEnabledRef.current
+        // OR is already on an active mission, skip the modal queue.
+        const immediateNew = (immediateEnabledRef.current && !hasActiveMissionRef.current)
           ? newOnes.filter(isImmediateRide)
           : [];
 
@@ -175,6 +179,22 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
       const m: any = await getDriverMissions();
       const list = Array.isArray(m) ? m : (m?.current ?? m?.items ?? []);
       await scheduleMissionReminders(list);
+
+      // Detect if the driver currently has an active mission (assigned,
+      // en_route, arrived, in_progress) — used to block new immediate
+      // ride requests until completion.
+      const ACTIVE = new Set(['assigned', 'en_route', 'arrived', 'in_progress']);
+      const active = list.some((mission: any) => {
+        const s = String(mission?.status || '').toLowerCase();
+        return ACTIVE.has(s);
+      });
+      hasActiveMissionRef.current = active;
+      setHasActiveMission(active);
+      if (active) {
+        // Drop any immediate ride requests still waiting in the queue
+        setQueue([]);
+        setNewRidesCount(0);
+      }
     } catch {}
   }, []);
 
@@ -203,7 +223,9 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
     startTimer();
 
     if (reminderTimer.current) clearInterval(reminderTimer.current);
-    reminderTimer.current = setInterval(refreshReminders, 5 * 60 * 1000);
+    // Run reminders + active-mission detection every 10s so that the
+    // immediate-ride blocking flag is updated quickly after accept/complete.
+    reminderTimer.current = setInterval(refreshReminders, 10 * 1000);
 
     const sub = AppState.addEventListener('change', (state) => {
       const wasFg = inForeground.current;
@@ -226,17 +248,33 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
   }, [user, tick, refreshReminders, refreshShift]);
 
   // Actions
-  const acceptCurrent = useCallback(async (): Promise<{ ok: boolean; error?: string }> => {
+  const acceptCurrent = useCallback(async (): Promise<{ ok: boolean; error?: string; missionId?: string }> => {
     const head = queue[0];
     if (!head) return { ok: false, error: 'Aucune course à accepter' };
     const id = String(head.id ?? head._id);
     try {
-      await claimMarketplace(id);
-      // remove from queue
-      setQueue((prev) => prev.filter((p) => String(p.id ?? p._id) !== id));
-      // mark as known so we don't re-prompt
+      const data: any = await claimMarketplace(id);
+      // Clear ALL queued immediate rides — driver is now committed
+      setQueue([]);
+      setNewRidesCount(0);
+      // Mark active mission immediately so any in-flight tick won't re-queue
+      hasActiveMissionRef.current = true;
+      setHasActiveMission(true);
+      // Mark as known so polling won't re-add it
       knownIds.current.add(id);
-      return { ok: true };
+      // Try to pull the mission ID from the claim response, else fall back
+      // to the marketplace listing ID.
+      const missionId =
+        data?.mission_id ||
+        data?.mission?.id ||
+        data?.mission?._id ||
+        data?.assigned_mission?.id ||
+        data?.id ||
+        data?._id ||
+        id;
+      // Trigger a missions refresh in background to keep status in sync
+      setTimeout(() => { refreshReminders(); }, 500);
+      return { ok: true, missionId: String(missionId) };
     } catch (e: any) {
       const msg =
         e?.response?.data?.detail ||
@@ -245,7 +283,7 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
         'Impossible d’accepter la course';
       return { ok: false, error: String(msg) };
     }
-  }, [queue]);
+  }, [queue, refreshReminders]);
 
   const dismissCurrent = useCallback(() => {
     const head = queue[0];
@@ -273,6 +311,7 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
     hasNew: newRidesCount > 0,
     newRidesCount,
     onShift,
+    hasActiveMission,
     acceptCurrent,
     dismissCurrent,
     acknowledge,
@@ -302,6 +341,7 @@ export function useRides(): RidesCtx {
       hasNew: false,
       newRidesCount: 0,
       onShift: false,
+      hasActiveMission: false,
       acceptCurrent: async () => ({ ok: false }),
       dismissCurrent: () => {},
       acknowledge: () => {},

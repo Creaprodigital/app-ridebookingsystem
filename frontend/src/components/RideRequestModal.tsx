@@ -193,9 +193,17 @@ export default function RideRequestModal() {
     const r = await acceptCurrent();
     if (r.ok) {
       closeSequence();
-      // On peut router immédiatement vers la mission
+      // Navigate directly to the mission detail screen so the driver can
+      // start the ride immediately. The mission detail screen will lock
+      // navigation until the mission is completed.
+      const targetId = r.missionId;
       setTimeout(() => {
-        router.push('/(tabs)/missions');
+        if (targetId) {
+          try { router.replace(`/mission/${targetId}` as any); }
+          catch { router.replace('/(tabs)/missions' as any); }
+        } else {
+          router.replace('/(tabs)/missions' as any);
+        }
       }, 220);
     } else {
       setError(r.error || 'Échec de l’acceptation');

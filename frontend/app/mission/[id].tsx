@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Platform,
   Alert,
   Modal,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -130,6 +131,27 @@ export default function MissionDetail() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
+  // Lock the screen while the mission is in progress: the driver cannot
+  // navigate back until they reach the "completed" step.
+  const isLocked =
+    !!mission &&
+    !['completed', 'cancelled'].includes(String(mission.status || '').toLowerCase());
+
+  // Block hardware back button on Android while locked
+  useEffect(() => {
+    if (!isLocked) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      // Show a friendly explanation rather than allowing back
+      Alert.alert(
+        'Course en cours',
+        'Vous devez terminer la course avant de quitter cet écran.',
+        [{ text: 'OK' }]
+      );
+      return true; // consume the event
+    });
+    return () => sub.remove();
+  }, [isLocked]);
+
   const openNav = async () => {
     if (!mission) return;
     const p = pickLatLng(mission, 'pickup');
@@ -239,10 +261,16 @@ export default function MissionDetail() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn} testID="back-btn">
-          <Ionicons name="chevron-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.topTitle}>Mission</Text>
+        {isLocked ? (
+          <View style={[styles.iconBtn, styles.lockedIconBtn]} testID="back-btn-locked">
+            <Ionicons name="lock-closed" size={18} color={colors.warning} />
+          </View>
+        ) : (
+          <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn} testID="back-btn">
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+        )}
+        <Text style={styles.topTitle}>{isLocked ? 'Course en cours' : 'Mission'}</Text>
         <View style={styles.iconBtn} />
       </View>
 
@@ -421,6 +449,7 @@ const styles = StyleSheet.create({
   backTxt: { color: colors.bg, fontWeight: '800' },
   topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
   iconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  lockedIconBtn: { backgroundColor: colors.warning + '22', borderWidth: 1, borderColor: colors.warning },
   topTitle: { flex: 1, textAlign: 'center', color: colors.text, fontSize: 16, fontWeight: '800' },
   mapBox: { height: 220, borderRadius: radius.xl, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   card: {
