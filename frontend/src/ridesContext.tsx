@@ -183,26 +183,33 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
       const list = Array.isArray(m) ? m : (m?.current ?? m?.items ?? []);
       await scheduleMissionReminders(list);
 
-      // Detect if the driver currently has an active mission (assigned,
-      // en_route, arrived, in_progress) — used to block new immediate
-      // ride requests until completion.
-      const ACTIVE = new Set(['assigned', 'en_route', 'arrived', 'in_progress']);
-      const activeMission = list.find((mission: any) => {
-        const s = String(mission?.status || '').toLowerCase();
-        return ACTIVE.has(s);
-      });
+      // Detect if the driver is currently EXECUTING a ride (en route, arrived,
+      // or in progress) — only these states block new immediate rides and
+      // trigger the auto-redirect to the mission screen.
+      // A mission that is only `assigned` is considered:
+      //   • BUSY if it's an immediate ride just accepted (driver is about to
+      //     start, must stay focused) — blocks new immediate rides.
+      //   • FREE if it's a scheduled ride waiting for its pickup time —
+      //     driver can still receive immediate rides in the meantime.
+      const EXECUTING = new Set(['en_route', 'arrived', 'in_progress']);
+      const isExecuting = (m: any) => EXECUTING.has(String(m?.status || '').toLowerCase());
+      const isAssignedImmediate = (m: any) => {
+        const s = String(m?.status || '').toLowerCase();
+        return s === 'assigned' && isImmediateRide(m);
+      };
+      const activeMission = list.find((m: any) => isExecuting(m) || isAssignedImmediate(m));
       const active = !!activeMission;
       hasActiveMissionRef.current = active;
       setHasActiveMission(active);
       if (active && activeMission) {
-        const id = String(
+        const mid = String(
           activeMission?.id ??
           activeMission?._id ??
           activeMission?.mission_id ??
           activeMission?.booking?.id ??
           ''
         );
-        setActiveMissionId(id || null);
+        setActiveMissionId(mid || null);
       } else {
         setActiveMissionId(null);
       }

@@ -21,6 +21,7 @@ import { colors, radius, spacing } from '../../src/theme';
 import { getDriverMissions, updateMissionStatus, apiError } from '../../src/api';
 import { getNavProvider, buildNavUrl } from '../../src/prefs';
 import { useRides } from '../../src/ridesContext';
+import { isImmediateRide } from '../../src/rideTypes';
 import { haptic } from '../../src/feedback';
 
 const NEXT: Record<string, { next: string; label: string }> = {
@@ -171,9 +172,15 @@ export default function MissionDetail() {
 
   // Lock the screen while the mission is in progress: the driver cannot
   // navigate back until they reach the "completed" step.
-  const isLocked =
-    !!mission &&
-    !['completed', 'cancelled'].includes(String(mission.status || '').toLowerCase());
+  // Locking rules (aligned with ridesContext):
+  //   • EXECUTING (en_route, arrived, in_progress) → ALWAYS locked
+  //   • assigned + immediate ride → locked (driver just accepted, must start)
+  //   • assigned + scheduled ride (planifiée) → NOT locked, driver can browse
+  //     other screens while waiting for the pickup time
+  const status = String(mission?.status || '').toLowerCase();
+  const isExecuting = ['en_route', 'arrived', 'in_progress'].includes(status);
+  const isAssignedImmediate = status === 'assigned' && !!mission && isImmediateRide(mission);
+  const isLocked = !!mission && (isExecuting || isAssignedImmediate);
 
   // Block hardware back button on Android while locked
   useEffect(() => {
