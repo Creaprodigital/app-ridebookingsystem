@@ -118,15 +118,53 @@ export default function MissionDetail() {
 
   const load = useCallback(async () => {
     setLoading(true);
-    try {
-      const list: any = await getDriverMissions();
-      const arr = Array.isArray(list) ? list : (list?.current ?? list?.items ?? []);
-      const all = [...arr, ...(list?.history ?? [])];
-      const m = all.find((x: any) => String(x.id ?? x._id) === String(id));
-      setMission(m || null);
-    } finally {
-      setLoading(false);
+    // Robust lookup: the mission may take a few seconds to appear in
+    // `/api/driver/missions` right after a marketplace claim, and the ID
+    // returned by the claim endpoint doesn't always match the mission ID
+    // the missions endpoint exposes. We retry up to 6 times (~10 s total)
+    // and also match on several alternative identifiers.
+    const strId = String(id ?? '');
+    const idMatches = (x: any) => {
+      if (!x) return false;
+      const candidates = [
+        x.id, x._id,
+        x.mission_id,
+        x.booking?.id, x.booking?._id,
+        x.marketplace_listing_id,
+        x.marketplace?.id, x.marketplace?._id,
+      ]
+        .filter((v) => v != null)
+        .map((v) => String(v));
+      return candidates.includes(strId);
+    };
+
+    const fetchOnce = async (): Promise<any | null> => {
+      try {
+        const list: any = await getDriverMissions();
+        const arr = Array.isArray(list) ? list : (list?.current ?? list?.items ?? []);
+        const all = [...arr, ...(list?.history ?? [])];
+        const exact = all.find(idMatches);
+        if (exact) return exact;
+        // Fallback: if no exact match and there's a single active mission in
+        // the current list, assume it's ours (most common case right after a
+        // fresh claim — only one assigned mission at a time).
+        const ACTIVE = new Set(['assigned', 'en_route', 'arrived', 'in_progress']);
+        const actives = arr.filter((m: any) => ACTIVE.has(String(m?.status || '').toLowerCase()));
+        if (actives.length === 1) return actives[0];
+        return null;
+      } catch {
+        return null;
+      }
+    };
+
+    let found: any = null;
+    for (let attempt = 0; attempt < 6; attempt += 1) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 1500));
+      found = await fetchOnce();
+      if (found) break;
     }
+    setMission(found || null);
+    setLoading(false);
   }, [id]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -223,10 +261,25 @@ export default function MissionDetail() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.center}>
-          <Ionicons name="alert-circle" size={40} color={colors.textMuted} />
-          <Text style={styles.missingTxt}>Mission introuvable</Text>
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-            <Text style={styles.backTxt}>Retour</Text>
+          <Ionicons name="hourglass" size={40} color={colors.primary} />
+          <Text style={styles.missingTxt}>Synchronisation en cours…</Text>
+          <Text style={styles.missingSub}>
+            Votre course vient d’être acceptée. Elle devrait apparaître d’ici quelques
+            secondes dans l’onglet « Mes missions ».
+          </Text>
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => router.replace('/(tabs)/missions' as any)}
+            testID="go-missions-btn"
+          >
+            <Text style={styles.backTxt}>OUVRIR MES MISSIONS</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.backBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, marginTop: 8 }]}
+            onPress={() => load()}
+            testID="retry-load-btn"
+          >
+            <Text style={[styles.backTxt, { color: colors.text }]}>RÉESSAYER</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -444,7 +497,8 @@ export default function MissionDetail() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
-  missingTxt: { color: colors.text, fontWeight: '700' },
+  missingTxt: { color: colors.text, fontWeight: '700', fontSize: 16 },
+  missingSub: { color: colors.textSecondary, fontSize: 13, textAlign: 'center', paddingHorizontal: 40, marginTop: 4, marginBottom: 8 },
   backBtn: { marginTop: 8, paddingHorizontal: 24, height: 44, backgroundColor: colors.primary, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   backTxt: { color: colors.bg, fontWeight: '800' },
   topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
