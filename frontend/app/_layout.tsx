@@ -15,7 +15,8 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
-  const { refreshShift, forceRefresh } = useRides();
+  const { refreshShift, forceRefresh, hasActiveMission, activeMissionId } = useRides();
+  const lastNavigatedMissionRef = React.useRef<string | null>(null);
 
   React.useEffect(() => {
     if (loading) return;
@@ -26,6 +27,32 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
       router.replace('/(tabs)');
     }
   }, [user, loading, segments, router]);
+
+  // Auto-redirect to the active mission whenever the driver opens the app
+  // with an in-progress course (assigned/en_route/arrived/in_progress).
+  // This guarantees that closing/reopening the app brings the driver
+  // straight back to the ride they accepted, exactly like Uber Driver.
+  React.useEffect(() => {
+    if (!user || loading) return;
+    if (!hasActiveMission || !activeMissionId) return;
+
+    // Don't redirect if already on the mission detail screen
+    const onMissionScreen =
+      Array.isArray(segments) && segments[0] === 'mission';
+    // Don't redirect from the login screen — RouteGuard will handle that first
+    const onLoginScreen = segments[0] === 'login';
+
+    if (onMissionScreen || onLoginScreen) {
+      lastNavigatedMissionRef.current = activeMissionId;
+      return;
+    }
+    // Avoid infinite redirects if user manually navigates back somehow
+    if (lastNavigatedMissionRef.current === activeMissionId) return;
+    lastNavigatedMissionRef.current = activeMissionId;
+    try {
+      router.replace(`/mission/${activeMissionId}` as any);
+    } catch {}
+  }, [user, loading, hasActiveMission, activeMissionId, segments, router]);
 
   React.useEffect(() => {
     if (!user) return;

@@ -29,6 +29,8 @@ type RidesCtx = {
   onShift: boolean;
   /** True if the driver currently has an active (non-completed) mission. */
   hasActiveMission: boolean;
+  /** Id of the active mission (assigned/en_route/arrived/in_progress) — null otherwise. */
+  activeMissionId: string | null;
   // actions
   acceptCurrent: () => Promise<{ ok: boolean; error?: string; missionId?: string }>;
   dismissCurrent: () => void;
@@ -58,6 +60,7 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
   const [newRidesCount, setNewRidesCount] = useState<number>(0);
   const [onShift, setOnShift] = useState<boolean>(false);
   const [hasActiveMission, setHasActiveMission] = useState<boolean>(false);
+  const [activeMissionId, setActiveMissionId] = useState<string | null>(null);
 
   const knownIds = useRef<Set<string>>(new Set());
   const dismissedRef = useRef<Record<string, number>>({});
@@ -184,12 +187,25 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
       // en_route, arrived, in_progress) — used to block new immediate
       // ride requests until completion.
       const ACTIVE = new Set(['assigned', 'en_route', 'arrived', 'in_progress']);
-      const active = list.some((mission: any) => {
+      const activeMission = list.find((mission: any) => {
         const s = String(mission?.status || '').toLowerCase();
         return ACTIVE.has(s);
       });
+      const active = !!activeMission;
       hasActiveMissionRef.current = active;
       setHasActiveMission(active);
+      if (active && activeMission) {
+        const id = String(
+          activeMission?.id ??
+          activeMission?._id ??
+          activeMission?.mission_id ??
+          activeMission?.booking?.id ??
+          ''
+        );
+        setActiveMissionId(id || null);
+      } else {
+        setActiveMissionId(null);
+      }
       if (active) {
         // Drop any immediate ride requests still waiting in the queue
         setQueue([]);
@@ -312,6 +328,7 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
     newRidesCount,
     onShift,
     hasActiveMission,
+    activeMissionId,
     acceptCurrent,
     dismissCurrent,
     acknowledge,
@@ -342,6 +359,7 @@ export function useRides(): RidesCtx {
       newRidesCount: 0,
       onShift: false,
       hasActiveMission: false,
+      activeMissionId: null,
       acceptCurrent: async () => ({ ok: false }),
       dismissCurrent: () => {},
       acknowledge: () => {},
