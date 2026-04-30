@@ -12,9 +12,12 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Share your position to receive nearby rides",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "Track your trips while driving",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Track your trips and receive nearby ride requests",
+        "NSLocationAlwaysUsageDescription": "Share your position while driving in background",
         "UIBackgroundModes": [
-          "location"
+          "location",
+          "fetch",
+          "remote-notification"
         ]
       }
     },
@@ -27,7 +30,9 @@
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
         "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
         "CAMERA",
         "RECORD_AUDIO",
         "READ_CONTACTS",
@@ -36,19 +41,9 @@
         "SYSTEM_ALERT_WINDOW",
         "android.permission.ACCESS_COARSE_LOCATION",
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS",
-        "ACCESS_FINE_LOCATION",
-        "ACCESS_COARSE_LOCATION",
-        "FOREGROUND_SERVICE",
-        "CAMERA",
-        "RECORD_AUDIO",
-        "READ_CONTACTS",
-        "CALL_PHONE",
-        "VIBRATE",
-        "SYSTEM_ALERT_WINDOW",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS"
       ],
@@ -73,7 +68,11 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Share your location to receive and track rides."
+          "locationAlwaysAndWhenInUsePermission": "Partagez votre position pour recevoir et suivre les courses, même en arrière-plan.",
+          "locationWhenInUsePermission": "Partagez votre position pour recevoir des courses à proximité.",
+          "isIosBackgroundLocationEnabled": true,
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
         }
       ],
       "expo-secure-store",

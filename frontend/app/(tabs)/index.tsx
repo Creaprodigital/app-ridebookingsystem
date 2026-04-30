@@ -28,6 +28,7 @@ import { haptic } from '../../src/feedback';
 import { useRides } from '../../src/ridesContext';
 import { getNotifications, subscribe } from '../../src/notificationsHistory';
 import { setLastCoords } from '../../src/locationStore';
+import { startBackgroundLocation, stopBackgroundLocation } from '../../src/backgroundLocation';
 
 type Coords = { lat: number; lng: number; heading?: number | null; speed?: number | null };
 
@@ -162,9 +163,15 @@ export default function HomeMap() {
     };
   }, [startTracking]);
 
-  // Push location to backend while on shift
+  // Push location to backend while on shift + start/stop background tracker
   useEffect(() => {
-    if (!onShift || !coords) return;
+    if (!onShift || !coords) {
+      // shift OFF → stop background tracker (idempotent)
+      void stopBackgroundLocation();
+      return;
+    }
+    // shift ON → ensure background tracker is running. Web is a no-op.
+    void startBackgroundLocation();
     const send = async () => {
       const now = Date.now();
       if (now - lastSentAt.current < 8000) return;

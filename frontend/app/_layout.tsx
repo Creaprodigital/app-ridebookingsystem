@@ -10,6 +10,7 @@ import { setupPushNotifications } from '../src/pushService';
 import { RidesProvider, useRides } from '../src/ridesContext';
 import RideRequestModal from '../src/components/RideRequestModal';
 import { haptic } from '../src/feedback';
+import { hydrateLastCoords } from '../src/locationStore';
 
 function RouteGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -17,6 +18,13 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { refreshShift, forceRefresh, hasActiveMission, activeMissionId } = useRides();
   const lastNavigatedMissionRef = React.useRef<string | null>(null);
+
+  // Hydrate persisted GPS coords once at startup so the immediate-ride
+  // distance filter has a usable position before the foreground watcher
+  // gets its first fix.
+  React.useEffect(() => {
+    void hydrateLastCoords();
+  }, []);
 
   React.useEffect(() => {
     if (loading) return;

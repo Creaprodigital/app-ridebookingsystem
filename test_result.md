@@ -103,6 +103,18 @@
 #====================================================================================================
 
 frontend:
+  - task: "Background GPS tracking (foreground service + persisted store)"
+    implemented: true
+    working: "NA"
+    file: "src/backgroundLocation.ts, src/locationStore.ts, app/(tabs)/index.tsx, app/_layout.tsx, src/auth.tsx, app.json"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Added expo-task-manager (SDK 54 compatible 14.0.9). New module src/backgroundLocation.ts defines a top-level TaskManager handler 'sharedride-driver-location-v1' that receives Location updates, writes them into locationStore.setLastCoords (in-memory + SecureStore persisted) and pushes to backend at most once every 12 s. startBackgroundLocation() requests fg+bg permissions and calls Location.startLocationUpdatesAsync with 8 s/25 m thresholds and an Android foreground-service notification 'SharedRide en service / Position partagée pendant votre shift' (#F5B72E). Idempotent start/stop. Web is a no-op. HomeMap (app/(tabs)/index.tsx) starts the tracker when the driver toggles ON-shift and stops it when OFF-shift. AuthProvider.signOut also stops the tracker so the foreground notification doesn't linger after logout. locationStore now persists to SecureStore (key driver_last_coords_v1) and exposes hydrateLastCoords() — called at startup in _layout.tsx so the immediate-ride distance filter has a usable position before the foreground watcher fires. app.json updated: ios.UIBackgroundModes adds fetch + remote-notification; android.permissions adds ACCESS_BACKGROUND_LOCATION + FOREGROUND_SERVICE_LOCATION; expo-location plugin gets isIosBackgroundLocationEnabled=true, isAndroidBackgroundLocationEnabled=true, isAndroidForegroundServiceEnabled=true. expo-doctor 17/17 passes. Web bundle successful (1590 modules, no errors)."
+
   - task: "Immediate ride: distance filter, ETA & acceptance stats"
     implemented: true
     working: "NA"

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { tokenStore, login as apiLogin, getMe } from './api';
+import { stopBackgroundLocation } from './backgroundLocation';
 
 type User = { id?: string; email?: string; first_name?: string; last_name?: string; role?: string };
 
@@ -48,6 +49,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    // Stop the foreground-service-backed location tracker first so the
+    // notification doesn't linger after logout.
+    try { await stopBackgroundLocation(); } catch {}
     await tokenStore.clear();
     setUser(null);
   }, []);
