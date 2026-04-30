@@ -23,6 +23,14 @@ import { getNavProvider, buildNavUrl } from '../../src/prefs';
 import { useRides } from '../../src/ridesContext';
 import { isImmediateRide } from '../../src/rideTypes';
 import { haptic } from '../../src/feedback';
+import {
+  fetchRoute,
+  fmtDistanceKm,
+  fmtDurationMin,
+  type DirectionsResult,
+  type LatLng,
+} from '../../src/directions';
+import { getLastCoords, subscribeCoords } from '../../src/locationStore';
 
 const NEXT: Record<string, { next: string; label: string }> = {
   assigned: { next: 'en_route', label: 'GLISSER POUR DÉMARRER' },
@@ -117,6 +125,27 @@ export default function MissionDetail() {
     payment: PaymentInfo | null;
   }>({ visible: false, price: null, payment: null });
 
+  // Live driver position (from background+foreground location store) so the
+  // leg-1 polyline (driver→pickup) refreshes naturally.
+  const [driverPos, setDriverPos] = useState<LatLng | null>(() => {
+    const c = getLastCoords();
+    return c ? { lat: c.lat, lng: c.lng } : null;
+  });
+  useEffect(() => {
+    const unsub = subscribeCoords((c) => {
+      if (c) setDriverPos({ lat: c.lat, lng: c.lng });
+      else setDriverPos(null);
+    });
+    return () => unsub();
+  }, []);
+
+  // Directions for the two legs
+  const [pickupRoute, setPickupRoute] = useState<DirectionsResult | null>(null);
+  const [tripRoute, setTripRoute] = useState<DirectionsResult | null>(null);
+  // Throttle leg-1 re-fetches: only re-query Directions when the driver has
+  // moved significantly (>= 300 m) so we don't burn API quota.
+  const lastDriverFetchRef = React.useRef<LatLng | null>(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     // Robust lookup: the mission may take a few seconds to appear in
@@ -170,6 +199,71 @@ export default function MissionDetail() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
+  // ── Resolve trip endpoints once we have a mission ────────────────────
+  const pickupLatLng = mission ? pickLatLng(mission, 'pickup') : null;
+  const dropoffLatLng = mission ? pickLatLng(mission, 'dropoff') : null;
+
+  // Status-driven flags: which leg should be highlighted on the map.
+  const status = String(mission?.status || '').toLowerCase();
+  // While the driver is on the way to pickup OR has just been assigned, the
+  // important leg is driver→pickup. After "arrived" / "in_progress", we only
+  // care about pickup→dropoff (the client is in the car).
+  const showLegToPickup = ['assigned', 'en_route'].includes(status);
+  const showLegOfTrip = true; // always useful to show the full trip
+
+  // ── Fetch the two route polylines ─────────────────────────────────────
+  // Leg 1: Driver → pickup (only when showLegToPickup AND we have a fix).
+  useEffect(() => {
+    if (!showLegToPickup || !driverPos || !pickupLatLng) {
+      setPickupRoute(null);
+      lastDriverFetchRef.current = null;
+      return;
+    }
+    // Throttle by movement distance (≥ 300 m delta to refetch).
+    const last = lastDriverFetchRef.current;
+    if (last) {
+      const km = (() => {
+        const R = 6371;
+        const toRad = (x: number) => (x * Math.PI) / 180;
+        const dLat = toRad(driverPos.lat - last.lat);
+        const dLng = toRad(driverPos.lng - last.lng);
+        const a =
+          Math.sin(dLat / 2) ** 2 +
+          Math.cos(toRad(last.lat)) * Math.cos(toRad(driverPos.lat)) *
+          Math.sin(dLng / 2) ** 2;
+        return 2 * R * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      })();
+      if (km < 0.3 && pickupRoute) return; // < 300 m, skip
+    }
+    let cancelled = false;
+    (async () => {
+      const r = await fetchRoute(driverPos, pickupLatLng);
+      if (cancelled) return;
+      setPickupRoute(r);
+      lastDriverFetchRef.current = driverPos;
+    })();
+    return () => { cancelled = true; };
+  }, [showLegToPickup, driverPos, pickupLatLng, pickupRoute]);
+
+  // Leg 2: Pickup → Dropoff (cached, fetched once per mission).
+  useEffect(() => {
+    if (!showLegOfTrip || !pickupLatLng || !dropoffLatLng) {
+      setTripRoute(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const r = await fetchRoute(pickupLatLng, dropoffLatLng);
+      if (cancelled) return;
+      setTripRoute(r);
+    })();
+    return () => { cancelled = true; };
+  }, [
+    showLegOfTrip,
+    pickupLatLng?.lat, pickupLatLng?.lng,
+    dropoffLatLng?.lat, dropoffLatLng?.lng,
+  ]);
+
   // Lock the screen while the mission is in progress: the driver cannot
   // navigate back until they reach the "completed" step.
   // Locking rules (aligned with ridesContext):
@@ -177,7 +271,6 @@ export default function MissionDetail() {
   //   • assigned + immediate ride → locked (driver just accepted, must start)
   //   • assigned + scheduled ride (planifiée) → NOT locked, driver can browse
   //     other screens while waiting for the pickup time
-  const status = String(mission?.status || '').toLowerCase();
   const isExecuting = ['en_route', 'arrived', 'in_progress'].includes(status);
   const isAssignedImmediate = status === 'assigned' && !!mission && isImmediateRide(mission);
   const isLocked = !!mission && (isExecuting || isAssignedImmediate);
@@ -305,8 +398,31 @@ export default function MissionDetail() {
   const markers = [] as any[];
   if (pickup) markers.push({ ...pickup, color: colors.primary, label: 'A' });
   if (dropoff) markers.push({ ...dropoff, color: colors.danger, label: 'B' });
-  const centerLat = pickup?.lat ?? dropoff?.lat;
-  const centerLng = pickup?.lng ?? dropoff?.lng;
+  // Center the map on the driver if we know where they are; otherwise pick A.
+  const centerLat = driverPos?.lat ?? pickup?.lat ?? dropoff?.lat;
+  const centerLng = driverPos?.lng ?? pickup?.lng ?? dropoff?.lng;
+
+  // Build the polyline list for MapView. Two legs are drawn with different
+  // styles so the driver can immediately tell them apart:
+  //   • Leg 1 (driver→pickup) — yellow + dashed (only while heading there)
+  //   • Leg 2 (pickup→dropoff) — green + solid (always visible)
+  const polylines: any[] = [];
+  if (pickupRoute && showLegToPickup) {
+    polylines.push({
+      encoded: pickupRoute.encoded,
+      color: colors.primary, // yellow
+      dashed: true,
+      weight: 5,
+    });
+  }
+  if (tripRoute) {
+    polylines.push({
+      encoded: tripRoute.encoded,
+      color: colors.success, // green
+      dashed: false,
+      weight: 6,
+    });
+  }
 
   const price = pickPrice(mission);
   const passenger =
@@ -343,7 +459,31 @@ export default function MissionDetail() {
 
       <ScrollView contentContainerStyle={{ paddingBottom: 200, gap: spacing.md, paddingHorizontal: spacing.md }}>
         <View style={styles.mapBox}>
-          <MapView lat={centerLat} lng={centerLng} extraMarkers={markers} style={StyleSheet.absoluteFill} />
+          <MapView
+            lat={centerLat}
+            lng={centerLng}
+            extraMarkers={markers}
+            polylines={polylines}
+            fitBounds
+            style={StyleSheet.absoluteFill}
+          />
+          {/* Legend overlay */}
+          {(pickupRoute || tripRoute) ? (
+            <View style={styles.mapLegend} testID="map-legend">
+              {pickupRoute && showLegToPickup ? (
+                <View style={styles.legendRow}>
+                  <View style={[styles.legendDash, { backgroundColor: colors.primary }]} />
+                  <Text style={styles.legendTxt}>Vers prise en charge</Text>
+                </View>
+              ) : null}
+              {tripRoute ? (
+                <View style={styles.legendRow}>
+                  <View style={[styles.legendSolid, { backgroundColor: colors.success }]} />
+                  <Text style={styles.legendTxt}>Trajet client</Text>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.card}>
@@ -363,11 +503,31 @@ export default function MissionDetail() {
             </View>
             <View style={{ flex: 1, gap: spacing.md }}>
               <View>
-                <Text style={styles.routeLabel}>DÉPART</Text>
+                <View style={styles.routeHead}>
+                  <Text style={styles.routeLabel}>DÉPART</Text>
+                  {pickupRoute && showLegToPickup ? (
+                    <View style={[styles.legBadge, { backgroundColor: colors.primary + '22', borderColor: colors.primary + '55' }]}>
+                      <Ionicons name="navigate" size={10} color={colors.primary} />
+                      <Text style={[styles.legBadgeTxt, { color: colors.primary }]}>
+                        {fmtDistanceKm(pickupRoute.distanceMeters)} · {fmtDurationMin(pickupRoute.durationSec)}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
                 <Text style={styles.addr}>{pickAddr(mission, 'pickup')}</Text>
               </View>
               <View>
-                <Text style={styles.routeLabel}>ARRIVÉE</Text>
+                <View style={styles.routeHead}>
+                  <Text style={styles.routeLabel}>ARRIVÉE</Text>
+                  {tripRoute ? (
+                    <View style={[styles.legBadge, { backgroundColor: colors.success + '22', borderColor: colors.success + '55' }]}>
+                      <Ionicons name="car" size={10} color={colors.success} />
+                      <Text style={[styles.legBadgeTxt, { color: colors.success }]}>
+                        {fmtDistanceKm(tripRoute.distanceMeters)} · {fmtDurationMin(tripRoute.durationSec)}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
                 <Text style={styles.addr}>{pickAddr(mission, 'dropoff')}</Text>
               </View>
             </View>
@@ -519,7 +679,18 @@ const styles = StyleSheet.create({
   iconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
   lockedIconBtn: { backgroundColor: colors.warning + '22', borderWidth: 1, borderColor: colors.warning },
   topTitle: { flex: 1, textAlign: 'center', color: colors.text, fontSize: 16, fontWeight: '800' },
-  mapBox: { height: 220, borderRadius: radius.xl, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  mapBox: { height: 220, borderRadius: radius.xl, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, position: 'relative' },
+  mapLegend: {
+    position: 'absolute', left: 8, bottom: 8,
+    backgroundColor: colors.bg + 'E6',
+    borderColor: colors.border, borderWidth: 1,
+    borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 8,
+    gap: 4,
+  },
+  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  legendDash: { width: 16, height: 2, borderRadius: 1, opacity: 0.85 },
+  legendSolid: { width: 16, height: 3, borderRadius: 2 },
+  legendTxt: { color: colors.text, fontSize: 10, fontWeight: '700' },
   card: {
     backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
     borderRadius: radius.xl, padding: spacing.md, gap: spacing.md,
@@ -533,6 +704,13 @@ const styles = StyleSheet.create({
   routeDot: { width: 12, height: 12, borderRadius: 6 },
   routeVert: { flex: 1, width: 2, backgroundColor: colors.border, marginVertical: 2 },
   routeLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
+  routeHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  legBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 7, paddingVertical: 3,
+    borderRadius: 999, borderWidth: 1,
+  },
+  legBadgeTxt: { fontSize: 10, fontWeight: '900', letterSpacing: 0.4 },
   addr: { color: colors.text, fontSize: 15, fontWeight: '600', marginTop: 2 },
   sectionTitle: { color: colors.textSecondary, fontSize: 11, fontWeight: '800', letterSpacing: 1.3 },
   paxName: { color: colors.text, fontSize: 18, fontWeight: '800' },

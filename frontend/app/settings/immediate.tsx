@@ -54,7 +54,7 @@ export default function ImmediateRideSettings() {
   };
 
   const onPickDistance = async (km: number) => {
-    haptic('selection');
+    haptic('light');
     setMaxKm(km);
     await setMaxDistanceKm(km);
   };

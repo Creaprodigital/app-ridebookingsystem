@@ -103,6 +103,18 @@
 #====================================================================================================
 
 frontend:
+  - task: "Mission detail: Google Directions polyline (driver→pickup + pickup→dropoff)"
+    implemented: true
+    working: "NA"
+    file: "src/directions.ts, src/components/MapView.tsx, app/mission/[id].tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Built a complete two-leg route visualisation on the mission detail screen. New module src/directions.ts hits Google Directions API, caches results in memory keyed by 5-decimal origin/destination, and exposes formatters fmtDistanceKm/fmtDurationMin. MapView.tsx now accepts a polylines prop (encoded or raw points, color, dashed flag, weight), draws them via google.maps.geometry.encoding.decodePath inside the WebView, and supports fitBounds=true so the camera zooms to fit the driver + pickup + dropoff + polyline (60/40 padding). Mission detail subscribes to locationStore via subscribeCoords so the driver pin/leg-1 polyline refresh as GPS moves; leg-1 is re-fetched only when the driver moved ≥ 300 m to save API quota. Two legs rendered with distinct styles: yellow + dashed for driver→pickup (only while status is assigned/en_route), green + solid for pickup→dropoff (always). A small map legend explains both colours. The route block under the price card now shows a small pill on each address line: yellow 'distance · ETA' next to DÉPART (driver leg) and green 'distance · ETA' next to ARRIVÉE (trip leg). Web bundle: 1591 modules, 0 errors. expo-doctor 17/17."
+
   - task: "EAS projectId configured for Expo Push Notifications"
     implemented: true
     working: "NA"
