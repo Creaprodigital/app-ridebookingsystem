@@ -18,7 +18,7 @@ import { haptic, playSound, ensureNotifPermission, notifyNewRide } from '../../s
 import { NOTIF_SOUNDS, getNotifSoundId } from '../../src/prefs';
 import { isImmediateRide } from '../../src/rideTypes';
 import { useRides } from '../../src/ridesContext';
-import { formatPickupCountdown, useTicker } from '../../src/timeUtils';
+import { formatPickupCountdown, countdownStyle, useTicker } from '../../src/timeUtils';
 import {
   getDriverMissions,
   getMarketplace,
@@ -108,38 +108,6 @@ function fmtDate(dt?: string) {
     return d.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
   } catch {
     return dt;
-  }
-}
-
-// Per-kind colour pair for the countdown chip rendered on each card.
-function countdownStyle(kind: 'overdue' | 'now' | 'soon' | 'today' | 'later') {
-  switch (kind) {
-    case 'overdue':
-      return {
-        chip: { backgroundColor: colors.danger + '22', borderColor: colors.danger + '88' },
-        fg: colors.danger,
-      };
-    case 'now':
-      return {
-        chip: { backgroundColor: colors.success + '22', borderColor: colors.success + '88' },
-        fg: colors.success,
-      };
-    case 'soon':
-      return {
-        chip: { backgroundColor: colors.warning + '22', borderColor: colors.warning + '88' },
-        fg: colors.warning,
-      };
-    case 'today':
-      return {
-        chip: { backgroundColor: colors.primary + '22', borderColor: colors.primary + '66' },
-        fg: colors.primary,
-      };
-    case 'later':
-    default:
-      return {
-        chip: { backgroundColor: colors.bg, borderColor: colors.border },
-        fg: colors.textSecondary,
-      };
   }
 }
 
@@ -458,6 +426,9 @@ export default function MissionsScreen() {
           const pax = pickPax(item);
           const vehicleCat = pickVehicleCategory(item);
           const isMarketplace = tab === 'available';
+          // Visual kind tag: IMMÉDIATE vs PLANIFIÉE. Drivers must be able to
+          // distinguish the two modes at a single glance.
+          const immediate = isImmediateRide(item);
           // Compute the live countdown to pickup. Re-renders are driven by
           // the top-level useTicker(30s). We hide the chip once the trip
           // has effectively started (no point counting down anymore).
@@ -468,17 +439,52 @@ export default function MissionsScreen() {
             <TouchableOpacity
               activeOpacity={tab === 'assigned' ? 0.8 : 1}
               onPress={() => tab === 'assigned' && openMission(String(item.id ?? item._id))}
-              style={[styles.card, onShift === false && styles.cardDimmed]}
+              style={[
+                styles.card,
+                // Left-edge accent band — red for immediate, primary-yellow for planned.
+                immediate ? styles.cardImmediate : styles.cardPlanned,
+                onShift === false && styles.cardDimmed,
+              ]}
               testID={`mission-card-${item.id ?? item._id}`}
             >
-              <View style={styles.cardHead}>
+              {/* Kind ribbon — first thing the eye catches */}
+              <View
+                style={[
+                  styles.kindRibbon,
+                  immediate ? styles.kindRibbonImmediate : styles.kindRibbonPlanned,
+                ]}
+                testID={`kind-ribbon-${item.id ?? item._id}`}
+              >
+                <Ionicons
+                  name={immediate ? 'flash' : 'calendar'}
+                  size={14}
+                  color={immediate ? '#fff' : colors.primary}
+                />
+                <Text
+                  style={[
+                    styles.kindRibbonTxt,
+                    { color: immediate ? '#fff' : colors.primary },
+                  ]}
+                >
+                  {immediate ? 'COURSE IMMÉDIATE' : 'COURSE PLANIFIÉE'}
+                </Text>
                 {isMarketplace ? (
-                  <View style={[styles.badge, { backgroundColor: colors.primary + '22', borderColor: colors.primary }]}>
-                    <Text style={[styles.badgeText, { color: colors.primary }]}>
-                      {item.auto_posted ? 'AUTO-PUBLIÉE' : 'PUBLIÉE PAR LA COMPAGNIE'}
+                  <>
+                    <View style={styles.kindRibbonSep} />
+                    <Text
+                      style={[
+                        styles.kindRibbonSubTxt,
+                        { color: immediate ? '#ffffffCC' : colors.textSecondary },
+                      ]}
+                    >
+                      {item.auto_posted ? 'AUTO' : 'COMPAGNIE'}
                     </Text>
-                  </View>
-                ) : (
+                  </>
+                ) : null}
+              </View>
+
+              <View style={styles.cardHead}>
+                {isMarketplace ? null : (
                   <>
                     <View style={[styles.statusDot, { backgroundColor: meta.color }]} />
                     <Text style={styles.statusText}>{meta.label.toUpperCase()}</Text>
@@ -738,6 +744,33 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
     borderRadius: radius.xl, padding: spacing.md, gap: spacing.md,
   },
+  cardImmediate: {
+    borderLeftColor: colors.danger, borderLeftWidth: 4,
+  },
+  cardPlanned: {
+    borderLeftColor: colors.primary, borderLeftWidth: 4,
+  },
+
+  // Kind ribbon (IMMÉDIATE / PLANIFIÉE) at the very top of each card
+  kindRibbon: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: 999, borderWidth: 1,
+  },
+  kindRibbonImmediate: {
+    backgroundColor: colors.danger,
+    borderColor: colors.danger,
+  },
+  kindRibbonPlanned: {
+    backgroundColor: colors.primary + '1A',
+    borderColor: colors.primary + '66',
+  },
+  kindRibbonTxt: { fontSize: 11, fontWeight: '900', letterSpacing: 0.9 },
+  kindRibbonSep: {
+    width: 1, height: 10, backgroundColor: '#ffffff55', marginHorizontal: 2,
+  },
+  kindRibbonSubTxt: { fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
   cardHead: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     borderBottomColor: colors.border, borderBottomWidth: 1, paddingBottom: spacing.sm,

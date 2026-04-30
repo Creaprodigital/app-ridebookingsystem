@@ -328,6 +328,12 @@ export default function RideRequestModal() {
           ) : null}
 
           <View style={styles.card}>
+            {/* URGENT ribbon — makes it crystal-clear this is an immediate ride */}
+            <View style={styles.urgentRibbon} testID="urgent-ribbon">
+              <View style={styles.urgentDot} />
+              <Ionicons name="flash" size={12} color="#fff" />
+              <Text style={styles.urgentTxt}>COURSE IMMÉDIATE · DÉPART MAINTENANT</Text>
+            </View>
             {/* Header: timer ring + amount */}
             <View style={styles.header}>
               <View style={styles.timerWrap}>
@@ -504,6 +510,20 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.6, shadowRadius: 24, shadowOffset: { width: 0, height: 12 },
     elevation: 30,
   },
+  urgentRibbon: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.danger, borderRadius: 999,
+    paddingHorizontal: 12, paddingVertical: 6,
+    alignSelf: 'flex-start',
+    shadowColor: colors.danger, shadowOpacity: 0.55,
+    shadowRadius: 10, shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+  urgentDot: {
+    width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff',
+    opacity: 0.9,
+  },
+  urgentTxt: { color: '#fff', fontWeight: '900', fontSize: 10, letterSpacing: 0.8 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   timerWrap: { width: RING_SIZE, height: RING_SIZE, alignItems: 'center', justifyContent: 'center' },
   timerCenter: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },

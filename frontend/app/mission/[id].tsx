@@ -31,6 +31,7 @@ import {
   type LatLng,
 } from '../../src/directions';
 import { getLastCoords, subscribeCoords } from '../../src/locationStore';
+import { formatPickupCountdown, countdownStyle } from '../../src/timeUtils';
 
 const NEXT: Record<string, { next: string; label: string }> = {
   assigned: { next: 'en_route', label: 'GLISSER POUR DÉMARRER' },
@@ -41,6 +42,15 @@ const NEXT: Record<string, { next: string; label: string }> = {
 
 function pickAddr(m: any, t: 'pickup' | 'dropoff') {
   return m?.booking?.[`${t}_address`] || m?.[`${t}_address`] || m?.[t]?.address || m?.[t] || '—';
+}
+function pickDt(m: any) {
+  return (
+    m?.booking?.pickup_at ||
+    m?.pickup_at ||
+    m?.scheduled_at ||
+    m?.pickup_time ||
+    m?.created_at
+  );
 }
 function pickLatLng(m: any, t: 'pickup' | 'dropoff'): { lat: number; lng: number } | null {
   const lat =
@@ -488,6 +498,64 @@ export default function MissionDetail() {
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 200, gap: spacing.md, paddingHorizontal: spacing.md }}>
+        {/* Ride kind banner — the first thing the driver sees so immediate
+            vs. planned is never ambiguous. */}
+        {(() => {
+          const immediate = isImmediateRide(mission);
+          return (
+            <View
+              style={[
+                styles.kindBanner,
+                immediate ? styles.kindBannerImmediate : styles.kindBannerPlanned,
+              ]}
+              testID="ride-kind-banner"
+            >
+              <View
+                style={[
+                  styles.kindBannerIcon,
+                  immediate ? { backgroundColor: '#ffffff33' } : { backgroundColor: colors.primary + '33' },
+                ]}
+              >
+                <Ionicons
+                  name={immediate ? 'flash' : 'calendar'}
+                  size={18}
+                  color={immediate ? '#fff' : colors.primary}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[
+                    styles.kindBannerTitle,
+                    { color: immediate ? '#fff' : colors.text },
+                  ]}
+                >
+                  {immediate ? 'COURSE IMMÉDIATE' : 'COURSE PLANIFIÉE'}
+                </Text>
+                <Text
+                  style={[
+                    styles.kindBannerSub,
+                    { color: immediate ? '#ffffffCC' : colors.textSecondary },
+                  ]}
+                >
+                  {immediate
+                    ? 'Départ maintenant · Priorité haute'
+                    : 'Départ prévu à une heure programmée'}
+                </Text>
+              </View>
+              {!isImmediateRide(mission) && pickDt(mission) ? (() => {
+                const cd = formatPickupCountdown(pickDt(mission));
+                if (!cd) return null;
+                const cs = countdownStyle(cd.kind);
+                return (
+                  <View style={[styles.kindBannerCd, cs.chip]}>
+                    <Text style={[styles.kindBannerCdTxt, { color: cs.fg }]}>{cd.label}</Text>
+                  </View>
+                );
+              })() : null}
+            </View>
+          );
+        })()}
+
         <View style={styles.mapBox}>
           <MapView
             lat={centerLat}
@@ -832,6 +900,34 @@ const styles = StyleSheet.create({
   lockedIconBtn: { backgroundColor: colors.warning + '22', borderWidth: 1, borderColor: colors.warning },
   topTitle: { flex: 1, textAlign: 'center', color: colors.text, fontSize: 16, fontWeight: '800' },
   mapBox: { height: 220, borderRadius: radius.xl, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, position: 'relative' },
+
+  // Ride-kind banner (IMMÉDIATE / PLANIFIÉE)
+  kindBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    borderRadius: radius.xl, borderWidth: 1,
+    paddingHorizontal: spacing.md, paddingVertical: 12,
+  },
+  kindBannerImmediate: {
+    backgroundColor: colors.danger,
+    borderColor: colors.danger,
+    shadowColor: colors.danger, shadowOpacity: 0.35, shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 }, elevation: 4,
+  },
+  kindBannerPlanned: {
+    backgroundColor: colors.surface,
+    borderColor: colors.primary + '55',
+  },
+  kindBannerIcon: {
+    width: 38, height: 38, borderRadius: 19,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  kindBannerTitle: { fontSize: 14, fontWeight: '900', letterSpacing: 1 },
+  kindBannerSub: { fontSize: 11, fontWeight: '700', marginTop: 2 },
+  kindBannerCd: {
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 999, borderWidth: 1,
+  },
+  kindBannerCdTxt: { fontSize: 11, fontWeight: '900', letterSpacing: 0.4 },
   mapLegend: {
     position: 'absolute', left: 8, bottom: 8,
     backgroundColor: colors.bg + 'E6',

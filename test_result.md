@@ -103,6 +103,18 @@
 #====================================================================================================
 
 frontend:
+  - task: "Immediate vs Scheduled ride visual distinction (banners + ribbons + left-edge accent)"
+    implemented: true
+    working: "NA"
+    file: "app/(tabs)/missions.tsx, app/mission/[id].tsx, src/components/RideRequestModal.tsx, src/timeUtils.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Three-layer visual differentiation so the driver never confuses an immediate course and a planned one: 1) Missions list cards (Mes missions + Planifiées) — Each card now has a 4px left-edge accent band (colors.danger for immediate, colors.primary for planned) and a prominent pill ribbon at the top-left reading 'COURSE IMMÉDIATE' (red filled) or 'COURSE PLANIFIÉE' (yellow outlined) with an adequate icon (flash/calendar). The marketplace sub-source ('AUTO' / 'COMPAGNIE') is kept as a small secondary label inside the same ribbon for planned cards to save vertical space. testID kind-ribbon-{id}. 2) Mission detail — A full-width banner at the very top of the scroll: red-filled for immediate ('COURSE IMMÉDIATE · Départ maintenant · Priorité haute'), surface with yellow border for planned ('COURSE PLANIFIÉE · Départ prévu à une heure programmée'). Planned variant also embeds the live countdown chip ('Dans 12 min') on the right. testID ride-kind-banner. 3) RideRequestModal (Uber-style popup) — Red pill ribbon at top: '● ⚡ COURSE IMMÉDIATE · DÉPART MAINTENANT' with red shadow, so even a sleepy driver can't miss that this is the urgent flow. testID urgent-ribbon. Shared countdownStyle was moved from missions.tsx to src/timeUtils.ts so both screens use the exact same colour logic. Bundle clean (1592 modules)."
+
   - task: "Planned mission countdown chip + prominent nav launcher"
     implemented: true
     working: "NA"

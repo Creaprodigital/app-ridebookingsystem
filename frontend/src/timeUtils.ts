@@ -1,5 +1,22 @@
 import React from 'react';
 
+// Shared design tokens used by countdownStyle below. We import these lazily
+// (via require to avoid circular-import noise with the theme module).
+type ColorToken = {
+  danger: string;
+  success: string;
+  warning: string;
+  primary: string;
+  bg: string;
+  border: string;
+  textSecondary: string;
+};
+function _getColors(): ColorToken {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { colors } = require('./theme');
+  return colors;
+}
+
 /**
  * useTicker — re-renders the host component every `everyMs` milliseconds.
  * Used to keep countdowns / time-ago labels fresh.
@@ -64,4 +81,40 @@ export function formatPickupCountdown(pickupAt?: string | number | null): Countd
   const days = Math.round(diffMin / (60 * 24));
   if (days > 30) return null; // too far in the future, hide chip
   return { kind: 'later', label: days <= 1 ? 'Dans 1 j' : `Dans ${days} j`, diffMin };
+}
+
+/**
+ * Per-kind style pair (chip background/border + foreground text colour) to
+ * keep the countdown rendering consistent across screens.
+ */
+export function countdownStyle(kind: CountdownInfo['kind']) {
+  const c = _getColors();
+  switch (kind) {
+    case 'overdue':
+      return {
+        chip: { backgroundColor: c.danger + '22', borderColor: c.danger + '88' },
+        fg: c.danger,
+      };
+    case 'now':
+      return {
+        chip: { backgroundColor: c.success + '22', borderColor: c.success + '88' },
+        fg: c.success,
+      };
+    case 'soon':
+      return {
+        chip: { backgroundColor: c.warning + '22', borderColor: c.warning + '88' },
+        fg: c.warning,
+      };
+    case 'today':
+      return {
+        chip: { backgroundColor: c.primary + '22', borderColor: c.primary + '66' },
+        fg: c.primary,
+      };
+    case 'later':
+    default:
+      return {
+        chip: { backgroundColor: c.bg, borderColor: c.border },
+        fg: c.textSecondary,
+      };
+  }
 }
