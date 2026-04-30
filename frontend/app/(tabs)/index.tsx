@@ -27,6 +27,7 @@ import {
 import { haptic } from '../../src/feedback';
 import { useRides } from '../../src/ridesContext';
 import { getNotifications, subscribe } from '../../src/notificationsHistory';
+import { setLastCoords } from '../../src/locationStore';
 
 type Coords = { lat: number; lng: number; heading?: number | null; speed?: number | null };
 
@@ -133,6 +134,7 @@ export default function HomeMap() {
         speed: pos.coords.speed,
       };
       setCoords(initial);
+      setLastCoords({ lat: initial.lat, lng: initial.lng });
 
       watchSub.current = await Location.watchPositionAsync(
         { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 10 },
@@ -144,6 +146,7 @@ export default function HomeMap() {
             speed: p.coords.speed,
           };
           setCoords(c);
+          setLastCoords({ lat: c.lat, lng: c.lng });
         }
       );
     } catch (e) {

@@ -8,7 +8,7 @@ import { scheduleMissionReminders } from './reminderService';
 import { addNotification } from './notificationsHistory';
 import { isImmediateRide, pickPickupCoords, haversineKm } from './rideTypes';
 import { getLastCoords } from './locationStore';
-import { bumpProposed, bumpAccepted, bumpRefused } from './rideStats';
+import { bumpProposedBy, bumpAccepted, bumpRefused } from './rideStats';
 
 const FOREGROUND_POLL_MS = 1500; // sub-2s feel
 const BACKGROUND_POLL_MS = 15000;
@@ -144,9 +144,9 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
         }
 
         // Bump stats: every ride that effectively pops the modal counts as
-        // proposed.
+        // proposed. Use a single batched update to avoid race conditions.
         if (immediateNew.length > 0) {
-          for (let i = 0; i < immediateNew.length; i += 1) bumpProposed();
+          bumpProposedBy(immediateNew.length);
         }
 
         if (immediateNew.length > 0) {
@@ -351,6 +351,8 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
     // This creates a client-side re-broadcast loop: every DISMISS_TTL_MS,
     // any unaccepted ride still present in the marketplace pops back up.
     knownIds.current.delete(id);
+    // Track refuse for stats (covers REFUSE button + 15-s timeout auto-refuse).
+    bumpRefused();
     setQueue((prev) => prev.slice(1));
   }, [queue]);
 

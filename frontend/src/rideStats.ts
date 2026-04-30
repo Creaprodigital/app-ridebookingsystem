@@ -50,6 +50,12 @@ export async function bumpProposed() {
   await save({ ...s, proposed: s.proposed + 1 });
 }
 
+export async function bumpProposedBy(n: number) {
+  if (!Number.isFinite(n) || n <= 0) return;
+  const s = await load();
+  await save({ ...s, proposed: s.proposed + Math.round(n) });
+}
+
 export async function bumpAccepted() {
   const s = await load();
   await save({ ...s, accepted: s.accepted + 1 });

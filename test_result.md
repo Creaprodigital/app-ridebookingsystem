@@ -103,7 +103,18 @@
 #====================================================================================================
 
 frontend:
-  - task: "Block ride access when off-shift"
+  - task: "Immediate ride: distance filter, ETA & acceptance stats"
+    implemented: true
+    working: "NA"
+    file: "src/locationStore.ts, src/rideStats.ts, src/rideTypes.ts, src/ridesContext.tsx, src/components/RideRequestModal.tsx, app/(tabs)/index.tsx, app/(tabs)/earnings.tsx, app/settings/immediate.tsx, src/prefs.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "End-to-end wiring of the immediate ride enhancements: 1) HomeMap (app/(tabs)/index.tsx) now feeds the global locationStore singleton with the driver's GPS (initial position + every watchPositionAsync update), making coords readable from any module without prop drilling. 2) Settings → Course immédiate (app/settings/immediate.tsx) gained a chip-based picker for the maximum distance to pickup (2/5/10/15/20/30 km + Illimité). Stored via setMaxDistanceKm in prefs. Default = 10 km (changed from 0 to enforce a sensible filter for new users). 3) RidesProvider tick filters incoming immediate rides by haversine distance between getLastCoords() and pickPickupCoords(item) — rides outside the radius no longer pop the modal but remain in /Planifiées for manual claim. 4) Rides that effectively reach the modal are bumped via bumpProposedBy(N), accepted rides via bumpAccepted(), refused/timeout rides via bumpRefused() (added to dismissCurrent). New batch helper bumpProposedBy(n) avoids race conditions when multiple new rides arrive in the same tick. 5) Wallet screen (app/(tabs)/earnings.tsx) gained a 'Courses immédiates' card showing big % acceptance rate, a progress bar, and three counters (Proposées / Acceptées / Refusées) with a small refresh icon to reset stats. The card subscribes to subscribeStats so values update live. 6) RideRequestModal now reads getLastCoords() + pickPickupCoords(item) and shows a green pill 'À X km · Y min' next to the DÉPART label using estimateEtaMin (30 km/h average). 7) Ride classification helpers (haversineKm, pickPickupCoords, estimateEtaMin) consolidated in rideTypes.ts."
+
     implemented: true
     working: "NA"
     file: "app/(tabs)/missions.tsx, app/mission/[id].tsx, src/ridesContext.tsx, app/(tabs)/index.tsx"
@@ -231,7 +242,7 @@ metadata:
 
 test_plan:
   current_focus:
-    - "Push notifications setup (Expo Notifications)"
+    - "Immediate ride: distance filter, ETA & acceptance stats"
   stuck_tasks: []
   test_all: false
   test_priority: "high_first"
@@ -239,3 +250,5 @@ test_plan:
 agent_communication:
     - agent: "main"
       message: "Implemented Expo Push Notifications: permission flow, Android channel, getExpoPushTokenAsync, register with backend at /api/driver/push-token, foreground handler with banner, and settings screen with toggle + test button. Tap on a notification routes the user to the Missions tab. App compiles fine; full e2e validation requires a real device + driver credentials."
+    - agent: "main"
+      message: "Wired the immediate-ride enhancements end-to-end. Driver GPS feeds locationStore (singleton). RidesProvider filters incoming immediate rides by haversine distance against the driver's current position; rides outside the user-picked radius (chip picker in Settings → Course immédiate, default 10 km, options 2/5/10/15/20/30 km + Illimité) no longer pop the modal but remain in /Planifiées. Acceptance stats (proposed/accepted/refused) live in src/rideStats.ts (AsyncStorage via prefs). The Wallet screen now has a 'Courses immédiates' card with a big % rate, progress bar, three counters and a reset action. RideRequestModal shows a green pill 'À X km · Y min' next to DÉPART using the same locationStore data. Login screen still renders correctly, app bundles cleanly, no console errors. Needs frontend testing with real driver credentials."

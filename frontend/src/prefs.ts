@@ -100,10 +100,12 @@ export async function setImmediateEnabled(enabled: boolean) {
 }
 
 // ─── Max distance for immediate ride proposals (km, 0 = unlimited) ───────
+// Default = 10 km : a sensible safety net so drivers don't get spammed by
+// rides on the other side of the city. Users can still pick "Illimité" (0).
 export async function getMaxDistanceKm(): Promise<number> {
-  const v = await prefGet('max_distance_km', '0');
+  const v = await prefGet('max_distance_km', '10');
   const n = Number(v);
-  return Number.isFinite(n) && n >= 0 ? n : 0;
+  return Number.isFinite(n) && n >= 0 ? n : 10;
 }
 export async function setMaxDistanceKm(km: number) {
   const safe = Math.max(0, Math.round(km));

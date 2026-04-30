@@ -19,6 +19,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { colors, radius, spacing } from '../../src/theme';
 import { api, apiError } from '../../src/api';
+import {
+  RideStats,
+  acceptanceRate,
+  getStatsSync,
+  resetStats,
+  subscribeStats,
+} from '../../src/rideStats';
+import { haptic } from '../../src/feedback';
 
 const TYPE_LABELS: Record<string, { label: string; icon: keyof typeof Ionicons.glyphMap; color: string }> = {
   topup: { label: 'Recharge', icon: 'arrow-down-circle', color: colors.success },
@@ -49,6 +57,30 @@ export default function Wallet() {
   const [topupOpen, setTopupOpen] = useState(false);
   const [amount, setAmount] = useState('50');
   const [submitting, setSubmitting] = useState(false);
+  const [stats, setStats] = useState<RideStats>(getStatsSync());
+
+  // Live subscribe to ride acceptance stats
+  React.useEffect(() => {
+    const unsub = subscribeStats((s) => setStats(s));
+    return () => { unsub(); };
+  }, []);
+
+  const onResetStats = () => {
+    haptic('warning');
+    if (Platform.OS === 'web') {
+      const ok = (typeof window !== 'undefined') && window.confirm('Réinitialiser vos statistiques de courses immédiates ?');
+      if (ok) resetStats();
+      return;
+    }
+    Alert.alert(
+      'Réinitialiser les statistiques',
+      'Cette action effacera vos compteurs locaux (proposées, acceptées, refusées). Continuer ?',
+      [
+        { text: 'Annuler', style: 'cancel' },
+        { text: 'Réinitialiser', style: 'destructive', onPress: () => resetStats() },
+      ]
+    );
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -151,6 +183,59 @@ export default function Wallet() {
                 </Text>
               </View>
             ) : null}
+
+            {/* Statistiques courses immédiates */}
+            <View style={styles.statsCard} testID="immediate-stats-card">
+              <View style={styles.statsHead}>
+                <View style={styles.statsHeadLeft}>
+                  <View style={styles.statsHeadIcon}>
+                    <Ionicons name="flash" size={16} color={colors.primary} />
+                  </View>
+                  <View>
+                    <Text style={styles.statsTitle}>Courses immédiates</Text>
+                    <Text style={styles.statsSub}>Vos statistiques locales</Text>
+                  </View>
+                </View>
+                <TouchableOpacity onPress={onResetStats} style={styles.resetBtn} testID="stats-reset-btn">
+                  <Ionicons name="refresh-outline" size={16} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.rateBlock}>
+                <Text style={styles.rateValue} testID="acceptance-rate">
+                  {acceptanceRate(stats)}
+                  <Text style={styles.ratePct}> %</Text>
+                </Text>
+                <Text style={styles.rateLabel}>TAUX D’ACCEPTATION</Text>
+                <View style={styles.rateBarOuter}>
+                  <View
+                    style={[
+                      styles.rateBarInner,
+                      { width: `${Math.min(100, Math.max(0, acceptanceRate(stats)))}%` },
+                    ]}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.statsRow}>
+                <View style={styles.statBox}>
+                  <Text style={styles.statBoxValue} testID="stats-proposed">{stats.proposed}</Text>
+                  <Text style={styles.statBoxLabel}>Proposées</Text>
+                </View>
+                <View style={[styles.statBox, styles.statBoxAccent]}>
+                  <Text style={[styles.statBoxValue, { color: colors.success }]} testID="stats-accepted">
+                    {stats.accepted}
+                  </Text>
+                  <Text style={styles.statBoxLabel}>Acceptées</Text>
+                </View>
+                <View style={[styles.statBox, styles.statBoxAccent]}>
+                  <Text style={[styles.statBoxValue, { color: colors.danger }]} testID="stats-refused">
+                    {stats.refused}
+                  </Text>
+                  <Text style={styles.statBoxLabel}>Refusées</Text>
+                </View>
+              </View>
+            </View>
 
             <Text style={styles.sectionTitle}>Mouvements de portefeuille</Text>
           </View>
@@ -301,6 +386,48 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderRadius: radius.lg, padding: 12,
   },
   warnText: { color: colors.danger, fontSize: 12, fontWeight: '700', flex: 1 },
+
+  // Stats card (immediate rides)
+  statsCard: {
+    backgroundColor: colors.surface, borderRadius: radius.xl,
+    borderWidth: 1, borderColor: colors.border,
+    padding: spacing.md, gap: 14,
+  },
+  statsHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  statsHeadLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  statsHeadIcon: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: colors.primary + '22', alignItems: 'center', justifyContent: 'center',
+  },
+  statsTitle: { color: colors.text, fontWeight: '800', fontSize: 14 },
+  statsSub: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
+  resetBtn: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  rateBlock: {
+    backgroundColor: colors.bg, borderRadius: radius.lg,
+    paddingVertical: 14, paddingHorizontal: 16, alignItems: 'center', gap: 6,
+  },
+  rateValue: { color: colors.primary, fontSize: 36, fontWeight: '900', letterSpacing: -1 },
+  ratePct: { color: colors.primary, fontSize: 18, fontWeight: '900' },
+  rateLabel: { color: colors.textSecondary, fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },
+  rateBarOuter: {
+    width: '100%', height: 6, borderRadius: 3,
+    backgroundColor: colors.border, marginTop: 8, overflow: 'hidden',
+  },
+  rateBarInner: { height: '100%', backgroundColor: colors.primary, borderRadius: 3 },
+  statsRow: { flexDirection: 'row', gap: 8 },
+  statBox: {
+    flex: 1, backgroundColor: colors.bg, borderRadius: radius.md,
+    paddingVertical: 12, paddingHorizontal: 6, alignItems: 'center',
+    borderWidth: 1, borderColor: colors.border,
+  },
+  statBoxAccent: { backgroundColor: colors.bg },
+  statBoxValue: { color: colors.text, fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
+  statBoxLabel: { color: colors.textSecondary, fontSize: 11, fontWeight: '700', marginTop: 2 },
+
   sectionTitle: { color: colors.text, fontSize: 16, fontWeight: '800', marginTop: spacing.sm },
   emptyWrap: { alignItems: 'center', paddingTop: 40, gap: 8 },
   emptyTitle: { color: colors.text, fontWeight: '800', marginTop: 6 },

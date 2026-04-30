@@ -19,6 +19,8 @@ import Svg, { Circle } from 'react-native-svg';
 import { useRides } from '../ridesContext';
 import { colors, radius, spacing } from '../theme';
 import { haptic } from '../feedback';
+import { getLastCoords } from '../locationStore';
+import { pickPickupCoords, haversineKm, estimateEtaMin } from '../rideTypes';
 
 const TIMER_SECONDS = 15;
 const RING_SIZE = 80;
@@ -296,6 +298,19 @@ export default function RideRequestModal() {
   const distance = pickDistance(item);
   const amount = pickAmount(item);
 
+  // ── Distance & ETA from driver to pickup point (live GPS based) ──────
+  const me = getLastCoords();
+  const pickupCoords = pickPickupCoords(item);
+  let pickupKm: number | null = null;
+  let pickupEta: number | null = null;
+  if (me && pickupCoords) {
+    const km = haversineKm(me, pickupCoords);
+    if (Number.isFinite(km)) {
+      pickupKm = km;
+      pickupEta = estimateEtaMin(km);
+    }
+  }
+
   return (
     <Modal visible={visible} transparent animationType="none" statusBarTranslucent>
       <Pressable style={styles.backdrop} onPress={() => {}} testID="ride-request-backdrop">
@@ -389,7 +404,17 @@ export default function RideRequestModal() {
               </View>
               <View style={{ flex: 1, gap: 14 }}>
                 <View>
-                  <Text style={styles.routeLabel}>DÉPART</Text>
+                  <View style={styles.routeHead}>
+                    <Text style={styles.routeLabel}>DÉPART</Text>
+                    {pickupKm != null && pickupEta != null ? (
+                      <View style={styles.etaBadge} testID="pickup-eta">
+                        <Ionicons name="navigate" size={10} color={colors.success} />
+                        <Text style={styles.etaText}>
+                          À {pickupKm < 10 ? pickupKm.toFixed(1) : Math.round(pickupKm)} km · {pickupEta} min
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
                   <Text style={styles.routeAddr} numberOfLines={2}>{pickPickup(item)}</Text>
                 </View>
                 <View>
@@ -507,6 +532,15 @@ const styles = StyleSheet.create({
   routeLine: { flex: 1, width: 2, backgroundColor: colors.border, marginVertical: 4 },
   routeLabel: { color: colors.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
   routeAddr: { color: colors.text, fontSize: 14, fontWeight: '600', marginTop: 2 },
+  routeHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
+  etaBadge: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: colors.success + '22',
+    borderWidth: 1, borderColor: colors.success + '55',
+    paddingHorizontal: 6, paddingVertical: 2,
+    borderRadius: 999,
+  },
+  etaText: { color: colors.success, fontSize: 10, fontWeight: '900', letterSpacing: 0.4 },
 
   errorBox: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
