@@ -18,6 +18,7 @@ import { haptic, playSound, ensureNotifPermission, notifyNewRide } from '../../s
 import { NOTIF_SOUNDS, getNotifSoundId } from '../../src/prefs';
 import { isImmediateRide } from '../../src/rideTypes';
 import { useRides } from '../../src/ridesContext';
+import { formatPickupCountdown, useTicker } from '../../src/timeUtils';
 import {
   getDriverMissions,
   getMarketplace,
@@ -110,9 +111,44 @@ function fmtDate(dt?: string) {
   }
 }
 
+// Per-kind colour pair for the countdown chip rendered on each card.
+function countdownStyle(kind: 'overdue' | 'now' | 'soon' | 'today' | 'later') {
+  switch (kind) {
+    case 'overdue':
+      return {
+        chip: { backgroundColor: colors.danger + '22', borderColor: colors.danger + '88' },
+        fg: colors.danger,
+      };
+    case 'now':
+      return {
+        chip: { backgroundColor: colors.success + '22', borderColor: colors.success + '88' },
+        fg: colors.success,
+      };
+    case 'soon':
+      return {
+        chip: { backgroundColor: colors.warning + '22', borderColor: colors.warning + '88' },
+        fg: colors.warning,
+      };
+    case 'today':
+      return {
+        chip: { backgroundColor: colors.primary + '22', borderColor: colors.primary + '66' },
+        fg: colors.primary,
+      };
+    case 'later':
+    default:
+      return {
+        chip: { backgroundColor: colors.bg, borderColor: colors.border },
+        fg: colors.textSecondary,
+      };
+  }
+}
+
 export default function MissionsScreen() {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>('assigned');
+  // Re-render every 30 s so the per-card pickup countdowns stay fresh
+  // without us having to re-fetch the whole list.
+  useTicker(30_000);
   const [assigned, setAssigned] = useState<any[]>([]);
   const [available, setAvailable] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -422,6 +458,12 @@ export default function MissionsScreen() {
           const pax = pickPax(item);
           const vehicleCat = pickVehicleCategory(item);
           const isMarketplace = tab === 'available';
+          // Compute the live countdown to pickup. Re-renders are driven by
+          // the top-level useTicker(30s). We hide the chip once the trip
+          // has effectively started (no point counting down anymore).
+          const hideCountdown = ['arrived', 'in_progress', 'completed', 'cancelled'].includes(String(status).toLowerCase());
+          const cd = hideCountdown ? null : formatPickupCountdown(pickDt(item));
+          const cdStyles = cd ? countdownStyle(cd.kind) : null;
           return (
             <TouchableOpacity
               activeOpacity={tab === 'assigned' ? 0.8 : 1}
@@ -442,6 +484,25 @@ export default function MissionsScreen() {
                     <Text style={styles.statusText}>{meta.label.toUpperCase()}</Text>
                   </>
                 )}
+                {cd && cdStyles ? (
+                  <View
+                    style={[styles.countdownChip, cdStyles.chip]}
+                    testID={`countdown-${item.id ?? item._id}`}
+                  >
+                    {cd.kind === 'now' ? (
+                      <View style={styles.countdownDot} />
+                    ) : (
+                      <Ionicons
+                        name={cd.kind === 'overdue' ? 'alert-circle' : 'time-outline'}
+                        size={11}
+                        color={cdStyles.fg}
+                      />
+                    )}
+                    <Text style={[styles.countdownTxt, { color: cdStyles.fg }]}>
+                      {cd.label}
+                    </Text>
+                  </View>
+                ) : null}
                 <View style={{ flex: 1 }} />
                 <View style={{ alignItems: 'flex-end' }}>
                   {isMarketplace ? (
@@ -680,6 +741,15 @@ const styles = StyleSheet.create({
   cardHead: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     borderBottomColor: colors.border, borderBottomWidth: 1, paddingBottom: spacing.sm,
+  },
+  countdownChip: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 8, paddingVertical: 4,
+    borderRadius: 999, borderWidth: 1,
+  },
+  countdownTxt: { fontSize: 11, fontWeight: '900', letterSpacing: 0.3 },
+  countdownDot: {
+    width: 6, height: 6, borderRadius: 3, backgroundColor: colors.success,
   },
   statusDot: { width: 8, height: 8, borderRadius: 4 },
   statusText: { color: colors.textSecondary, fontWeight: '800', fontSize: 11, letterSpacing: 1 },

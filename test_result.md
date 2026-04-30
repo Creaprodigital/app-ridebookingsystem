@@ -103,6 +103,18 @@
 #====================================================================================================
 
 frontend:
+  - task: "Planned mission countdown chip + prominent nav launcher"
+    implemented: true
+    working: "NA"
+    file: "src/timeUtils.ts, app/(tabs)/missions.tsx, app/mission/[id].tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "TASK E (countdown) — New module src/timeUtils.ts with useTicker(everyMs) hook + formatPickupCountdown(pickupAt) returning kind ('overdue' | 'now' | 'soon' | 'today' | 'later') + label + diffMin. The Missions screen calls useTicker(30s) at the top so per-card countdowns refresh without re-fetching. A new countdown chip is rendered next to the status badge in the cardHead, color-coded: red overdue, green pulsing dot 'Maintenant', warning 'Dans X min' (<30min), primary 'Dans X h Y' (<12h), neutral 'Dans X j' (>12h). Hidden once the ride is arrived/in_progress/completed/cancelled. TASK C (nav launcher) — Mission detail now exposes the navigation provider (Google Maps / Waze) in three places: 1) a floating yellow FAB in the top-right of the map (testID nav-fab) with a small chevron-down switch (testID nav-fab-switch); 2) a beefier bottom CTA showing 'NAVIGUER VERS LA PRISE EN CHARGE / via Google Maps' with a 'Changer' inline button; 3) a bottom-sheet chooser modal (testID nav-sheet) listing both providers with branded icons (Google blue + Waze cyan), a 'Par défaut' badge on the active one, and 'Ouvrir + définir comme défaut' interaction (tapping a non-default option both launches it and persists the choice via setNavProvider). Long-press anywhere on the FAB or the bottom button also opens the sheet. While in_progress the button text switches to 'NAVIGUER VERS LE CLIENT' and points to the dropoff, matching the existing logic. Bundle clean, login screen renders fine."
+
   - task: "Mission detail: Google Directions polyline (driver→pickup + pickup→dropoff)"
     implemented: true
     working: "NA"

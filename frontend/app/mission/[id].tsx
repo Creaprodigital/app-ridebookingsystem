@@ -19,7 +19,7 @@ import MapView from '../../src/components/MapView';
 import SlideButton from '../../src/components/SlideButton';
 import { colors, radius, spacing } from '../../src/theme';
 import { getDriverMissions, updateMissionStatus, apiError } from '../../src/api';
-import { getNavProvider, buildNavUrl } from '../../src/prefs';
+import { getNavProvider, setNavProvider, buildNavUrl, type NavProvider } from '../../src/prefs';
 import { useRides } from '../../src/ridesContext';
 import { isImmediateRide } from '../../src/rideTypes';
 import { haptic } from '../../src/feedback';
@@ -145,6 +145,15 @@ export default function MissionDetail() {
   // Throttle leg-1 re-fetches: only re-query Directions when the driver has
   // moved significantly (>= 300 m) so we don't burn API quota.
   const lastDriverFetchRef = React.useRef<LatLng | null>(null);
+
+  // ── Navigation provider preference (Google Maps / Waze / Apple Plans) ───
+  const [navProvider, setNavProviderState] = useState<NavProvider>('google');
+  const [navSheetVisible, setNavSheetVisible] = useState(false);
+  useEffect(() => {
+    (async () => {
+      try { setNavProviderState(await getNavProvider()); } catch {}
+    })();
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -290,12 +299,25 @@ export default function MissionDetail() {
     return () => sub.remove();
   }, [isLocked]);
 
-  const openNav = async () => {
+  /**
+   * Launches the on-device turn-by-turn navigator. If `forced` is undefined,
+   * uses the saved preference (`navProvider`). Pass an explicit provider when
+   * the driver picks one from the bottom sheet.
+   * If `setAsDefault` is true, the provider is also persisted as default.
+   */
+  const launchNav = async (forced?: NavProvider, setAsDefault?: boolean) => {
     if (!mission) return;
     const p = pickLatLng(mission, 'pickup');
     const d = pickLatLng(mission, 'dropoff');
+    // While the driver is heading to pickup, navigate to pickup;
+    // once on board (in_progress), navigate to dropoff.
     const target = mission.status === 'in_progress' ? d : p;
-    const provider = await getNavProvider();
+    const provider = forced ?? navProvider;
+    if (setAsDefault) {
+      try { await setNavProvider(provider); } catch {}
+      setNavProviderState(provider);
+    }
+    haptic('light');
     if (!target) {
       const q = encodeURIComponent(pickAddr(mission, mission.status === 'in_progress' ? 'dropoff' : 'pickup'));
       const url = provider === 'waze'
@@ -308,6 +330,14 @@ export default function MissionDetail() {
     }
     const url = buildNavUrl(provider, target.lat, target.lng);
     Linking.openURL(url);
+  };
+
+  // Legacy single-tap nav: respects saved preference, no chooser.
+  const openNav = () => launchNav();
+  // Long-press OR chooser tap: opens the bottom sheet.
+  const openNavSheet = () => {
+    haptic('light');
+    setNavSheetVisible(true);
   };
 
   const advance = async () => {
@@ -484,6 +514,26 @@ export default function MissionDetail() {
               ) : null}
             </View>
           ) : null}
+
+          {/* Floating navigation FAB — top-right of the map */}
+          <TouchableOpacity
+            style={styles.navFab}
+            onPress={openNav}
+            onLongPress={openNavSheet}
+            activeOpacity={0.85}
+            testID="nav-fab"
+          >
+            <Ionicons name="navigate" size={20} color={colors.bg} />
+            <Text style={styles.navFabTxt}>{navProvider === 'waze' ? 'WAZE' : 'MAPS'}</Text>
+            <TouchableOpacity
+              style={styles.navFabSwitch}
+              onPress={openNavSheet}
+              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+              testID="nav-fab-switch"
+            >
+              <Ionicons name="chevron-down" size={14} color={colors.bg} />
+            </TouchableOpacity>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.card}>
@@ -551,11 +601,113 @@ export default function MissionDetail() {
           </View>
         ) : null}
 
-        <TouchableOpacity style={styles.navBtn} onPress={openNav} testID="nav-btn">
-          <Ionicons name="navigate" size={18} color={colors.text} />
-          <Text style={styles.navTxt}>OUVRIR LA NAVIGATION</Text>
+        <TouchableOpacity
+          style={styles.navBtn}
+          onPress={openNav}
+          onLongPress={openNavSheet}
+          activeOpacity={0.85}
+          testID="nav-btn"
+        >
+          <Ionicons name="navigate" size={20} color={colors.bg} />
+          <View style={{ flex: 1 }}>
+            <Text style={styles.navTxt}>
+              {mission.status === 'in_progress'
+                ? 'NAVIGUER VERS LE CLIENT'
+                : 'NAVIGUER VERS LA PRISE EN CHARGE'}
+            </Text>
+            <Text style={styles.navSub}>
+              via {navProvider === 'waze' ? 'Waze' : 'Google Maps'}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.navChange}
+            onPress={openNavSheet}
+            hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+            testID="nav-change-btn"
+          >
+            <Text style={styles.navChangeTxt}>Changer</Text>
+          </TouchableOpacity>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Navigation provider chooser bottom-sheet */}
+      <Modal
+        visible={navSheetVisible}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setNavSheetVisible(false)}
+      >
+        <TouchableOpacity
+          style={styles.navSheetBackdrop}
+          activeOpacity={1}
+          onPress={() => setNavSheetVisible(false)}
+        >
+          <TouchableOpacity activeOpacity={1} style={styles.navSheet} onPress={() => {}} testID="nav-sheet">
+            <View style={styles.navSheetHandle} />
+            <Text style={styles.navSheetTitle}>Ouvrir la navigation avec…</Text>
+            <Text style={styles.navSheetSub}>
+              Choisissez une application et appuyez à nouveau pour la définir
+              comme votre application par défaut.
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.navOption, navProvider === 'google' && styles.navOptionActive]}
+              onPress={() => {
+                setNavSheetVisible(false);
+                launchNav('google', navProvider !== 'google');
+              }}
+              testID="nav-option-google"
+            >
+              <View style={[styles.navOptionIcon, { backgroundColor: '#1A73E8' }]}>
+                <Ionicons name="navigate" size={20} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.navOptionTitle}>
+                  {Platform.OS === 'ios' ? 'Google Maps / Plans' : 'Google Maps'}
+                </Text>
+                <Text style={styles.navOptionSub}>Itinéraire en voiture vers le point</Text>
+              </View>
+              {navProvider === 'google' ? (
+                <View style={styles.navOptionDefault}>
+                  <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+                  <Text style={styles.navOptionDefaultTxt}>Par défaut</Text>
+                </View>
+              ) : null}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.navOption, navProvider === 'waze' && styles.navOptionActive]}
+              onPress={() => {
+                setNavSheetVisible(false);
+                launchNav('waze', navProvider !== 'waze');
+              }}
+              testID="nav-option-waze"
+            >
+              <View style={[styles.navOptionIcon, { backgroundColor: '#33CCFF' }]}>
+                <Ionicons name="car-sport" size={20} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.navOptionTitle}>Waze</Text>
+                <Text style={styles.navOptionSub}>Trafic en temps réel et alertes communauté</Text>
+              </View>
+              {navProvider === 'waze' ? (
+                <View style={styles.navOptionDefault}>
+                  <Ionicons name="checkmark-circle" size={18} color={colors.success} />
+                  <Text style={styles.navOptionDefaultTxt}>Par défaut</Text>
+                </View>
+              ) : null}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.navSheetCancel}
+              onPress={() => setNavSheetVisible(false)}
+              testID="nav-sheet-cancel"
+            >
+              <Text style={styles.navSheetCancelTxt}>Annuler</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
 
       {blocked && cta ? (
         <View style={styles.footer}>
@@ -720,11 +872,78 @@ const styles = StyleSheet.create({
   },
   callTxt: { color: colors.bg, fontWeight: '900', letterSpacing: 0.5 },
   navBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
-    height: 52, borderRadius: radius.full,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: colors.primary, borderRadius: radius.xl,
+    paddingHorizontal: 16, paddingVertical: 14,
+    shadowColor: colors.primary, shadowOpacity: 0.35, shadowRadius: 14,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
   },
-  navTxt: { color: colors.text, fontWeight: '800', letterSpacing: 1.2 },
+  navTxt: { color: colors.bg, fontWeight: '900', letterSpacing: 1.1, fontSize: 13 },
+  navSub: { color: colors.bg + 'CC', fontWeight: '700', fontSize: 11, marginTop: 2 },
+  navChange: {
+    backgroundColor: '#00000022', paddingHorizontal: 10, paddingVertical: 6,
+    borderRadius: 999,
+  },
+  navChangeTxt: { color: colors.bg, fontWeight: '800', fontSize: 11, letterSpacing: 0.8 },
+
+  // Floating nav FAB on the map
+  navFab: {
+    position: 'absolute', top: 12, right: 12,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.primary,
+    paddingLeft: 12, paddingRight: 4, paddingVertical: 8,
+    borderRadius: 999,
+    shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 }, elevation: 6,
+  },
+  navFabTxt: { color: colors.bg, fontWeight: '900', fontSize: 11, letterSpacing: 1, marginLeft: 2 },
+  navFabSwitch: {
+    width: 24, height: 24, borderRadius: 12,
+    backgroundColor: '#00000022', alignItems: 'center', justifyContent: 'center',
+    marginLeft: 4,
+  },
+
+  // Bottom-sheet provider chooser
+  navSheetBackdrop: {
+    flex: 1, backgroundColor: '#000000C0', justifyContent: 'flex-end',
+  },
+  navSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl,
+    padding: spacing.md, paddingBottom: Platform.OS === 'ios' ? 34 : 24,
+    gap: 10,
+    borderTopColor: colors.border, borderTopWidth: 1,
+  },
+  navSheetHandle: {
+    width: 40, height: 4, borderRadius: 2,
+    backgroundColor: colors.border, alignSelf: 'center', marginBottom: 8,
+  },
+  navSheetTitle: { color: colors.text, fontSize: 18, fontWeight: '900', textAlign: 'center' },
+  navSheetSub: {
+    color: colors.textSecondary, fontSize: 12, textAlign: 'center',
+    paddingHorizontal: 20, marginBottom: 10,
+  },
+  navOption: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1,
+    borderRadius: radius.lg, padding: 12,
+  },
+  navOptionActive: { borderColor: colors.success, borderWidth: 1.5 },
+  navOptionIcon: {
+    width: 44, height: 44, borderRadius: 22,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  navOptionTitle: { color: colors.text, fontWeight: '800', fontSize: 15 },
+  navOptionSub: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
+  navOptionDefault: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  navOptionDefaultTxt: { color: colors.success, fontWeight: '900', fontSize: 11 },
+  navSheetCancel: {
+    height: 48, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.bg, borderRadius: radius.lg,
+    borderColor: colors.border, borderWidth: 1, marginTop: 4,
+  },
+  navSheetCancelTxt: { color: colors.textSecondary, fontWeight: '800', letterSpacing: 0.6 },
   footer: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
     padding: spacing.md, paddingBottom: Platform.OS === 'ios' ? 34 : 20,
