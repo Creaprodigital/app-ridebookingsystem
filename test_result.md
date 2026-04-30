@@ -103,6 +103,18 @@
 #====================================================================================================
 
 frontend:
+  - task: "EAS projectId configured for Expo Push Notifications"
+    implemented: true
+    working: "NA"
+    file: "app.json"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "User provided the EAS project ID. Added extra.eas.projectId=20c0bc93-592a-440a-8911-c37540761309 to app.json so Notifications.getExpoPushTokenAsync({ projectId }) returns valid Expo push tokens. feedback.ts already reads Constants.expoConfig.extra.eas.projectId; pushService calls registerPushToken() against the backend so that immediate-ride pushes can wake the app. expo-doctor 17/17 still passes. Real end-to-end push validation requires an EAS dev build on a physical device; the web preview is push-free."
+
   - task: "Background GPS tracking (foreground service + persisted store)"
     implemented: true
     working: "NA"
