@@ -92,3 +92,53 @@ export function isImmediateRide(item: any): boolean {
 export function isScheduledRide(item: any): boolean {
   return !isImmediateRide(item);
 }
+
+// ──────────────────────────────────────────────────────────────────────────
+// Distance / ETA helpers (used to filter rides too far away and to display
+// the estimated arrival time inside the request modal).
+// ──────────────────────────────────────────────────────────────────────────
+
+export function pickPickupCoords(item: any): { lat: number; lng: number } | null {
+  const lat =
+    item?.booking?.pickup_lat ??
+    item?.pickup_lat ??
+    item?.pickup?.lat ??
+    item?.pickup_location?.lat;
+  const lng =
+    item?.booking?.pickup_lng ??
+    item?.pickup_lng ??
+    item?.pickup?.lng ??
+    item?.pickup_location?.lng;
+  if (lat == null || lng == null) return null;
+  const a = Number(lat);
+  const b = Number(lng);
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+  return { lat: a, lng: b };
+}
+
+/**
+ * Great-circle distance in kilometres between two points.
+ */
+export function haversineKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const R = 6371;
+  const toRad = (x: number) => (x * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const sinLat = Math.sin(dLat / 2);
+  const sinLng = Math.sin(dLng / 2);
+  const aa =
+    sinLat * sinLat +
+    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * sinLng * sinLng;
+  const c = 2 * Math.atan2(Math.sqrt(aa), Math.sqrt(1 - aa));
+  return R * c;
+}
+
+/**
+ * Rough ETA estimate in minutes assuming a 30 km/h average urban speed.
+ * Always returns at least 1 to avoid showing "0 min".
+ */
+export function estimateEtaMin(distanceKm: number): number {
+  if (!Number.isFinite(distanceKm) || distanceKm <= 0) return 1;
+  const min = Math.round((distanceKm / 30) * 60);
+  return Math.max(1, min);
+}

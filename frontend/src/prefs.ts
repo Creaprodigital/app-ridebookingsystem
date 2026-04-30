@@ -99,3 +99,14 @@ export async function setImmediateEnabled(enabled: boolean) {
   await prefSet('immediate_enabled', enabled ? '1' : '0');
 }
 
+// ─── Max distance for immediate ride proposals (km, 0 = unlimited) ───────
+export async function getMaxDistanceKm(): Promise<number> {
+  const v = await prefGet('max_distance_km', '0');
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+export async function setMaxDistanceKm(km: number) {
+  const safe = Math.max(0, Math.round(km));
+  await prefSet('max_distance_km', String(safe));
+}
+

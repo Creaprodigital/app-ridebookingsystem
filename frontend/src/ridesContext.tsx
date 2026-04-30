@@ -2,11 +2,13 @@ import React, { createContext, useContext, useEffect, useRef, useState, useCallb
 import { AppState, Platform } from 'react-native';
 import { getMarketplace, getDriverMissions, getDriverProfile, claimMarketplace } from './api';
 import { haptic, playSound, notifyNewRide } from './feedback';
-import { NOTIF_SOUNDS, getNotifSoundId, prefGet, prefSet, getImmediateEnabled } from './prefs';
+import { NOTIF_SOUNDS, getNotifSoundId, prefGet, prefSet, getImmediateEnabled, getMaxDistanceKm } from './prefs';
 import { useAuth } from './auth';
 import { scheduleMissionReminders } from './reminderService';
 import { addNotification } from './notificationsHistory';
-import { isImmediateRide } from './rideTypes';
+import { isImmediateRide, pickPickupCoords, haversineKm } from './rideTypes';
+import { getLastCoords } from './locationStore';
+import { bumpProposed, bumpAccepted, bumpRefused } from './rideStats';
 
 const FOREGROUND_POLL_MS = 1500; // sub-2s feel
 const BACKGROUND_POLL_MS = 15000;
@@ -74,6 +76,7 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
   const reminderTimer = useRef<any>(null);
   const inForeground = useRef<boolean>(true);
   const immediateEnabledRef = useRef<boolean>(true);
+  const maxDistanceKmRef = useRef<number>(0);
   const hasActiveMissionRef = useRef<boolean>(false);
 
   useEffect(() => {
@@ -81,6 +84,7 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
       soundIdRef.current = await getNotifSoundId();
       dismissedRef.current = await loadDismissed();
       immediateEnabledRef.current = await getImmediateEnabled();
+      maxDistanceKmRef.current = await getMaxDistanceKm();
     })();
   }, []);
 
@@ -119,9 +123,31 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
         // rides remain in the marketplace ("Disponibles") tab for manual
         // claim. If the driver disabled "Course immédiate" in settings,
         // OR is already on an active mission, skip the modal queue.
-        const immediateNew = (immediateEnabledRef.current && !hasActiveMissionRef.current)
+        let immediateNew = (immediateEnabledRef.current && !hasActiveMissionRef.current)
           ? newOnes.filter(isImmediateRide)
           : [];
+
+        // Filter out rides that are too far from the driver's current GPS
+        // position. The driver-side max distance preference is applied
+        // greedily — only rides within the radius pop the modal.
+        const maxKm = maxDistanceKmRef.current;
+        if (maxKm > 0 && immediateNew.length > 0) {
+          const me = getLastCoords();
+          if (me && Number.isFinite(me.lat) && Number.isFinite(me.lng)) {
+            immediateNew = immediateNew.filter((it: any) => {
+              const c = pickPickupCoords(it);
+              if (!c) return true; // unknown coords → always show
+              const km = haversineKm(me, c);
+              return km <= maxKm;
+            });
+          }
+        }
+
+        // Bump stats: every ride that effectively pops the modal counts as
+        // proposed.
+        if (immediateNew.length > 0) {
+          for (let i = 0; i < immediateNew.length; i += 1) bumpProposed();
+        }
 
         if (immediateNew.length > 0) {
           // append to queue (no duplicates)
@@ -299,6 +325,8 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
         data?.id ||
         data?._id ||
         id;
+      // Track acceptance for stats
+      bumpAccepted();
       // Trigger a missions refresh in background to keep status in sync
       setTimeout(() => { refreshReminders(); }, 500);
       return { ok: true, missionId: String(missionId) };
