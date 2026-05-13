@@ -103,6 +103,18 @@
 #====================================================================================================
 
 frontend:
+  - task: "New 'Courses immédiates' tab + 30s modal timer"
+    implemented: true
+    working: "NA"
+    file: "app/(tabs)/missions.tsx, src/components/RideRequestModal.tsx, src/ridesContext.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "1) Tabs: added third tab 'Immédiates' between 'Mes missions' and 'Planifiées'. Type Tab is now 'assigned'|'immediate'|'available'. The marketplace stream is split into visibleImmediate = available.filter(isImmediateRide) and visibleAvailable = available.filter(!isImmediateRide). The new tab shows only un-claimed immediate rides — the same data that pops the Uber-style modal — so the driver has a fallback if they missed the notification. testID `tab-immediate`. 2) Visual cue: when the Immédiates tab is NOT active and contains items, a small red pulsing dot (testID tabPulse) is rendered in the top-right of the tab pill, so the driver notices new immediate rides without leaving their current view. 3) Info banner: when in Immédiates tab, a thin red banner '⚡ Ces courses sont à départ immédiat. Acceptez-les ici si vous avez raté la notification.' (testID immediate-info-banner) sits at the top of the list. 4) Empty state: dedicated copy 'Aucune course immédiate · Aucune course à départ immédiat pour le moment.' with flash-off icon. 5) Claim flow, low-balance banner, error banner, off-shift gating all unified to apply to both 'available' and 'immediate' tabs (via tab === 'available' || tab === 'immediate'). 6) Modal timer: TIMER_SECONDS bumped from 15 → 30 in RideRequestModal.tsx (the SVG ring animation duration follows automatically via TIMER_SECONDS * 1000). Comment in ridesContext.tsx updated accordingly. Bundle clean."
+
   - task: "Price labels: 'Prix de la course' + commission société + net chauffeur breakdown"
     implemented: true
     working: "NA"

@@ -351,7 +351,7 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
     // This creates a client-side re-broadcast loop: every DISMISS_TTL_MS,
     // any unaccepted ride still present in the marketplace pops back up.
     knownIds.current.delete(id);
-    // Track refuse for stats (covers REFUSE button + 15-s timeout auto-refuse).
+    // Track refuse for stats (covers REFUSE button + 30-s timeout auto-refuse).
     bumpRefused();
     setQueue((prev) => prev.slice(1));
   }, [queue]);

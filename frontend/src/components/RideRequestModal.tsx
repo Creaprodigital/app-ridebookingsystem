@@ -22,7 +22,7 @@ import { haptic } from '../feedback';
 import { getLastCoords } from '../locationStore';
 import { pickPickupCoords, haversineKm, estimateEtaMin } from '../rideTypes';
 
-const TIMER_SECONDS = 15;
+const TIMER_SECONDS = 30;
 const RING_SIZE = 80;
 const RING_STROKE = 8;
 const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;

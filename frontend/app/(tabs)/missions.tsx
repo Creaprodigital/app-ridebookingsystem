@@ -29,7 +29,7 @@ import {
   apiError,
 } from '../../src/api';
 
-type Tab = 'assigned' | 'available';
+type Tab = 'assigned' | 'immediate' | 'available';
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
   assigned: { label: 'Assignée', color: colors.warning },
@@ -346,10 +346,18 @@ export default function MissionsScreen() {
     router.push(`/mission/${id}`);
   };
 
-  // Marketplace ("Disponibles") shows ONLY scheduled (planned) rides.
-  // Immediate rides are handled by the Uber-style RideRequestModal.
+  // Split the marketplace feed into two visible lists:
+  //   • visibleImmediate — immediate rides that haven't been claimed yet
+  //     (the same items that trigger the full-screen Uber-style modal)
+  //   • visibleAvailable — scheduled (planned) rides only
+  // 'available' here means "not yet claimed by any driver" — the backend
+  // marketplace endpoint already filters out claimed rides.
+  const visibleImmediate = available.filter((it) => isImmediateRide(it));
   const visibleAvailable = available.filter((it) => !isImmediateRide(it));
-  const data = tab === 'assigned' ? assigned : visibleAvailable;
+  const data =
+    tab === 'assigned' ? assigned :
+    tab === 'immediate' ? visibleImmediate :
+    visibleAvailable;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -359,18 +367,33 @@ export default function MissionsScreen() {
       </View>
 
       <View style={styles.tabsRow}>
-        {(['assigned', 'available'] as Tab[]).map((t) => (
-          <TouchableOpacity
-            key={t}
-            onPress={() => setTab(t)}
-            style={[styles.tab, tab === t && styles.tabActive]}
-            testID={`tab-${t}`}
-          >
-            <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-              {t === 'assigned' ? `Mes missions (${assigned.length})` : `Planifiées (${visibleAvailable.length})`}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {(['assigned', 'immediate', 'available'] as Tab[]).map((t) => {
+          const count =
+            t === 'assigned' ? assigned.length :
+            t === 'immediate' ? visibleImmediate.length :
+            visibleAvailable.length;
+          const label =
+            t === 'assigned' ? 'Mes missions' :
+            t === 'immediate' ? 'Immédiates' :
+            'Planifiées';
+          // Visual accent for the Immédiates tab: thin red dot when items
+          // are waiting, so the driver notices new immediate rides even
+          // without the full-screen modal.
+          const showPulse = t === 'immediate' && visibleImmediate.length > 0 && tab !== 'immediate';
+          return (
+            <TouchableOpacity
+              key={t}
+              onPress={() => setTab(t)}
+              style={[styles.tab, tab === t && styles.tabActive]}
+              testID={`tab-${t}`}
+            >
+              {showPulse ? <View style={styles.tabPulse} /> : null}
+              <Text style={[styles.tabText, tab === t && styles.tabTextActive]} numberOfLines={1}>
+                {label} ({count})
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       <FlatList
@@ -399,7 +422,7 @@ export default function MissionsScreen() {
               </View>
             ) : null}
 
-            {tab === 'available' ? (
+            {(tab === 'available' || tab === 'immediate') ? (
               <>
                 {/* Marketplace status banners */}
                 {config && config.enabled === false ? (
@@ -422,7 +445,7 @@ export default function MissionsScreen() {
                   </View>
                 ) : null}
 
-                {balanceTooLow && tab === 'available' ? (
+                {balanceTooLow ? (
                   <View style={styles.lowBalanceBanner} testID="low-balance-banner">
                     <Ionicons name="wallet" size={18} color={colors.danger} />
                     <View style={{ flex: 1 }}>
@@ -439,6 +462,16 @@ export default function MissionsScreen() {
                     >
                       <Text style={styles.lowBalanceBtnText}>RECHARGER</Text>
                     </TouchableOpacity>
+                  </View>
+                ) : null}
+
+                {/* Tab-specific informational banner for IMMÉDIATES */}
+                {tab === 'immediate' ? (
+                  <View style={styles.immediateInfo} testID="immediate-info-banner">
+                    <Ionicons name="flash" size={16} color={colors.danger} />
+                    <Text style={styles.immediateInfoTxt}>
+                      Ces courses sont à départ immédiat. Acceptez-les ici si vous avez raté la notification.
+                    </Text>
                   </View>
                 ) : null}
 
@@ -461,16 +494,28 @@ export default function MissionsScreen() {
             <View style={styles.empty}><ActivityIndicator color={colors.primary} /></View>
           ) : (
             <View style={styles.empty}>
-              <Ionicons name={tab === 'assigned' ? 'checkmark-done' : 'search'} size={44} color={colors.textMuted} />
+              <Ionicons
+                name={
+                  tab === 'assigned' ? 'checkmark-done' :
+                  tab === 'immediate' ? 'flash-off' :
+                  'search'
+                }
+                size={44}
+                color={colors.textMuted}
+              />
               <Text style={styles.emptyTitle}>
-                {tab === 'assigned' ? 'Aucune mission assignée' : 'Aucune course disponible'}
+                {tab === 'assigned' ? 'Aucune mission assignée' :
+                 tab === 'immediate' ? 'Aucune course immédiate' :
+                 'Aucune course disponible'}
               </Text>
               <Text style={styles.emptySub}>
                 {tab === 'assigned'
                   ? 'Passez en ligne pour recevoir des courses.'
+                  : tab === 'immediate'
+                  ? 'Aucune course à départ immédiat pour le moment. Quand une nouvelle arrive, une fenêtre prioritaire s\'affiche automatiquement. Cette page se rafraîchit toutes les 20 s.'
                   : 'Aucune course dans le marketplace pour le moment. Cette page se rafraîchit automatiquement toutes les 20 secondes.'}
               </Text>
-              {tab === 'available' ? (
+              {(tab === 'available' || tab === 'immediate') ? (
                 <TouchableOpacity onPress={() => load()} style={styles.retryBtn} testID="empty-refresh-btn">
                   <Ionicons name="refresh" size={14} color={colors.primary} />
                   <Text style={styles.retryText}>Rafraîchir maintenant</Text>
@@ -480,12 +525,12 @@ export default function MissionsScreen() {
           )
         }
         renderItem={({ item }) => {
-          const status = item.status || (tab === 'available' ? 'open' : 'assigned');
+          const status = item.status || (tab !== 'assigned' ? 'open' : 'assigned');
           const meta = STATUS_META[status] ?? { label: status, color: colors.textSecondary };
           const price = pickAmount(item);
           const pax = pickPax(item);
           const vehicleCat = pickVehicleCategory(item);
-          const isMarketplace = tab === 'available';
+          const isMarketplace = tab === 'available' || tab === 'immediate';
           // Visual kind tag: IMMÉDIATE vs PLANIFIÉE. Drivers must be able to
           // distinguish the two modes at a single glance.
           const immediate = isImmediateRide(item);
@@ -739,14 +784,30 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.sm },
   h1: { color: colors.text, fontSize: 28, fontWeight: '900', letterSpacing: -1 },
   h2: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
-  tabsRow: { flexDirection: 'row', paddingHorizontal: spacing.md, gap: spacing.sm, marginBottom: spacing.sm },
+  tabsRow: { flexDirection: 'row', paddingHorizontal: spacing.md, gap: 6, marginBottom: spacing.sm },
   tab: {
-    flex: 1, paddingVertical: 12, borderRadius: radius.full, alignItems: 'center',
+    flex: 1, paddingVertical: 10, paddingHorizontal: 4, borderRadius: radius.full, alignItems: 'center',
     backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
+    position: 'relative',
   },
   tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  tabText: { color: colors.textSecondary, fontWeight: '700', fontSize: 12, letterSpacing: 0.5 },
+  tabText: { color: colors.textSecondary, fontWeight: '700', fontSize: 11, letterSpacing: 0.3 },
   tabTextActive: { color: colors.bg },
+  tabPulse: {
+    position: 'absolute', top: 6, right: 8,
+    width: 8, height: 8, borderRadius: 4,
+    backgroundColor: colors.danger,
+    shadowColor: colors.danger, shadowOpacity: 0.6, shadowRadius: 4,
+    shadowOffset: { width: 0, height: 0 },
+  },
+  immediateInfo: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.danger + '14',
+    borderWidth: 1, borderColor: colors.danger + '55',
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing.md, paddingVertical: 10,
+  },
+  immediateInfoTxt: { color: colors.text, fontSize: 12, fontWeight: '700', flex: 1 },
   empty: { alignItems: 'center', paddingTop: 80, gap: 10 },
   emptyTitle: { color: colors.text, fontSize: 16, fontWeight: '800', marginTop: 4 },
   emptySub: { color: colors.textSecondary, fontSize: 13, textAlign: 'center', paddingHorizontal: 40 },
