@@ -36,6 +36,9 @@ type RidesCtx = {
   // actions
   acceptCurrent: () => Promise<{ ok: boolean; error?: string; missionId?: string }>;
   dismissCurrent: () => void;
+  /** Dismiss a specific ride id (used by the Missions → Immédiates tab so the
+   *  driver can refuse a ride without waiting for it to pop in the modal). */
+  dismissById: (id: string) => void;
   acknowledge: () => void;
   refreshShift: () => Promise<void>;
   /** Force an immediate marketplace fetch (called when a push arrives). */
@@ -356,6 +359,26 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
     setQueue((prev) => prev.slice(1));
   }, [queue]);
 
+  /**
+   * Refuse a specific ride id from outside the modal (e.g. the Missions →
+   * Immédiates tab). Same persistence rules as dismissCurrent:
+   *   • marked as dismissed in SecureStore (so it doesn't re-pop for ~60 s)
+   *   • removed from the modal queue if it happened to be in there
+   *   • removed from knownIds so the dismiss-TTL re-broadcast loop still works
+   */
+  const dismissById = useCallback((rideId: string) => {
+    if (!rideId) return;
+    const id = String(rideId);
+    dismissedRef.current[id] = Date.now();
+    saveDismissed(dismissedRef.current);
+    knownIds.current.delete(id);
+    bumpRefused();
+    setQueue((prev) => prev.filter((r) => String(r.id ?? r._id) !== id));
+    // Also drop it from the latest marketplace snapshot so the row
+    // disappears immediately from the Immédiates tab.
+    setLatest((prev) => prev.filter((r) => String(r.id ?? r._id) !== id));
+  }, []);
+
   const acknowledge = useCallback(() => {
     setNewRidesCount(0);
   }, []);
@@ -372,6 +395,7 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
     activeMissionId,
     acceptCurrent,
     dismissCurrent,
+    dismissById,
     acknowledge,
     refreshShift,
     forceRefresh: async () => { await tick(); await refreshShift(); },
@@ -408,6 +432,7 @@ export function useRides(): RidesCtx {
       activeMissionId: null,
       acceptCurrent: async () => ({ ok: false }),
       dismissCurrent: () => {},
+      dismissById: () => {},
       acknowledge: () => {},
       refreshShift: async () => {},
       forceRefresh: async () => {},

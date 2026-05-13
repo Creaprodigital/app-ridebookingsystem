@@ -103,6 +103,18 @@
 #====================================================================================================
 
 frontend:
+  - task: "Accept/Refuse actions on the Immédiates tab + dismissById context API"
+    implemented: true
+    working: "NA"
+    file: "src/ridesContext.tsx, app/(tabs)/missions.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Each row in the Missions → Immédiates tab now exposes two side-by-side buttons: REFUSER (red outline, 1 flex unit) and ACCEPTER (yellow filled, 2 flex units). The accept path reuses the existing claim() handler so the balance check, low-balance modal, off-shift gating and stats bump all work identically. The refuse path calls a new public action dismissById(id) on RidesContext that: 1) writes the ride id into dismissedRef + persists it (so the Uber-style modal will NOT pop it again for ~60 s, same TTL as the in-modal REFUSE button); 2) removes the id from knownIds so the dismiss-TTL re-broadcast loop still works; 3) bumps the refused stats counter; 4) filters the rides out of the in-context queue + latest snapshot. The Missions screen additionally updates its local 'available' state so the row vanishes immediately. Off-shift driver: refuse is disabled with reduced opacity (same lock semantics as accept). testIDs: refuse-{id}, accept-{id}. Bundle clean, no TS error in modified files."
+
   - task: "New 'Courses immédiates' tab + 30s modal timer"
     implemented: true
     working: "NA"

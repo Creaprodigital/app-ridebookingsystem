@@ -187,6 +187,9 @@ export default function MissionsScreen() {
   const [debug, setDebug] = useState<string>('');
   const [walletBal, setWalletBal] = useState<number>(0);
   const [showTopupModal, setShowTopupModal] = useState<boolean>(false);
+  // Pull the dismissById action from the global rides context so we can
+  // refuse an immediate ride directly from the Missions → Immédiates tab.
+  const { dismissById } = useRides();
   const pollRef = useRef<any>(null);
   const knownIdsRef = useRef<Set<string>>(new Set());
   const firstLoadRef = useRef<boolean>(true);
@@ -344,6 +347,21 @@ export default function MissionsScreen() {
   const openMission = (id: string) => {
     if (!requireOnShift()) return;
     router.push(`/mission/${id}`);
+  };
+
+  /**
+   * Refuse an immediate ride from the Immédiates tab.
+   *   • marks the ride as dismissed in the global rides context (so it
+   *     doesn't re-pop in the modal for the next 60 s)
+   *   • bumps the refused stats counter
+   *   • removes the row immediately from the local list
+   */
+  const refuseImmediate = (id: string) => {
+    if (!requireOnShift()) return;
+    if (!id) return;
+    haptic('warning');
+    dismissById(id);
+    setAvailable((prev) => prev.filter((r) => String(r.id ?? r._id) !== id));
   };
 
   // Split the marketplace feed into two visible lists:
@@ -709,6 +727,36 @@ export default function MissionsScreen() {
                     </>
                   )}
                 </TouchableOpacity>
+              ) : tab === 'immediate' ? (
+                // Immediate tab: Accept + Refuse side-by-side
+                <View style={styles.immediateActions}>
+                  <TouchableOpacity
+                    style={[styles.refuseBtn, onShift === false && styles.refuseBtnDisabled]}
+                    onPress={() => refuseImmediate(String(item.id ?? item._id))}
+                    disabled={onShift === false || claimingId === (item.id ?? item._id)}
+                    testID={`refuse-${item.id ?? item._id}`}
+                  >
+                    <Ionicons name="close-circle" size={16} color={colors.danger} />
+                    <Text style={styles.refuseText}>REFUSER</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.acceptBtn, onShift === false && styles.claimBtnDisabled]}
+                    onPress={() => claim(item.id ?? item._id)}
+                    disabled={claimingId === (item.id ?? item._id) || onShift === false}
+                    testID={`accept-${item.id ?? item._id}`}
+                  >
+                    {claimingId === (item.id ?? item._id) ? (
+                      <ActivityIndicator color={colors.bg} />
+                    ) : (
+                      <>
+                        <Ionicons name={onShift === false ? 'lock-closed' : 'flash'} size={16} color={colors.bg} />
+                        <Text style={styles.claimText}>
+                          {onShift === false ? 'HORS LIGNE' : 'ACCEPTER'}
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
               ) : (
                 <View style={styles.openHint}>
                   <Text style={[styles.openHintText, onShift === false && { color: colors.textMuted }]}>
@@ -958,6 +1006,24 @@ const styles = StyleSheet.create({
   },
   claimBtnDisabled: { backgroundColor: colors.textMuted, opacity: 0.6 },
   claimText: { color: colors.bg, fontWeight: '900', fontSize: 13, letterSpacing: 1.2 },
+
+  // Immediate-tab action row (Refuse + Accept)
+  immediateActions: { flexDirection: 'row', gap: 8 },
+  acceptBtn: {
+    flex: 2,
+    height: 52, backgroundColor: colors.primary, borderRadius: radius.full,
+    alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6,
+  },
+  refuseBtn: {
+    flex: 1,
+    height: 52,
+    backgroundColor: colors.danger + '15',
+    borderColor: colors.danger, borderWidth: 1,
+    borderRadius: radius.full,
+    alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6,
+  },
+  refuseBtnDisabled: { opacity: 0.4 },
+  refuseText: { color: colors.danger, fontWeight: '900', fontSize: 12, letterSpacing: 1 },
   cardDimmed: { opacity: 0.55 },
   offShiftBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
