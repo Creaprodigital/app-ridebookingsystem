@@ -83,6 +83,55 @@ function pickAmount(item: any) {
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
+function pickCommission(item: any): number | null {
+  const direct =
+    item?.commission_eur ??
+    item?.commission_amount ??
+    item?.commission ??
+    item?.platform_commission ??
+    item?.platform_fee ??
+    item?.fleet_commission ??
+    item?.tenant_commission ??
+    item?.pricing?.commission ??
+    item?.pricing?.commission_eur ??
+    item?.pricing?.fee;
+  if (direct != null) {
+    const n = Number(direct);
+    if (Number.isFinite(n)) return n;
+  }
+  const pct =
+    item?.commission_pct ??
+    item?.commission_percent ??
+    item?.commission_percentage ??
+    item?.pricing?.commission_pct;
+  const total = pickAmount(item);
+  if (total != null && pct != null) {
+    const p = Number(pct);
+    if (Number.isFinite(p)) {
+      const ratio = p > 1 ? p / 100 : p;
+      return Number((total * ratio).toFixed(2));
+    }
+  }
+  return null;
+}
+function pickDriverNet(item: any): number | null {
+  const direct =
+    item?.driver_amount ??
+    item?.driver_net ??
+    item?.net_eur ??
+    item?.payout ??
+    item?.payout_eur ??
+    item?.pricing?.driver_amount ??
+    item?.pricing?.net;
+  if (direct != null) {
+    const n = Number(direct);
+    if (Number.isFinite(n)) return n;
+  }
+  const total = pickAmount(item);
+  const com = pickCommission(item);
+  if (total != null && com != null) return Number((total - com).toFixed(2));
+  return null;
+}
 function pickPaymentLabel(item: any) {
   const raw = String(
     item?.payment_method ||
@@ -297,6 +346,8 @@ export default function RideRequestModal() {
   const item = currentRequest;
   const distance = pickDistance(item);
   const amount = pickAmount(item);
+  const commissionEur = pickCommission(item);
+  const driverNet = pickDriverNet(item);
 
   // ── Distance & ETA from driver to pickup point (live GPS based) ──────
   const me = getLastCoords();
@@ -370,8 +421,18 @@ export default function RideRequestModal() {
               <View style={{ flex: 1, alignItems: 'flex-end' }}>
                 {amount != null ? (
                   <>
-                    <Text style={styles.amountLabel}>COMMISSION</Text>
+                    <Text style={styles.amountLabel}>PRIX DE LA COURSE</Text>
                     <Text style={styles.amount}>{amount.toFixed(2)} €</Text>
+                    {commissionEur != null && commissionEur > 0 ? (
+                      <Text style={styles.amountCommission} testID="modal-commission">
+                        Société : −{commissionEur.toFixed(2)} €
+                      </Text>
+                    ) : null}
+                    {driverNet != null ? (
+                      <Text style={styles.amountNet} testID="modal-driver-net">
+                        Net : {driverNet.toFixed(2)} €
+                      </Text>
+                    ) : null}
                   </>
                 ) : (
                   <Text style={styles.amount}>—</Text>
@@ -530,6 +591,9 @@ const styles = StyleSheet.create({
   timerText: { color: colors.text, fontSize: 26, fontWeight: '900', letterSpacing: -0.5 },
   timerSub: { color: colors.textMuted, fontSize: 9, fontWeight: '800', letterSpacing: 1.2 },
   amountLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },
+  amount: { color: colors.primary, fontSize: 32, fontWeight: '900', letterSpacing: -1 },
+  amountCommission: { color: colors.danger, fontSize: 11, fontWeight: '700', marginTop: 4 },
+  amountNet: { color: colors.success, fontSize: 11, fontWeight: '900', marginTop: 2 },
   amount: { color: colors.primary, fontSize: 30, fontWeight: '900', letterSpacing: -1 },
   payPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,

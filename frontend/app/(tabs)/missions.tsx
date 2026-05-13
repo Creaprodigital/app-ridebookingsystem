@@ -92,6 +92,66 @@ function pickAmount(m: any) {
   );
 }
 
+/**
+ * Extract the commission the platform/professional takes on this ride.
+ * The exact field name varies across backend versions; we try the most
+ * common shapes. Returns a number or null when no commission information
+ * is available (in that case the UI hides the commission row).
+ */
+function pickCommission(m: any, configCommissionPct?: number) {
+  // Direct numeric fields
+  const direct =
+    m?.commission_eur ??
+    m?.commission_amount ??
+    m?.commission ??
+    m?.platform_commission ??
+    m?.platform_fee ??
+    m?.fleet_commission ??
+    m?.tenant_commission ??
+    m?.pricing?.commission ??
+    m?.pricing?.commission_eur ??
+    m?.pricing?.fee;
+  if (direct != null) {
+    const n = Number(direct);
+    if (Number.isFinite(n)) return n;
+  }
+  // Percentage-based (rare, but supported)
+  const pct =
+    m?.commission_pct ??
+    m?.commission_percent ??
+    m?.commission_percentage ??
+    m?.pricing?.commission_pct ??
+    configCommissionPct;
+  const total = Number(pickAmount(m));
+  if (Number.isFinite(total) && pct != null) {
+    const p = Number(pct);
+    if (Number.isFinite(p)) {
+      const ratio = p > 1 ? p / 100 : p; // accept "20" or "0.2"
+      return Number((total * ratio).toFixed(2));
+    }
+  }
+  return null;
+}
+
+function pickDriverNet(m: any, configCommissionPct?: number) {
+  const direct =
+    m?.driver_amount ??
+    m?.driver_net ??
+    m?.net_eur ??
+    m?.payout ??
+    m?.payout_eur ??
+    m?.pricing?.driver_amount ??
+    m?.pricing?.net;
+  if (direct != null) {
+    const n = Number(direct);
+    if (Number.isFinite(n)) return n;
+  }
+  const total = Number(pickAmount(m));
+  const com = Number(pickCommission(m, configCommissionPct));
+  if (Number.isFinite(total) && Number.isFinite(com)) return Number((total - com).toFixed(2));
+  return null;
+}
+
 function pickDistance(m: any) {
   return (
     m?.distance_km ??
@@ -429,6 +489,15 @@ export default function MissionsScreen() {
           // Visual kind tag: IMMÉDIATE vs PLANIFIÉE. Drivers must be able to
           // distinguish the two modes at a single glance.
           const immediate = isImmediateRide(item);
+          // Pricing breakdown: total price + platform commission + driver net.
+          // Commission can come from the listing itself (commission_eur,
+          // commission_pct…) or fall back to the marketplace config.
+          const cfgPct =
+            (config?.commission_pct as number | undefined) ??
+            (config?.commission_percent as number | undefined) ??
+            (config?.commission_percentage as number | undefined);
+          const commissionEur = pickCommission(item, cfgPct);
+          const driverNet = pickDriverNet(item, cfgPct);
           // Compute the live countdown to pickup. Re-renders are driven by
           // the top-level useTicker(30s). We hide the chip once the trip
           // has effectively started (no point counting down anymore).
@@ -511,10 +580,24 @@ export default function MissionsScreen() {
                 ) : null}
                 <View style={{ flex: 1 }} />
                 <View style={{ alignItems: 'flex-end' }}>
-                  {isMarketplace ? (
-                    <Text style={styles.priceLbl}>COMMISSION</Text>
-                  ) : null}
+                  <Text style={styles.priceLbl}>PRIX DE LA COURSE</Text>
                   <Text style={styles.price}>{fmtMoney(price)}</Text>
+                  {commissionEur != null && commissionEur > 0 ? (
+                    <View style={styles.priceBreakdownRow}>
+                      <Ionicons name="business-outline" size={11} color={colors.danger} />
+                      <Text style={styles.priceCommissionTxt} testID={`commission-${item.id ?? item._id}`}>
+                        Commission société : −{Number(commissionEur).toFixed(2)} €
+                      </Text>
+                    </View>
+                  ) : null}
+                  {driverNet != null ? (
+                    <View style={styles.priceBreakdownRow}>
+                      <Ionicons name="cash-outline" size={11} color={colors.success} />
+                      <Text style={styles.priceNetTxt} testID={`driver-net-${item.id ?? item._id}`}>
+                        Net chauffeur : {Number(driverNet).toFixed(2)} €
+                      </Text>
+                    </View>
+                  ) : null}
                 </View>
               </View>
 
@@ -788,6 +871,9 @@ const styles = StyleSheet.create({
   statusText: { color: colors.textSecondary, fontWeight: '800', fontSize: 11, letterSpacing: 1 },
   price: { color: colors.primary, fontSize: 22, fontWeight: '900', letterSpacing: -0.8 },
   priceLbl: { color: colors.textMuted, fontSize: 9, fontWeight: '800', letterSpacing: 1.2 },
+  priceBreakdownRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
+  priceCommissionTxt: { color: colors.danger, fontSize: 11, fontWeight: '700' },
+  priceNetTxt: { color: colors.success, fontSize: 11, fontWeight: '800' },
   badge: {
     paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1,
   },

@@ -79,6 +79,61 @@ function pickPrice(m: any) {
   );
 }
 
+/**
+ * Same matching logic as the missions screen: try direct fields first,
+ * then fall back to a percentage applied to the trip total.
+ */
+function pickCommissionEur(m: any): number | null {
+  const direct =
+    m?.commission_eur ??
+    m?.commission_amount ??
+    m?.commission ??
+    m?.platform_commission ??
+    m?.platform_fee ??
+    m?.fleet_commission ??
+    m?.tenant_commission ??
+    m?.pricing?.commission ??
+    m?.pricing?.commission_eur ??
+    m?.pricing?.fee;
+  if (direct != null) {
+    const n = Number(direct);
+    if (Number.isFinite(n)) return n;
+  }
+  const pct =
+    m?.commission_pct ??
+    m?.commission_percent ??
+    m?.commission_percentage ??
+    m?.pricing?.commission_pct;
+  const total = Number(pickPrice(m));
+  if (Number.isFinite(total) && pct != null) {
+    const p = Number(pct);
+    if (Number.isFinite(p)) {
+      const ratio = p > 1 ? p / 100 : p;
+      return Number((total * ratio).toFixed(2));
+    }
+  }
+  return null;
+}
+
+function pickDriverNetEur(m: any): number | null {
+  const direct =
+    m?.driver_amount ??
+    m?.driver_net ??
+    m?.net_eur ??
+    m?.payout ??
+    m?.payout_eur ??
+    m?.pricing?.driver_amount ??
+    m?.pricing?.net;
+  if (direct != null) {
+    const n = Number(direct);
+    if (Number.isFinite(n)) return n;
+  }
+  const total = Number(pickPrice(m));
+  const com = Number(pickCommissionEur(m));
+  if (Number.isFinite(total) && Number.isFinite(com)) return Number((total - com).toFixed(2));
+  return null;
+}
+
 type PaymentInfo = {
   method: string;
   isOnline: boolean;
@@ -606,11 +661,49 @@ export default function MissionDetail() {
 
         <View style={styles.card}>
           <View style={styles.priceRow}>
-            <Text style={styles.priceLbl}>MONTANT COURSE</Text>
+            <Text style={styles.priceLbl}>PRIX DE LA COURSE</Text>
             <Text style={styles.priceVal}>
               {price != null ? `${Number(price).toFixed(2)} €` : '—'}
             </Text>
           </View>
+
+          {/* Commission + driver net breakdown */}
+          {(() => {
+            const com = pickCommissionEur(mission);
+            const net = pickDriverNetEur(mission);
+            if (com == null && net == null) return null;
+            return (
+              <View style={styles.priceBreakdown}>
+                {com != null && com > 0 ? (
+                  <View style={styles.priceRow}>
+                    <View style={styles.breakdownLbl}>
+                      <Ionicons name="business-outline" size={13} color={colors.danger} />
+                      <Text style={styles.breakdownLblTxt}>
+                        Commission société
+                      </Text>
+                    </View>
+                    <Text style={[styles.breakdownVal, { color: colors.danger }]} testID="commission-detail">
+                      −{Number(com).toFixed(2)} €
+                    </Text>
+                  </View>
+                ) : null}
+                {net != null ? (
+                  <View style={styles.priceRow}>
+                    <View style={styles.breakdownLbl}>
+                      <Ionicons name="cash-outline" size={13} color={colors.success} />
+                      <Text style={[styles.breakdownLblTxt, { color: colors.success }]}>
+                        Net chauffeur
+                      </Text>
+                    </View>
+                    <Text style={[styles.breakdownVal, { color: colors.success }]} testID="driver-net-detail">
+                      {Number(net).toFixed(2)} €
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            );
+          })()}
+
           <View style={styles.divider} />
 
           <View style={styles.route}>
@@ -946,6 +1039,15 @@ const styles = StyleSheet.create({
   priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   priceLbl: { color: colors.textSecondary, fontSize: 11, fontWeight: '800', letterSpacing: 1.3 },
   priceVal: { color: colors.primary, fontSize: 28, fontWeight: '900', letterSpacing: -1 },
+  priceBreakdown: {
+    backgroundColor: colors.bg,
+    borderRadius: radius.md,
+    padding: 10, gap: 6,
+    borderWidth: 1, borderColor: colors.border,
+  },
+  breakdownLbl: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  breakdownLblTxt: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
+  breakdownVal: { fontSize: 14, fontWeight: '900', letterSpacing: -0.3 },
   divider: { height: 1, backgroundColor: colors.border },
   route: { flexDirection: 'row', gap: 12 },
   routeLine: { alignItems: 'center', paddingTop: 6, paddingBottom: 6, width: 14 },

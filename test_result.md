@@ -103,6 +103,18 @@
 #====================================================================================================
 
 frontend:
+  - task: "Price labels: 'Prix de la course' + commission société + net chauffeur breakdown"
+    implemented: true
+    working: "NA"
+    file: "app/(tabs)/missions.tsx, app/mission/[id].tsx, src/components/RideRequestModal.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "User asked to rename the existing 'COMMISSION' label (which was actually the trip total) to 'PRIX DE LA COURSE' AND to surface the platform commission separately so the driver clearly sees what the fleet operator takes. New helpers pickCommission() and pickDriverNet() (in missions.tsx + mission/[id].tsx + RideRequestModal.tsx) probe a wide list of common backend field names (commission_eur, commission_amount, commission, platform_commission, platform_fee, fleet_commission, tenant_commission, pricing.commission, pricing.commission_eur, pricing.fee) with a fallback to commission_pct × total. driver_net is read directly (driver_amount, driver_net, net_eur, payout, pricing.driver_amount, pricing.net) or computed as total − commission. In Missions cards: 'PRIX DE LA COURSE' big yellow label + 2 small lines under it ('Commission société : −X €' in red with business icon, testID commission-{id}; 'Net chauffeur : Y €' in green with cash icon, testID driver-net-{id}). In Mission detail: a dedicated breakdown card right below the big price showing both lines (testIDs commission-detail, driver-net-detail). In RideRequestModal: 'PRIX DE LA COURSE' replaces 'COMMISSION'; 'Société : −X €' and 'Net : Y €' small lines below the big € amount (testIDs modal-commission, modal-driver-net). All lines are hidden when the corresponding values are not present or zero so we never display fake zeros. Bundle clean (1592 modules), login screen renders fine."
+
   - task: "Immediate vs Scheduled ride visual distinction (banners + ribbons + left-edge accent)"
     implemented: true
     working: "NA"
