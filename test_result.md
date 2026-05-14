@@ -103,6 +103,18 @@
 #====================================================================================================
 
 frontend:
+  - task: "Distance & ETA badges on Immédiates tab cards"
+    implemented: true
+    working: "NA"
+    file: "app/(tabs)/missions.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Each card on the Missions → Immédiates tab now displays two prominent yellow-on-yellow chips at the very start of the cardFoot: 'À X km' (driver→pickup distance, navigate icon) and 'Y min' (estimated ETA at 30 km/h average, time icon). Distance < 10 km is shown with 1 decimal (e.g. 2.3 km), otherwise rounded to int (e.g. 12 km). Both chips use the new metaChipPrimary + metaChipPrimaryAccent styles (yellow background at 12% alpha, yellow border at 53% alpha, 900-weight text) so they jump out compared to the regular gray metaChips used on Planifiées/Mes missions. Driver position is read from locationStore.getLastCoords() (foreground GPS watcher or background TaskManager) and refreshed live via subscribeCoords() — so chips re-render whenever the driver moves. If no GPS fix is available yet, a 'Position en attente…' placeholder chip is shown instead (testID pickup-distance-pending-{id}). testIDs for the real chips: pickup-distance-{id} and pickup-eta-{id}. Only shown on tab=immediate. Bundle clean, login screen renders correctly, 0 TS error."
+
   - task: "Accept/Refuse actions on the Immédiates tab + dismissById context API"
     implemented: true
     working: "NA"

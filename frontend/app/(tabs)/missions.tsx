@@ -16,9 +16,10 @@ import { Modal } from 'react-native';
 import { colors, radius, spacing } from '../../src/theme';
 import { haptic, playSound, ensureNotifPermission, notifyNewRide } from '../../src/feedback';
 import { NOTIF_SOUNDS, getNotifSoundId } from '../../src/prefs';
-import { isImmediateRide } from '../../src/rideTypes';
+import { isImmediateRide, pickPickupCoords, haversineKm, estimateEtaMin } from '../../src/rideTypes';
 import { useRides } from '../../src/ridesContext';
 import { formatPickupCountdown, countdownStyle, useTicker } from '../../src/timeUtils';
+import { getLastCoords, subscribeCoords } from '../../src/locationStore';
 import {
   getDriverMissions,
   getMarketplace,
@@ -177,6 +178,20 @@ export default function MissionsScreen() {
   // Re-render every 30 s so the per-card pickup countdowns stay fresh
   // without us having to re-fetch the whole list.
   useTicker(30_000);
+
+  // Live driver coords (from foreground + background GPS) so the "À X km · Y min"
+  // chips on the Immédiates tab stay accurate as the driver moves.
+  const [me, setMe] = useState(() => {
+    const c = getLastCoords();
+    return c ? { lat: c.lat, lng: c.lng } : null;
+  });
+  useEffect(() => {
+    const unsub = subscribeCoords((c) => {
+      if (c) setMe({ lat: c.lat, lng: c.lng });
+      else setMe(null);
+    });
+    return () => unsub();
+  }, []);
   const [assigned, setAssigned] = useState<any[]>([]);
   const [available, setAvailable] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -561,6 +576,23 @@ export default function MissionsScreen() {
             (config?.commission_percentage as number | undefined);
           const commissionEur = pickCommission(item, cfgPct);
           const driverNet = pickDriverNet(item, cfgPct);
+          // Distance + ETA from driver to pickup (live GPS based). We only
+          // render these "À X km · Y min" pickup-badges on the Immédiates
+          // tab because they're the most useful when the driver has to
+          // decide right now. On the Planifiées tab, the trip distance
+          // chip (already present) is more relevant.
+          let pickupKm: number | null = null;
+          let pickupEta: number | null = null;
+          if (tab === 'immediate' && me) {
+            const pc = pickPickupCoords(item);
+            if (pc) {
+              const km = haversineKm(me, pc);
+              if (Number.isFinite(km)) {
+                pickupKm = km;
+                pickupEta = estimateEtaMin(km);
+              }
+            }
+          }
           // Compute the live countdown to pickup. Re-renders are driven by
           // the top-level useTicker(30s). We hide the chip once the trip
           // has effectively started (no point counting down anymore).
@@ -683,6 +715,38 @@ export default function MissionsScreen() {
               </View>
 
               <View style={styles.cardFoot}>
+                {/* IMMÉDIATES: prominent driver→pickup badges (À X km · Y min) */}
+                {tab === 'immediate' && pickupKm != null ? (
+                  <View
+                    style={[styles.metaChipPrimary, styles.metaChipPrimaryAccent]}
+                    testID={`pickup-distance-${item.id ?? item._id}`}
+                  >
+                    <Ionicons name="navigate" size={13} color={colors.primary} />
+                    <Text style={styles.metaChipPrimaryTxt}>
+                      À {pickupKm < 10 ? pickupKm.toFixed(1) : Math.round(pickupKm)} km
+                    </Text>
+                  </View>
+                ) : null}
+                {tab === 'immediate' && pickupEta != null ? (
+                  <View
+                    style={[styles.metaChipPrimary, styles.metaChipPrimaryAccent]}
+                    testID={`pickup-eta-${item.id ?? item._id}`}
+                  >
+                    <Ionicons name="time" size={13} color={colors.primary} />
+                    <Text style={styles.metaChipPrimaryTxt}>
+                      {pickupEta} min
+                    </Text>
+                  </View>
+                ) : null}
+                {/* Hint shown when GPS is not yet available */}
+                {tab === 'immediate' && pickupKm == null ? (
+                  <View style={styles.metaChip} testID={`pickup-distance-pending-${item.id ?? item._id}`}>
+                    <Ionicons name="locate-outline" size={13} color={colors.textMuted} />
+                    <Text style={[styles.metaText, { color: colors.textMuted }]}>
+                      Position en attente…
+                    </Text>
+                  </View>
+                ) : null}
                 <View style={styles.metaChip}>
                   <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />
                   <Text style={styles.metaText}>{fmtDate(pickDt(item)) || '—'}</Text>
@@ -1000,6 +1064,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: colors.border,
   },
   metaText: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
+  // Prominent variant used by the immediate-tab "À X km" / "Y min" badges
+  metaChipPrimary: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    borderRadius: radius.md,
+    paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1,
+  },
+  metaChipPrimaryAccent: {
+    backgroundColor: colors.primary + '1F',
+    borderColor: colors.primary + '88',
+  },
+  metaChipPrimaryTxt: { color: colors.primary, fontSize: 12, fontWeight: '900', letterSpacing: 0.3 },
   claimBtn: {
     height: 52, backgroundColor: colors.primary, borderRadius: radius.full,
     alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8,
