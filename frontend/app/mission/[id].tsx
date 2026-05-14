@@ -116,21 +116,15 @@ function pickCommissionEur(m: any): number | null {
 }
 
 function pickDriverNetEur(m: any): number | null {
-  const direct =
-    m?.driver_amount ??
-    m?.driver_net ??
-    m?.net_eur ??
-    m?.payout ??
-    m?.payout_eur ??
-    m?.pricing?.driver_amount ??
-    m?.pricing?.net;
-  if (direct != null) {
-    const n = Number(direct);
-    if (Number.isFinite(n)) return n;
-  }
+  // Strict rule (per business): Net chauffeur = Prix de la course − Commission.
+  // We do not trust backend "direct" fields here because the operator may
+  // have a different formula on their side. If either the total or the
+  // commission cannot be resolved, we return null (UI hides the row).
   const total = Number(pickPrice(m));
   const com = Number(pickCommissionEur(m));
-  if (Number.isFinite(total) && Number.isFinite(com)) return Number((total - com).toFixed(2));
+  if (Number.isFinite(total) && Number.isFinite(com)) {
+    return Number((total - com).toFixed(2));
+  }
   return null;
 }
 

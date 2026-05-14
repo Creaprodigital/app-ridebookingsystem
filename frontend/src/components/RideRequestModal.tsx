@@ -115,18 +115,9 @@ function pickCommission(item: any): number | null {
   return null;
 }
 function pickDriverNet(item: any): number | null {
-  const direct =
-    item?.driver_amount ??
-    item?.driver_net ??
-    item?.net_eur ??
-    item?.payout ??
-    item?.payout_eur ??
-    item?.pricing?.driver_amount ??
-    item?.pricing?.net;
-  if (direct != null) {
-    const n = Number(direct);
-    if (Number.isFinite(n)) return n;
-  }
+  // Strict rule (per business): Net chauffeur = Prix de la course − Commission.
+  // We do not use any backend direct field — always recompute from the
+  // displayed total and commission so the math is consistent across screens.
   const total = pickAmount(item);
   const com = pickCommission(item);
   if (total != null && com != null) return Number((total - com).toFixed(2));
@@ -594,7 +585,6 @@ const styles = StyleSheet.create({
   amount: { color: colors.primary, fontSize: 32, fontWeight: '900', letterSpacing: -1 },
   amountCommission: { color: colors.danger, fontSize: 11, fontWeight: '700', marginTop: 4 },
   amountNet: { color: colors.success, fontSize: 11, fontWeight: '900', marginTop: 2 },
-  amount: { color: colors.primary, fontSize: 30, fontWeight: '900', letterSpacing: -1 },
   payPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1,
