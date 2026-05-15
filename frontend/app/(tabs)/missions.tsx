@@ -20,6 +20,7 @@ import { isImmediateRide, pickPickupCoords, haversineKm, estimateEtaMin } from '
 import { useRides } from '../../src/ridesContext';
 import { formatPickupCountdown, countdownStyle, useTicker } from '../../src/timeUtils';
 import { getLastCoords, subscribeCoords } from '../../src/locationStore';
+import AssignedMissionCard from '../../src/components/AssignedMissionCard';
 import {
   getDriverMissions,
   getMarketplace,
@@ -570,6 +571,21 @@ export default function MissionsScreen() {
             (config?.commission_percentage as number | undefined);
           const commissionEur = pickCommission(item, cfgPct);
           const driverNet = pickDriverNet(item, cfgPct);
+
+          // ─── NOUVEAU DESIGN « Mes missions » (assigned tab) ─────────
+          if (tab === 'assigned') {
+            return (
+              <AssignedMissionCard
+                item={item}
+                driverPos={me}
+                commissionEur={commissionEur}
+                driverNet={driverNet}
+                onOpen={() => openMission(String(item.id ?? item._id))}
+                dimmed={onShift === false}
+              />
+            );
+          }
+          // ────────────────────────────────────────────────────────────
           // Distance + ETA from driver to pickup (live GPS based). We only
           // render these "À X km · Y min" pickup-badges on the Immédiates
           // tab because they're the most useful when the driver has to
