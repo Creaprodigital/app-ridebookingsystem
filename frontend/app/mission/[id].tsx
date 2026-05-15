@@ -12,7 +12,7 @@ import {
   Modal,
   BackHandler,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import MapView from '../../src/components/MapView';
@@ -173,6 +173,12 @@ function pickPaymentInfo(m: any): PaymentInfo {
 export default function MissionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  // Safe-area bottom padding for the floating footer. We always add a small
+  // visual breathing room (12 px) on top of the device's bottom inset, so the
+  // CTA never sticks to the system navigation bar on Android nor the home
+  // indicator on iPhone.
+  const footerBottomPad = Math.max(insets.bottom + 12, Platform.OS === 'ios' ? 28 : 20);
   const { onShift, clearActiveMission } = useRides();
   const [mission, setMission] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -563,7 +569,7 @@ export default function MissionDetail() {
         <View style={styles.iconBtn} />
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 220, gap: spacing.md, paddingHorizontal: spacing.md }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 260 + footerBottomPad, gap: spacing.md, paddingHorizontal: spacing.md }}>
         {/* ── HEADER INFO CARD (Type · Countdown · Warning · Financials) ── */}
         {(() => {
           const immediate = isImmediateRide(mission);
@@ -601,7 +607,7 @@ export default function MissionDetail() {
                   ]}
                   numberOfLines={1}
                 >
-                  {immediate ? 'COURSE IMMÉDIATE' : 'COURSE PLANIFIÉE'}
+                  {immediate ? 'COURSE IMMÉDIATE' : 'RÉSERVATION'}
                 </Text>
                 {cd && cs ? (
                   <View style={[styles.infoCd, cs.chip]} testID="info-cd">
@@ -839,7 +845,7 @@ export default function MissionDetail() {
       </Modal>
 
       {blocked && cta ? (
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: footerBottomPad }]}>
           <View style={styles.lockBanner} testID="off-shift-mission-banner">
             <Ionicons name="lock-closed" size={18} color={colors.warning} />
             <View style={{ flex: 1 }}>
@@ -858,7 +864,7 @@ export default function MissionDetail() {
           </View>
         </View>
       ) : cta ? (
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: footerBottomPad }]}>
           {/* CTA Naviguer en jaune (vers prise en charge ou vers client) */}
           <TouchableOpacity
             style={styles.navCtaBtn}
@@ -893,7 +899,7 @@ export default function MissionDetail() {
           />
         </View>
       ) : (
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: footerBottomPad }]}>
           <View style={styles.doneBanner}>
             <Ionicons name="checkmark-circle" size={20} color={colors.success} />
             <Text style={styles.doneTxt}>Mission terminée</Text>
@@ -1370,8 +1376,12 @@ const styles = StyleSheet.create({
   navSheetCancelTxt: { color: colors.textSecondary, fontWeight: '800', letterSpacing: 0.6 },
   footer: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
-    padding: spacing.md, paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    paddingHorizontal: spacing.md,
+    paddingTop: spacing.md,
+    // bottom padding is applied dynamically with safe-area insets
     backgroundColor: colors.bg, borderTopColor: colors.border, borderTopWidth: 1,
+    // visual separation between the yellow "Naviguer" CTA and the slide button
+    gap: 14,
   },
   doneBanner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
