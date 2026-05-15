@@ -162,15 +162,16 @@ function drawPolylines(list){
       });
       otherPolys.push(ghost);
 
-      // Three stacked tail polylines (wide+faint glow, mid, bright core)
-      // give the illusion of a smooth fading comet tail.
+      // Three stacked layers (wide+faint glow, mid, bright core) all growing
+      // from A to current head position — gives a glowing comet trail look
+      // without any visible head marker.
       const glow = new google.maps.Polyline({
         path: [path[0]], geodesic: true, map: map,
-        strokeColor: col, strokeOpacity: 0.30, strokeWeight: w + 8,
+        strokeColor: col, strokeOpacity: 0.35, strokeWeight: w + 8,
       });
       const mid = new google.maps.Polyline({
         path: [path[0]], geodesic: true, map: map,
-        strokeColor: col, strokeOpacity: 0.60, strokeWeight: w + 3,
+        strokeColor: col, strokeOpacity: 0.70, strokeWeight: w + 3,
       });
       const core = new google.maps.Polyline({
         path: [path[0]], geodesic: true, map: map,
@@ -178,19 +179,7 @@ function drawPolylines(list){
       });
       otherPolys.push(glow, mid, core);
 
-      // Glowing white head — sits on top of the core
-      const head = new google.maps.Marker({
-        position: path[0], map: map, zIndex: 999,
-        icon: {
-          path: 0, // CIRCLE
-          fillColor: '#FFFFFF', fillOpacity: 1,
-          strokeColor: col, strokeWeight: 3,
-          scale: w + 1,
-        },
-      });
-      otherPolys.push(head);
-
-      animateComet({ glow, mid, core, head }, path, 4200);
+      animateComet({ glow, mid, core }, path, 1050);
       return;
     }
 
@@ -262,15 +251,13 @@ function animateComet(parts, fullPath, durationMs){
     const t = easeInOut(raw);
     const headDist = t * total;
 
-    const lenGlow = total * 0.20;
-    const lenMid  = total * 0.12;
-    const lenCore = total * 0.05;
-
     try {
-      parts.glow.setPath(pathBetween(Math.max(0, headDist - lenGlow), headDist));
-      parts.mid.setPath(pathBetween(Math.max(0, headDist - lenMid),  headDist));
-      parts.core.setPath(pathBetween(Math.max(0, headDist - lenCore), headDist));
-      if (parts.head) parts.head.setPosition(pointAtDist(headDist));
+      // All three layers stretch from A (0) to the current head position,
+      // giving a glowing trail that reaches B by the end of the cycle.
+      const trail = pathBetween(0, headDist);
+      parts.glow.setPath(trail);
+      parts.mid.setPath(trail);
+      parts.core.setPath(trail);
     } catch(e){}
 
     if (raw < 1){
@@ -281,7 +268,7 @@ function animateComet(parts, fullPath, durationMs){
         if (!parts.core._animRunning) return;
         startTs = null;
         parts.core._animFrame = requestAnimationFrame(step);
-      }, 700);
+      }, 350);
     }
   }
   parts.core._animFrame = requestAnimationFrame(step);
