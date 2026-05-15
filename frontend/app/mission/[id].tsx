@@ -655,11 +655,6 @@ export default function MissionDetail() {
             fitBounds
             style={StyleSheet.absoluteFill}
           />
-          {/* Floating "Aperçu sur la carte" pill — bottom right */}
-          <View style={styles.mapPreviewPill} testID="map-preview-pill" pointerEvents="none">
-            <Text style={styles.mapPreviewTxt}>Aperçu sur la carte</Text>
-            <Ionicons name="expand-outline" size={14} color={colors.text} />
-          </View>
         </View>
 
         {/* ── ROUTE BLOCK : Prise en charge & Destination ─────────────── */}
@@ -1058,19 +1053,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: -0.5,
   },
-
-  // ── Aperçu sur la carte pill (bottom right of map) ──
-  mapPreviewPill: {
-    position: 'absolute',
-    bottom: 10, right: 10,
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: colors.bg + 'CC',
-    borderColor: colors.border,
-    borderWidth: 1,
-    paddingHorizontal: 12, paddingVertical: 7,
-    borderRadius: 999,
-  },
-  mapPreviewTxt: { color: colors.text, fontSize: 11, fontWeight: '700' },
 
   // ── New route card (PRISE EN CHARGE / DESTINATION) ──
   routeCard: {

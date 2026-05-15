@@ -51,6 +51,20 @@ function buildHtml(lat: number, lng: number, markers: Marker[], polylines: Polyl
 <style>html,body,#map{height:100%;margin:0;padding:0;background:#0A0A0A;}
 #err{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:#A1A1AA;font:600 13px -apple-system,Inter,sans-serif;text-align:center;padding:20px;z-index:10;background:#0A0A0A}
 #err.show{display:flex}
+/* Hide Google branding, attribution bar, terms links and "View on Google Maps" overlay */
+.gm-style-cc,
+.gmnoprint a,
+.gmnoprint span,
+.gm-style a[href^="https://maps.google.com/maps"],
+.gm-style a[href^="https://www.google.com/maps"],
+.gm-style a[title="Signaler des erreurs cartographiques"],
+.gm-style a[title="Report errors in the road map or imagery to Google"],
+.gm-style-pbc,
+.gm-iv-address,
+img[alt="Google"],
+a[aria-label*="Google"]{display:none !important;visibility:hidden !important;opacity:0 !important;pointer-events:none !important;}
+/* Hide the bottom-left Google logo */
+.gm-style > div > a > div > img{display:none !important;}
 </style></head>
 <body>
 <div id="map"></div>
