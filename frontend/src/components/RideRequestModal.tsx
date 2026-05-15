@@ -154,10 +154,12 @@ function pickDriverNet(item: any): number | null {
   // Strict rule (per business): Net chauffeur = Prix de la course − Commission.
   // We do not use any backend direct field — always recompute from the
   // displayed total and commission so the math is consistent across screens.
+  // If commission is unknown we treat it as 0 so the driver always sees a
+  // meaningful net amount (= the full price).
   const total = pickAmount(item);
-  const com = pickCommission(item);
-  if (total != null && com != null) return Number((total - com).toFixed(2));
-  return null;
+  if (total == null) return null;
+  const com = pickCommission(item) ?? 0;
+  return Number((total - com).toFixed(2));
 }
 function pickPaymentLabel(item: any) {
   const raw = String(
@@ -470,8 +472,14 @@ export default function RideRequestModal() {
 
               {/* Gain net (green) */}
               <View style={styles.headerCol}>
-                <Text style={styles.gainLabel}>GAIN NET</Text>
-                <Text style={styles.gainAmount} testID="modal-driver-net">
+                <Text style={styles.gainLabel} numberOfLines={1}>GAIN NET</Text>
+                <Text
+                  style={styles.gainAmount}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.6}
+                  testID="modal-driver-net"
+                >
                   {driverNet != null ? `${driverNet.toFixed(2)} €` : '—'}
                 </Text>
                 <View style={styles.gainPill}>
@@ -484,8 +492,14 @@ export default function RideRequestModal() {
 
               {/* Prix client (yellow) */}
               <View style={styles.headerCol}>
-                <Text style={styles.priceClientLabel}>PRIX CLIENT</Text>
-                <Text style={styles.priceClientAmount} testID="modal-price">
+                <Text style={styles.priceClientLabel} numberOfLines={1}>PRIX CLIENT</Text>
+                <Text
+                  style={styles.priceClientAmount}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.6}
+                  testID="modal-price"
+                >
                   {amount != null ? `${amount.toFixed(2)} €` : '—'}
                 </Text>
                 <View style={styles.payPill}>
@@ -618,11 +632,6 @@ export default function RideRequestModal() {
                 />
               </View>
             </View>
-
-            <TouchableOpacity onPress={handleDetails} style={styles.detailsLink} testID="ride-details">
-              <Text style={styles.detailsLinkText}>Voir les détails de la course</Text>
-              <Ionicons name="arrow-forward" size={14} color={colors.primary} />
-            </TouchableOpacity>
           </View>
         </Animated.View>
       </Pressable>
@@ -679,11 +688,11 @@ const styles = StyleSheet.create({
   timerCenter: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
   timerText: { color: colors.success, fontSize: 26, fontWeight: '900', letterSpacing: -0.5 },
   timerSub: { color: colors.textMuted, fontSize: 9, fontWeight: '800', letterSpacing: 1.2 },
-  headerCol: { flex: 1, alignItems: 'center', gap: 4 },
+  headerCol: { flex: 1, minWidth: 0, alignItems: 'center', gap: 4 },
   headerSep: { width: 1, height: 70, backgroundColor: colors.border, marginHorizontal: 2 },
 
-  gainLabel: { color: colors.success, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
-  gainAmount: { color: colors.success, fontSize: 26, fontWeight: '900', letterSpacing: -1 },
+  gainLabel: { color: colors.success, fontSize: 10, fontWeight: '900', letterSpacing: 1, textAlign: 'center' },
+  gainAmount: { color: colors.success, fontSize: 22, fontWeight: '900', letterSpacing: -0.6, textAlign: 'center' },
   gainPill: {
     paddingHorizontal: 10, paddingVertical: 3,
     borderRadius: 999, borderWidth: 1,
@@ -692,8 +701,8 @@ const styles = StyleSheet.create({
   },
   gainPillTxt: { color: colors.success, fontSize: 10, fontWeight: '900', letterSpacing: 0.4 },
 
-  priceClientLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
-  priceClientAmount: { color: colors.primary, fontSize: 26, fontWeight: '900', letterSpacing: -1 },
+  priceClientLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '900', letterSpacing: 1, textAlign: 'center' },
+  priceClientAmount: { color: colors.primary, fontSize: 22, fontWeight: '900', letterSpacing: -0.6, textAlign: 'center' },
 
   amountLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },
   amount: { color: colors.primary, fontSize: 32, fontWeight: '900', letterSpacing: -1 },
