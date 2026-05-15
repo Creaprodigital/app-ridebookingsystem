@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { colors, radius, spacing } from '../../src/theme';
-import { getDriverHistory } from '../../src/api';
+import { getDriverHistory, getMarketplaceConfig } from '../../src/api';
 import { haptic } from '../../src/feedback';
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -75,14 +75,14 @@ function pickAmount(m: any): number | null {
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
-function pickCommission(m: any): number | null {
+function pickCommission(m: any, configPct?: number): number | null {
   const direct =
     m?.commission_eur ?? m?.commission_amount ?? m?.commission ??
     m?.platform_commission ?? m?.platform_fee ??
     m?.fleet_commission ?? m?.tenant_commission ??
     m?.pricing?.commission ?? m?.pricing?.commission_eur ?? m?.pricing?.fee;
   if (direct != null) { const n = Number(direct); if (Number.isFinite(n)) return n; }
-  const pct = m?.commission_pct ?? m?.commission_percent ?? m?.commission_percentage ?? m?.pricing?.commission_pct;
+  const pct = m?.commission_pct ?? m?.commission_percent ?? m?.commission_percentage ?? m?.pricing?.commission_pct ?? configPct;
   const total = pickAmount(m);
   if (total != null && pct != null) {
     const p = Number(pct);
@@ -93,9 +93,9 @@ function pickCommission(m: any): number | null {
   }
   return null;
 }
-function pickDriverNet(m: any): number | null {
+function pickDriverNet(m: any, configPct?: number): number | null {
   const total = pickAmount(m);
-  const com = pickCommission(m);
+  const com = pickCommission(m, configPct);
   if (total != null && com != null) return Number((total - com).toFixed(2));
   return null;
 }
@@ -148,6 +148,24 @@ export default function HistoryScreen() {
   const [weekAnchor, setWeekAnchor] = useState<Date>(new Date());
   const [sort, setSort] = useState<SortMode>('recent');
   const [filtersOpen, setFiltersOpen] = useState(false);
+  // Marketplace commission percentage — used to compute Net chauffeur when
+  // missions don't carry their own commission field.
+  const [configPct, setConfigPct] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw: any = await getMarketplaceConfig();
+        const cfg = raw?.config ?? raw;
+        const pct =
+          cfg?.commission_pct ??
+          cfg?.commission_percent ??
+          cfg?.commission_percentage;
+        if (pct != null && Number.isFinite(Number(pct))) {
+          setConfigPct(Number(pct));
+        }
+      } catch {}
+    })();
+  }, []);
 
   const fromDate = useMemo(() => startOfWeek(weekAnchor), [weekAnchor]);
   const toDate = useMemo(() => endOfWeek(weekAnchor), [weekAnchor]);
@@ -181,7 +199,7 @@ export default function HistoryScreen() {
     let net = 0;
     items.forEach((m) => {
       const amount = pickAmount(m);
-      const n = pickDriverNet(m);
+      const n = pickDriverNet(m, configPct);
       if (amount != null) revenue += amount;
       if (n != null) net += n;
       count += 1;
@@ -191,7 +209,7 @@ export default function HistoryScreen() {
       revenue: Number(revenue.toFixed(2)),
       net: Number(net.toFixed(2)),
     };
-  }, [items]);
+  }, [items, configPct]);
 
   // Sorted list
   const sorted = useMemo(() => {
@@ -234,8 +252,8 @@ export default function HistoryScreen() {
         String(pickAddr(m, 'pickup')).replace(/,/g, ';'),
         String(pickAddr(m, 'dropoff')).replace(/,/g, ';'),
         (pickAmount(m) ?? 0).toFixed(2),
-        (pickCommission(m) ?? 0).toFixed(2),
-        (pickDriverNet(m) ?? 0).toFixed(2),
+        (pickCommission(m, configPct) ?? 0).toFixed(2),
+        (pickDriverNet(m, configPct) ?? 0).toFixed(2),
         pickPaymentLabel(m).label,
       ]),
     ];
@@ -372,7 +390,7 @@ export default function HistoryScreen() {
         renderItem={({ item }) => {
           const status = pickStatusLabel(item);
           const amount = pickAmount(item);
-          const net = pickDriverNet(item);
+          const net = pickDriverNet(item, configPct);
           const pay = pickPaymentLabel(item);
           const t = pickCompletedAt(item);
           return (
@@ -413,7 +431,9 @@ export default function HistoryScreen() {
               <View style={styles.rowRight}>
                 <Text style={styles.rowAmount}>{amount != null ? `${amount.toFixed(2)} €` : '—'}</Text>
                 {net != null ? (
-                  <Text style={styles.rowNet} testID={`history-net-${item?.id ?? item?._id}`}>Net chauffeur</Text>
+                  <Text style={styles.rowNet} testID={`history-net-${item?.id ?? item?._id}`}>
+                    Net {net.toFixed(2)} €
+                  </Text>
                 ) : null}
                 <View style={styles.payChip}>
                   <Ionicons name={pay.icon === 'card' ? 'card-outline' : 'cash-outline'} size={11} color={colors.textSecondary} />

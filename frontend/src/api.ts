@@ -115,8 +115,27 @@ export async function getDriverHistory(from?: string, to?: string) {
   } catch {
     try {
       const { data } = await api.get('/driver/missions');
-      const list: any[] = Array.isArray(data) ? data : (data?.items ?? data?.missions ?? []);
-      return list.filter((m: any) => String(m?.status || '').toLowerCase() === 'completed');
+      // Backend may return either an array, {items: [...]}, {missions: [...]}
+      // or {current: [...], history: [...]}. We accept all of these.
+      let list: any[] = [];
+      if (Array.isArray(data)) {
+        list = data;
+      } else if (Array.isArray(data?.history)) {
+        // Preferred when present — it already excludes in-progress missions.
+        list = data.history;
+      } else if (Array.isArray(data?.items)) {
+        list = data.items;
+      } else if (Array.isArray(data?.missions)) {
+        list = data.missions;
+      } else if (Array.isArray(data?.current) || Array.isArray(data?.history)) {
+        list = [...(data?.current ?? []), ...(data?.history ?? [])];
+      }
+      // Keep completed / cancelled / finished missions only — anything still
+      // active belongs to the missions list, not the history list.
+      return list.filter((m: any) => {
+        const s = String(m?.status || '').toLowerCase();
+        return s === 'completed' || s === 'finished' || s === 'cancelled' || s === 'canceled';
+      });
     } catch {
       return [];
     }

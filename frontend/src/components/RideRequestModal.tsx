@@ -22,6 +22,7 @@ import { colors, radius, spacing } from '../theme';
 import { haptic } from '../feedback';
 import { getLastCoords } from '../locationStore';
 import { pickPickupCoords, haversineKm, estimateEtaMin } from '../rideTypes';
+import { getMarketplaceConfig } from '../api';
 import SlideButton from './SlideButton';
 
 const TIMER_SECONDS = 30;
@@ -119,7 +120,7 @@ function pickAmount(item: any) {
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
-function pickCommission(item: any): number | null {
+function pickCommission(item: any, configPct?: number): number | null {
   const direct =
     item?.commission_eur ??
     item?.commission_amount ??
@@ -139,7 +140,8 @@ function pickCommission(item: any): number | null {
     item?.commission_pct ??
     item?.commission_percent ??
     item?.commission_percentage ??
-    item?.pricing?.commission_pct;
+    item?.pricing?.commission_pct ??
+    configPct;
   const total = pickAmount(item);
   if (total != null && pct != null) {
     const p = Number(pct);
@@ -150,7 +152,7 @@ function pickCommission(item: any): number | null {
   }
   return null;
 }
-function pickDriverNet(item: any): number | null {
+function pickDriverNet(item: any, configPct?: number): number | null {
   // Strict rule (per business): Net chauffeur = Prix de la course − Commission.
   // We do not use any backend direct field — always recompute from the
   // displayed total and commission so the math is consistent across screens.
@@ -158,7 +160,7 @@ function pickDriverNet(item: any): number | null {
   // meaningful net amount (= the full price).
   const total = pickAmount(item);
   if (total == null) return null;
-  const com = pickCommission(item) ?? 0;
+  const com = pickCommission(item, configPct) ?? 0;
   return Number((total - com).toFixed(2));
 }
 function pickPaymentLabel(item: any) {
@@ -187,6 +189,26 @@ export default function RideRequestModal() {
   const [accepting, setAccepting] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(TIMER_SECONDS);
   const [error, setError] = useState<string | null>(null);
+  // Marketplace commission percentage — used as fallback when the listing
+  // doesn't carry a direct commission_eur field (which is the typical case
+  // for immediate ride requests). Without this, the Net chauffeur would
+  // wrongly equal the full client price.
+  const [configPct, setConfigPct] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw: any = await getMarketplaceConfig();
+        const cfg = raw?.config ?? raw;
+        const pct =
+          cfg?.commission_pct ??
+          cfg?.commission_percent ??
+          cfg?.commission_percentage;
+        if (pct != null && Number.isFinite(Number(pct))) {
+          setConfigPct(Number(pct));
+        }
+      } catch {}
+    })();
+  }, []);
 
   const enter = useRef(new Animated.Value(0)).current;
   const swipeY = useRef(new Animated.Value(0)).current;
@@ -375,8 +397,8 @@ export default function RideRequestModal() {
   const item = currentRequest;
   const tripDistanceKm = pickDistance(item);
   const amount = pickAmount(item);
-  const commissionEur = pickCommission(item);
-  const driverNet = pickDriverNet(item);
+  const commissionEur = pickCommission(item, configPct);
+  const driverNet = pickDriverNet(item, configPct);
   const paxCount = pickPaxCount(item);
   const hasLuggage = pickHasLuggage(item);
 
