@@ -18,6 +18,7 @@ import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import MapView from '../../src/components/MapView';
 import SlideButton from '../../src/components/SlideButton';
 import { colors, radius, spacing } from '../../src/theme';
+import { fontScale, getPad, getGap } from '../../src/responsive';
 import { getDriverMissions, updateMissionStatus, apiError, getMarketplaceConfig } from '../../src/api';
 import { getNavProvider, setNavProvider, buildNavUrl, type NavProvider } from '../../src/prefs';
 import { useRides } from '../../src/ridesContext';
@@ -624,19 +625,19 @@ export default function MissionDetail() {
               <View style={styles.priceRowGrid}>
                 <View style={[styles.priceCell, styles.priceCellLeft]}>
                   <Text style={styles.priceCellLbl}>Net chauffeur</Text>
-                  <Text style={[styles.priceCellVal, { color: colors.success }]} testID="info-net">
+                  <Text style={[styles.priceCellVal, { color: colors.success }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} testID="info-net">
                     {net != null ? `${Number(net).toFixed(2)} €` : '—'}
                   </Text>
                 </View>
                 <View style={[styles.priceCell, styles.priceCellCenter]}>
                   <Text style={styles.priceCellLbl}>Prix client</Text>
-                  <Text style={[styles.priceCellVal, { color: colors.text }]} testID="info-price">
+                  <Text style={[styles.priceCellVal, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} testID="info-price">
                     {price != null ? `${Number(price).toFixed(2)} €` : '—'}
                   </Text>
                 </View>
                 <View style={[styles.priceCell, styles.priceCellRight]}>
                   <Text style={styles.priceCellLbl}>Commission</Text>
-                  <Text style={[styles.priceCellVal, { color: colors.danger }]} testID="info-commission">
+                  <Text style={[styles.priceCellVal, { color: colors.danger }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} testID="info-commission">
                     {com != null ? `−${Number(com).toFixed(2)} €` : '—'}
                   </Text>
                 </View>
@@ -1000,13 +1001,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radius.xl,
     borderWidth: 1.5,
-    padding: spacing.md,
-    gap: 12,
+    padding: getPad(spacing.md),
+    gap: getGap(12),
   },
   infoHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flexWrap: 'wrap',
   },
   infoIconWrap: {
     width: 44, height: 44, borderRadius: 12,
@@ -1014,9 +1016,10 @@ const styles = StyleSheet.create({
   },
   infoTitle: {
     flex: 1,
-    fontSize: 18,
+    fontSize: fontScale(18),
     fontWeight: '900',
     letterSpacing: 1,
+    minWidth: 140,
   },
   infoCd: {
     flexDirection: 'row', alignItems: 'center', gap: 5,
@@ -1051,7 +1054,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   priceCellVal: {
-    fontSize: 18,
+    fontSize: fontScale(18),
     fontWeight: '900',
     letterSpacing: -0.5,
   },

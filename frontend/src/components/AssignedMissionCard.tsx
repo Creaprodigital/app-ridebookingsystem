@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radius, spacing } from '../theme';
+import { fontScale, getPad, getGap, isTight } from '../responsive';
 import {
   fetchRoute,
   fmtDistanceKm,
@@ -229,7 +230,7 @@ export default function AssignedMissionCard({
 
         <View style={[styles.statCol, { alignItems: 'center' }]}>
           <Text style={styles.statLbl}>PRIX DE LA COURSE</Text>
-          <Text style={styles.priceVal} testID={`assigned-price-${item.id ?? item._id}`}>
+          <Text style={styles.priceVal} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} testID={`assigned-price-${item.id ?? item._id}`}>
             {fmtMoney(price)}
           </Text>
         </View>
@@ -348,8 +349,8 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderWidth: 1,
     borderRadius: radius.xl,
-    padding: spacing.md,
-    gap: spacing.md,
+    padding: getPad(spacing.md),
+    gap: getGap(spacing.md),
   },
   cardImmediate: { borderLeftColor: colors.danger, borderLeftWidth: 4 },
   cardPlanned: { borderLeftColor: colors.primary, borderLeftWidth: 4 },
@@ -387,21 +388,22 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 8,
+    gap: getGap(8),
+    flexWrap: 'wrap',
   },
-  statCol: { flex: 1, gap: 4 },
+  statCol: { flex: 1, gap: 4, minWidth: 96 },
   statLbl: {
     color: colors.textMuted,
-    fontSize: 10,
+    fontSize: fontScale(10),
     fontWeight: '800',
     letterSpacing: 1,
   },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   statusDot: { width: 10, height: 10, borderRadius: 5 },
-  statusTxt: { fontSize: 13, fontWeight: '900', letterSpacing: 0.4 },
+  statusTxt: { fontSize: fontScale(13), fontWeight: '900', letterSpacing: 0.4 },
   priceVal: {
     color: colors.primary,
-    fontSize: 22,
+    fontSize: fontScale(22),
     fontWeight: '900',
     letterSpacing: -0.8,
   },
