@@ -103,6 +103,30 @@
 #====================================================================================================
 
 frontend:
+  - task: "New Historique tab (driver completed-rides history)"
+    implemented: true
+    working: "NA"
+    file: "app/(tabs)/_layout.tsx, app/(tabs)/history.tsx, src/components/TabBar.tsx, src/api.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Added a 5th tab 'Historique' (time icon) between Portefeuille and Menu in the bottom tab bar (TabBar.tsx ICONS/LABELS + Tabs.Screen in (tabs)/_layout.tsx). New screen app/(tabs)/history.tsx matching the user's mockup pixel-for-pixel: 1) Header — big 'Historique' title + 'Vos courses effectuées' subtitle + circular download icon (top-right) that exports the visible week as CSV via Share API (testID export-btn). 2) Toolbar — date-range pill 'X – Y' (Monday-based week, with chevron-back/forward arrows to navigate, long-press to reset to current week, testID prev-week/next-week-btn) + 'Filtres' pill opening a bottom-sheet (testID filters-btn / filters-sheet). 3) Stats card — three columns separated by vertical dividers: COURSES (count, car icon, success green), CHIFFRE D'AFFAIRES (sum of pickAmount, wallet icon, primary yellow), NET CHAUFFEUR (sum of pickDriverNet = total − commission, cash icon, success green). testIDs stat-count / stat-revenue / stat-net. 4) List section — 'Liste des courses' title + sort pill (testID sort-btn) cycling Plus récentes → Plus anciennes → Montant. Each row uses the same surface card style: left column with green-bordered check circle + vertical route stripe (gray dot top → border bar → red dot bottom); middle column with date+time line, status pill 'Terminée' (color-coded), bold pickup address, gray dropoff; right column with big amount, 'Net chauffeur' green label, payment chip (Carte/Espèces with icon). Tapping a row opens /mission/[id]. 5) Backend API — new src/api.ts getDriverHistory(from, to) calls GET /driver/missions/history?from=&to= with safe fallback to /driver/missions filtered by status==='completed'. The screen also applies a client-side date-range filter so older backends still respect the week boundary. 6) Empty state — 'Aucune course pour cette période' with hint to change the week. 7) Pull-to-refresh, useFocusEffect-driven reload. Login screen confirmed clean."
+
+  - task: "Driver net = Prix de la course - Commission (strict formula)"
+    implemented: true
+    working: "NA"
+    file: "app/(tabs)/missions.tsx, app/mission/[id].tsx, src/components/RideRequestModal.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Per business request, the Net chauffeur is now strictly computed as total − commission in all three places (missions list, mission detail, RideRequestModal). Backend 'direct' fields like driver_amount/payout/net_eur are no longer consulted so the displayed value always matches what the driver sees on screen. If either total or commission is unavailable, the Net chauffeur row is hidden (no fake zeros). Bonus fix: removed a duplicate 'amount' style declaration in RideRequestModal.tsx that triggered a TS1117 error after the previous edit. TypeScript: 0 errors in modified files."
+
   - task: "Distance & ETA badges on Immédiates tab cards"
     implemented: true
     working: "NA"

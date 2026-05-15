@@ -17,6 +17,7 @@ const ICONS: Record<string, { active: IconName; inactive: IconName }> = {
   index: { active: 'map', inactive: 'map-outline' },
   missions: { active: 'list', inactive: 'list-outline' },
   earnings: { active: 'wallet', inactive: 'wallet-outline' },
+  history: { active: 'time', inactive: 'time-outline' },
   menu: { active: 'grid', inactive: 'grid-outline' },
 };
 
@@ -24,6 +25,7 @@ const LABELS: Record<string, string> = {
   index: 'Carte',
   missions: 'Missions',
   earnings: 'Portefeuille',
+  history: 'Historique',
   menu: 'Menu',
 };
 

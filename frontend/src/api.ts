@@ -94,6 +94,35 @@ export async function getDriverMissions() {
   return data;
 }
 
+/**
+ * Returns completed missions (history). Tries a dedicated endpoint first
+ * (driver/missions/history with optional from/to ISO dates), and falls
+ * back to filtering /driver/missions for status === 'completed' so the
+ * client still works against older backend versions.
+ */
+export async function getDriverHistory(from?: string, to?: string) {
+  const params: Record<string, string> = {};
+  if (from) params.from = from;
+  if (to) params.to = to;
+  try {
+    const { data } = await api.get('/driver/missions/history', { params });
+    // Backends may return either {items: [...]} or a raw array.
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data?.items)) return data.items;
+    if (Array.isArray(data?.history)) return data.history;
+    if (Array.isArray(data?.missions)) return data.missions;
+    return [];
+  } catch {
+    try {
+      const { data } = await api.get('/driver/missions');
+      const list: any[] = Array.isArray(data) ? data : (data?.items ?? data?.missions ?? []);
+      return list.filter((m: any) => String(m?.status || '').toLowerCase() === 'completed');
+    } catch {
+      return [];
+    }
+  }
+}
+
 export async function updateMissionStatus(missionId: string, status: string) {
   const { data } = await api.patch(`/driver/missions/${missionId}/status`, { status });
   return data;
