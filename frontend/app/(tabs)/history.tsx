@@ -23,6 +23,18 @@ import { haptic } from '../../src/feedback';
 // Pure helpers (no React imports inside)
 // ─────────────────────────────────────────────────────────────────────────
 
+type PeriodMode = 'today' | 'week' | 'month';
+
+function startOfDay(d: Date): Date {
+  const out = new Date(d);
+  out.setHours(0, 0, 0, 0);
+  return out;
+}
+function endOfDay(d: Date): Date {
+  const out = new Date(d);
+  out.setHours(23, 59, 59, 999);
+  return out;
+}
 function startOfWeek(d: Date): Date {
   // Monday-based weeks
   const out = new Date(d);
@@ -39,16 +51,55 @@ function endOfWeek(d: Date): Date {
   out.setHours(23, 59, 59, 999);
   return out;
 }
-function shiftWeek(d: Date, weeks: number): Date {
-  const out = new Date(d);
-  out.setDate(out.getDate() + weeks * 7);
+function startOfMonth(d: Date): Date {
+  const out = new Date(d.getFullYear(), d.getMonth(), 1);
+  out.setHours(0, 0, 0, 0);
   return out;
 }
-function fmtRange(from: Date, to: Date): string {
+function endOfMonth(d: Date): Date {
+  const out = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+  out.setHours(23, 59, 59, 999);
+  return out;
+}
+function startOfPeriod(d: Date, period: PeriodMode): Date {
+  if (period === 'today') return startOfDay(d);
+  if (period === 'month') return startOfMonth(d);
+  return startOfWeek(d);
+}
+function endOfPeriod(d: Date, period: PeriodMode): Date {
+  if (period === 'today') return endOfDay(d);
+  if (period === 'month') return endOfMonth(d);
+  return endOfWeek(d);
+}
+function shiftPeriod(d: Date, period: PeriodMode, n: number): Date {
+  const out = new Date(d);
+  if (period === 'today') {
+    out.setDate(out.getDate() + n);
+  } else if (period === 'week') {
+    out.setDate(out.getDate() + n * 7);
+  } else {
+    out.setMonth(out.getMonth() + n);
+  }
+  return out;
+}
+function fmtRange(from: Date, to: Date, period: PeriodMode): string {
+  if (period === 'today') {
+    return from
+      .toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+      .replace(/\./g, '');
+  }
+  if (period === 'month') {
+    return from
+      .toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+      .replace(/\./g, '');
+  }
   const opts: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'short' };
   const f = from.toLocaleDateString('fr-FR', opts).replace('.', '');
   const t = to.toLocaleDateString('fr-FR', { ...opts, year: 'numeric' }).replace('.', '');
   return `${f} – ${t}`;
+}
+function periodLabel(p: PeriodMode): string {
+  return p === 'today' ? 'Aujourd’hui' : p === 'month' ? 'Ce mois' : 'Cette semaine';
 }
 function fmtDate(d: string | Date | undefined): string {
   if (!d) return '';
@@ -134,8 +185,6 @@ function pickStatusLabel(m: any): { label: string; color: string } {
   return { label: 'Terminée', color: colors.success };
 }
 
-type SortMode = 'recent' | 'oldest' | 'amount';
-
 // ─────────────────────────────────────────────────────────────────────────
 // Screen
 // ─────────────────────────────────────────────────────────────────────────
@@ -145,8 +194,8 @@ export default function HistoryScreen() {
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [weekAnchor, setWeekAnchor] = useState<Date>(new Date());
-  const [sort, setSort] = useState<SortMode>('recent');
+  const [period, setPeriod] = useState<PeriodMode>('week');
+  const [anchor, setAnchor] = useState<Date>(new Date());
   const [filtersOpen, setFiltersOpen] = useState(false);
   // Marketplace commission percentage — used to compute Net chauffeur when
   // missions don't carry their own commission field.
@@ -167,8 +216,8 @@ export default function HistoryScreen() {
     })();
   }, []);
 
-  const fromDate = useMemo(() => startOfWeek(weekAnchor), [weekAnchor]);
-  const toDate = useMemo(() => endOfWeek(weekAnchor), [weekAnchor]);
+  const fromDate = useMemo(() => startOfPeriod(anchor, period), [anchor, period]);
+  const toDate = useMemo(() => endOfPeriod(anchor, period), [anchor, period]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -211,20 +260,16 @@ export default function HistoryScreen() {
     };
   }, [items, configPct]);
 
-  // Sorted list
+  // Sorted list — always by most recent first
   const sorted = useMemo(() => {
     const arr = [...items];
-    if (sort === 'amount') {
-      arr.sort((a, b) => (pickAmount(b) ?? 0) - (pickAmount(a) ?? 0));
-    } else {
-      arr.sort((a, b) => {
-        const ta = Date.parse(pickCompletedAt(a) || '') || 0;
-        const tb = Date.parse(pickCompletedAt(b) || '') || 0;
-        return sort === 'recent' ? tb - ta : ta - tb;
-      });
-    }
+    arr.sort((a, b) => {
+      const ta = Date.parse(pickCompletedAt(a) || '') || 0;
+      const tb = Date.parse(pickCompletedAt(b) || '') || 0;
+      return tb - ta;
+    });
     return arr;
-  }, [items, sort]);
+  }, [items]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -232,9 +277,18 @@ export default function HistoryScreen() {
     setRefreshing(false);
   }, [load]);
 
-  const prevWeek = () => { haptic('light'); setWeekAnchor((d) => shiftWeek(d, -1)); };
-  const nextWeek = () => { haptic('light'); setWeekAnchor((d) => shiftWeek(d, 1)); };
-  const thisWeek = () => { haptic('light'); setWeekAnchor(new Date()); };
+  const prev = () => { haptic('light'); setAnchor((d) => shiftPeriod(d, period, -1)); };
+  const next = () => { haptic('light'); setAnchor((d) => shiftPeriod(d, period, 1)); };
+  const reset = () => { haptic('light'); setAnchor(new Date()); };
+
+  const cyclePeriod = () => {
+    haptic('light');
+    setPeriod((cur) => {
+      const nxt: PeriodMode = cur === 'today' ? 'week' : cur === 'week' ? 'month' : 'today';
+      setAnchor(new Date());
+      return nxt;
+    });
+  };
 
   const onExport = async () => {
     haptic('light');
@@ -260,18 +314,13 @@ export default function HistoryScreen() {
     const csv = rows.map((r) => r.join(',')).join('\n');
     try {
       await Share.share({
-        title: `historique-${fmtRange(fromDate, toDate)}.csv`,
+        title: `historique-${fmtRange(fromDate, toDate, period)}.csv`,
         message: csv,
       });
     } catch {
       // user cancelled — silent
     }
   };
-
-  const sortLabel =
-    sort === 'recent' ? 'Plus récentes' :
-    sort === 'oldest' ? 'Plus anciennes' :
-    'Montant';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -297,17 +346,17 @@ export default function HistoryScreen() {
             <View style={styles.toolbar}>
               <TouchableOpacity
                 style={styles.dateChip}
-                onPress={prevWeek}
-                onLongPress={thisWeek}
-                testID="prev-week"
+                onPress={prev}
+                onLongPress={reset}
+                testID="prev-period"
               >
                 <Ionicons name="calendar-outline" size={16} color={colors.text} />
-                <Text style={styles.dateChipTxt} numberOfLines={1}>{fmtRange(fromDate, toDate)}</Text>
+                <Text style={styles.dateChipTxt} numberOfLines={1}>{fmtRange(fromDate, toDate, period)}</Text>
                 <View style={styles.dateChipNav}>
-                  <TouchableOpacity onPress={prevWeek} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} testID="prev-week-btn">
+                  <TouchableOpacity onPress={prev} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} testID="prev-period-btn">
                     <Ionicons name="chevron-back" size={14} color={colors.textSecondary} />
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={nextWeek} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} testID="next-week-btn">
+                  <TouchableOpacity onPress={next} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} testID="next-period-btn">
                     <Ionicons name="chevron-forward" size={14} color={colors.textSecondary} />
                   </TouchableOpacity>
                 </View>
@@ -364,13 +413,11 @@ export default function HistoryScreen() {
               <Text style={styles.listHeadTitle}>Liste des courses</Text>
               <TouchableOpacity
                 style={styles.sortChip}
-                onPress={() => {
-                  haptic('light');
-                  setSort((cur) => cur === 'recent' ? 'oldest' : cur === 'oldest' ? 'amount' : 'recent');
-                }}
-                testID="sort-btn"
+                onPress={cyclePeriod}
+                testID="period-chip"
               >
-                <Text style={styles.sortChipTxt}>{sortLabel}</Text>
+                <Ionicons name="calendar-outline" size={12} color={colors.text} />
+                <Text style={styles.sortChipTxt}>{periodLabel(period)}</Text>
                 <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
@@ -383,7 +430,7 @@ export default function HistoryScreen() {
             <View style={styles.empty}>
               <Ionicons name="time-outline" size={42} color={colors.textMuted} />
               <Text style={styles.emptyTitle}>Aucune course pour cette période</Text>
-              <Text style={styles.emptySub}>Changez de semaine pour consulter d’autres courses terminées.</Text>
+              <Text style={styles.emptySub}>Changez de période pour consulter d’autres courses terminées.</Text>
             </View>
           )
         }
@@ -452,40 +499,31 @@ export default function HistoryScreen() {
           <TouchableOpacity activeOpacity={1} style={styles.modalSheet} onPress={() => {}} testID="filters-sheet">
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>Filtres</Text>
-            <Text style={styles.modalSub}>Choisissez la période et l’ordre d’affichage.</Text>
+            <Text style={styles.modalSub}>Choisissez la période d’affichage.</Text>
 
             <Text style={styles.modalSection}>Période</Text>
             <View style={styles.periodRow}>
               <TouchableOpacity
-                style={[styles.periodChip, styles.periodChipActive]}
-                onPress={() => { setWeekAnchor(new Date()); setFiltersOpen(false); }}
-                testID="period-this-week"
+                style={[styles.periodChip, period === 'today' && styles.periodChipActive]}
+                onPress={() => { setPeriod('today'); setAnchor(new Date()); setFiltersOpen(false); }}
+                testID="period-today"
               >
-                <Text style={[styles.periodChipTxt, { color: colors.bg }]}>Cette semaine</Text>
+                <Text style={[styles.periodChipTxt, period === 'today' && { color: colors.bg }]}>Aujourd’hui</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.periodChip}
-                onPress={() => { setWeekAnchor(shiftWeek(new Date(), -1)); setFiltersOpen(false); }}
-                testID="period-last-week"
+                style={[styles.periodChip, period === 'week' && styles.periodChipActive]}
+                onPress={() => { setPeriod('week'); setAnchor(new Date()); setFiltersOpen(false); }}
+                testID="period-this-week"
               >
-                <Text style={styles.periodChipTxt}>Semaine passée</Text>
+                <Text style={[styles.periodChipTxt, period === 'week' && { color: colors.bg }]}>Cette semaine</Text>
               </TouchableOpacity>
-            </View>
-
-            <Text style={styles.modalSection}>Tri</Text>
-            <View style={styles.periodRow}>
-              {(['recent', 'oldest', 'amount'] as SortMode[]).map((m) => (
-                <TouchableOpacity
-                  key={m}
-                  style={[styles.periodChip, sort === m && styles.periodChipActive]}
-                  onPress={() => { setSort(m); setFiltersOpen(false); }}
-                  testID={`sort-${m}`}
-                >
-                  <Text style={[styles.periodChipTxt, sort === m && { color: colors.bg }]}>
-                    {m === 'recent' ? 'Plus récentes' : m === 'oldest' ? 'Plus anciennes' : 'Montant'}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              <TouchableOpacity
+                style={[styles.periodChip, period === 'month' && styles.periodChipActive]}
+                onPress={() => { setPeriod('month'); setAnchor(new Date()); setFiltersOpen(false); }}
+                testID="period-this-month"
+              >
+                <Text style={[styles.periodChipTxt, period === 'month' && { color: colors.bg }]}>Ce mois</Text>
+              </TouchableOpacity>
             </View>
 
             <TouchableOpacity style={styles.closeBtn} onPress={() => setFiltersOpen(false)} testID="filters-close">
