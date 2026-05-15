@@ -727,7 +727,7 @@ export default function MissionDetail() {
                   {tripRoute ? (
                     <View style={[styles.legBadge, { backgroundColor: colors.success + '22', borderColor: colors.success + '55' }]}>
                       <Ionicons name="car" size={10} color={colors.success} />
-                      <Text style={[styles.legBadgeTxt, { color: colors.success }]}>
+                      <Text style={[styles.legBadgeTxt, { color: colors.success }]} testID="leg2-badge">
                         {fmtDistanceKm(tripRoute.distanceMeters)} · {fmtDurationMin(tripRoute.durationSec)}
                       </Text>
                     </View>
@@ -737,6 +737,61 @@ export default function MissionDetail() {
               </View>
             </View>
           </View>
+
+          {/* TOTAL TRAJET — Somme Leg 1 (Driver→Pickup) + Leg 2 (Pickup→Dropoff) */}
+          {(() => {
+            const leg1Dist = pickupRoute && showLegToPickup ? pickupRoute.distanceMeters : 0;
+            const leg1Dur = pickupRoute && showLegToPickup ? pickupRoute.durationSec : 0;
+            const leg2Dist = tripRoute ? tripRoute.distanceMeters : 0;
+            const leg2Dur = tripRoute ? tripRoute.durationSec : 0;
+            const totalDist = leg1Dist + leg2Dist;
+            const totalDur = leg1Dur + leg2Dur;
+            if (totalDist <= 0 && totalDur <= 0) return null;
+            const hasBoth =
+              pickupRoute && showLegToPickup && tripRoute;
+            return (
+              <View style={styles.totalBlock} testID="total-trip-block">
+                <View style={styles.totalRow}>
+                  <View style={styles.totalLblWrap}>
+                    <Ionicons name="flag" size={14} color={colors.primary} />
+                    <Text style={styles.totalLbl}>TOTAL TRAJET</Text>
+                  </View>
+                  <View style={styles.totalValWrap}>
+                    <View style={styles.totalChip}>
+                      <Ionicons name="speedometer-outline" size={12} color={colors.text} />
+                      <Text style={styles.totalChipTxt} testID="total-distance">
+                        {fmtDistanceKm(totalDist)}
+                      </Text>
+                    </View>
+                    <View style={styles.totalChip}>
+                      <Ionicons name="time-outline" size={12} color={colors.text} />
+                      <Text style={styles.totalChipTxt} testID="total-duration">
+                        {fmtDurationMin(totalDur)}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+                {hasBoth ? (
+                  <View style={styles.totalBreakdown}>
+                    <View style={styles.totalBreakdownRow}>
+                      <View style={[styles.legDot, { backgroundColor: colors.primary }]} />
+                      <Text style={styles.totalBreakdownLbl}>Vers prise en charge</Text>
+                      <Text style={styles.totalBreakdownVal}>
+                        {fmtDistanceKm(leg1Dist)} · {fmtDurationMin(leg1Dur)}
+                      </Text>
+                    </View>
+                    <View style={styles.totalBreakdownRow}>
+                      <View style={[styles.legDot, { backgroundColor: colors.success }]} />
+                      <Text style={styles.totalBreakdownLbl}>Trajet client</Text>
+                      <Text style={styles.totalBreakdownVal}>
+                        {fmtDistanceKm(leg2Dist)} · {fmtDurationMin(leg2Dur)}
+                      </Text>
+                    </View>
+                  </View>
+                ) : null}
+              </View>
+            );
+          })()}
         </View>
 
         {(passenger || phone) ? (
@@ -1056,6 +1111,72 @@ const styles = StyleSheet.create({
   },
   legBadgeTxt: { fontSize: 10, fontWeight: '900', letterSpacing: 0.4 },
   addr: { color: colors.text, fontSize: 15, fontWeight: '600', marginTop: 2 },
+
+  // Total trip block — sum of leg 1 + leg 2 (distance & duration)
+  totalBlock: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.bg,
+    borderColor: colors.primary + '55',
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: 12,
+    gap: 10,
+  },
+  totalRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  totalLblWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  totalLbl: {
+    color: colors.primary,
+    fontSize: 11,
+    fontWeight: '900',
+    letterSpacing: 1.2,
+  },
+  totalValWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  totalChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  totalChipTxt: {
+    color: colors.text,
+    fontWeight: '900',
+    fontSize: 12,
+    letterSpacing: 0.3,
+  },
+  totalBreakdown: {
+    gap: 4,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  totalBreakdownRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  legDot: { width: 8, height: 8, borderRadius: 4 },
+  totalBreakdownLbl: {
+    flex: 1,
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  totalBreakdownVal: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '800',
+  },
   sectionTitle: { color: colors.textSecondary, fontSize: 11, fontWeight: '800', letterSpacing: 1.3 },
   paxName: { color: colors.text, fontSize: 18, fontWeight: '800' },
   callBtn: {
