@@ -16,6 +16,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import Svg, { Circle } from 'react-native-svg';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useRides } from '../ridesContext';
 import { colors, radius, spacing } from '../theme';
 import { haptic } from '../feedback';
@@ -404,7 +405,11 @@ export default function RideRequestModal() {
 
   return (
     <Modal visible={visible} transparent animationType="none" statusBarTranslucent>
-      <Pressable style={styles.backdrop} onPress={() => {}} testID="ride-request-backdrop">
+      {/* GestureHandlerRootView is REQUIRED inside the Modal otherwise the
+       *  SlideButton's pan gesture is swallowed by RN's Modal and the driver
+       *  cannot drag the knob. */}
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <Pressable style={styles.backdrop} onPress={() => {}} testID="ride-request-backdrop">
         <Animated.View
           style={[styles.cardWrap, { transform: [{ translateY }, { scale }], opacity }]}
           testID="ride-request-modal"
@@ -605,7 +610,7 @@ export default function RideRequestModal() {
 
               <View style={{ flex: 2 }}>
                 <SlideButton
-                  label="GLISSEZ POUR ACCEPTER"
+                  label="ACCEPTER"
                   color={colors.success}
                   onConfirm={handleAccept}
                   disabled={accepting}
@@ -621,6 +626,7 @@ export default function RideRequestModal() {
           </View>
         </Animated.View>
       </Pressable>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
