@@ -15,6 +15,8 @@ export type Polyline = {
   dashed?: boolean;
   /** Stroke weight in px, default 5. */
   weight?: number;
+  /** If true, the polyline is drawn progressively from start to end, looping. */
+  animated?: boolean;
 };
 
 type Props = {
@@ -134,7 +136,9 @@ function drawMarkers(list){
   });
 }
 function drawPolylines(list){
-  otherPolys.forEach(p=>p.setMap(null)); otherPolys=[];
+  // Stop any in-flight animation and clear previous polys
+  otherPolys.forEach(p=>{ try{ stopAnim(p); }catch(e){} p.setMap(null); });
+  otherPolys=[];
   if (!google.maps.geometry || !google.maps.geometry.encoding) return;
   (list||[]).forEach(p=>{
     let path;
@@ -145,6 +149,31 @@ function drawPolylines(list){
       path = p.points.map(pt => new google.maps.LatLng(pt.lat, pt.lng));
     }
     if (!path || !path.length) return;
+
+    if (p.animated && google.maps.geometry.spherical) {
+      // Faint static "ghost" of the full route — keeps the original colour
+      // visible behind the moving stroke so the user always sees the path.
+      const ghost = new google.maps.Polyline({
+        path: path, geodesic: true, map: map,
+        strokeColor: p.color || '#22C55E',
+        strokeOpacity: 0.25,
+        strokeWeight: p.weight || 6,
+      });
+      otherPolys.push(ghost);
+
+      // Animated bright polyline that progresses along the same path.
+      const live = new google.maps.Polyline({
+        path: [path[0]], geodesic: true, map: map,
+        strokeColor: p.color || '#22C55E',
+        strokeOpacity: 1,
+        strokeWeight: (p.weight || 6) + 1,
+      });
+      live._fullPath = path;
+      otherPolys.push(live);
+      animatePolyline(live, path, 4500);
+      return;
+    }
+
     const opts = {
       path: path, geodesic: true, map: map,
       strokeColor: p.color || '#F5B72E',
@@ -158,6 +187,63 @@ function drawPolylines(list){
     const poly = new google.maps.Polyline(opts);
     otherPolys.push(poly);
   });
+}
+
+// Animates a polyline by progressively revealing its path from start to end,
+// then pausing and looping. The animation length is in milliseconds.
+function animatePolyline(poly, fullPath, durationMs){
+  if (!fullPath || fullPath.length < 2) return;
+  // Pre-compute segment lengths so the speed of progression matches the
+  // actual road distance (smooth even on irregular point spacing).
+  const segLens = [];
+  let total = 0;
+  for (let i=1; i<fullPath.length; i++){
+    const d = google.maps.geometry.spherical.computeDistanceBetween(fullPath[i-1], fullPath[i]);
+    segLens.push(d);
+    total += d;
+  }
+  if (total <= 0) return;
+  poly._animRunning = true;
+  let startTs = null;
+  function step(ts){
+    if (!poly._animRunning) return;
+    if (startTs === null) startTs = ts;
+    const t = Math.min((ts - startTs) / durationMs, 1);
+    const target = t * total;
+    const pts = [fullPath[0]];
+    let acc = 0;
+    for (let i=0; i<segLens.length; i++){
+      if (acc + segLens[i] <= target){
+        pts.push(fullPath[i+1]);
+        acc += segLens[i];
+      } else {
+        const remaining = target - acc;
+        const frac = segLens[i] > 0 ? remaining / segLens[i] : 0;
+        const interp = google.maps.geometry.spherical.interpolate(fullPath[i], fullPath[i+1], frac);
+        pts.push(interp);
+        break;
+      }
+    }
+    try { poly.setPath(pts); } catch(e){}
+    if (t < 1){
+      poly._animFrame = requestAnimationFrame(step);
+    } else {
+      // Hold the completed trace briefly, then restart from A.
+      poly._animTimeout = setTimeout(function(){
+        if (!poly._animRunning) return;
+        startTs = null;
+        poly._animFrame = requestAnimationFrame(step);
+      }, 900);
+    }
+  }
+  poly._animFrame = requestAnimationFrame(step);
+}
+
+function stopAnim(poly){
+  if (!poly) return;
+  poly._animRunning = false;
+  if (poly._animFrame) { try { cancelAnimationFrame(poly._animFrame); } catch(e){} }
+  if (poly._animTimeout) { try { clearTimeout(poly._animTimeout); } catch(e){} }
 }
 function fitToContent(){
   if (!map) return;

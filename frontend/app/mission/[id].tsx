@@ -534,6 +534,7 @@ export default function MissionDetail() {
       color: colors.success, // green
       dashed: false,
       weight: 6,
+      animated: true,
     });
   }
 
