@@ -18,7 +18,7 @@ import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import MapView from '../../src/components/MapView';
 import SlideButton from '../../src/components/SlideButton';
 import { colors, radius, spacing } from '../../src/theme';
-import { getDriverMissions, updateMissionStatus, apiError } from '../../src/api';
+import { getDriverMissions, updateMissionStatus, apiError, getMarketplaceConfig } from '../../src/api';
 import { getNavProvider, setNavProvider, buildNavUrl, type NavProvider } from '../../src/prefs';
 import { useRides } from '../../src/ridesContext';
 import { isImmediateRide } from '../../src/rideTypes';
@@ -83,7 +83,7 @@ function pickPrice(m: any) {
  * Same matching logic as the missions screen: try direct fields first,
  * then fall back to a percentage applied to the trip total.
  */
-function pickCommissionEur(m: any): number | null {
+function pickCommissionEur(m: any, configPct?: number): number | null {
   const direct =
     m?.commission_eur ??
     m?.commission_amount ??
@@ -103,7 +103,8 @@ function pickCommissionEur(m: any): number | null {
     m?.commission_pct ??
     m?.commission_percent ??
     m?.commission_percentage ??
-    m?.pricing?.commission_pct;
+    m?.pricing?.commission_pct ??
+    configPct;
   const total = Number(pickPrice(m));
   if (Number.isFinite(total) && pct != null) {
     const p = Number(pct);
@@ -115,13 +116,10 @@ function pickCommissionEur(m: any): number | null {
   return null;
 }
 
-function pickDriverNetEur(m: any): number | null {
+function pickDriverNetEur(m: any, configPct?: number): number | null {
   // Strict rule (per business): Net chauffeur = Prix de la course − Commission.
-  // We do not trust backend "direct" fields here because the operator may
-  // have a different formula on their side. If either the total or the
-  // commission cannot be resolved, we return null (UI hides the row).
   const total = Number(pickPrice(m));
-  const com = Number(pickCommissionEur(m));
+  const com = Number(pickCommissionEur(m, configPct));
   if (Number.isFinite(total) && Number.isFinite(com)) {
     return Number((total - com).toFixed(2));
   }
@@ -211,6 +209,25 @@ export default function MissionDetail() {
   useEffect(() => {
     (async () => {
       try { setNavProviderState(await getNavProvider()); } catch {}
+    })();
+  }, []);
+
+  // ── Marketplace config (used to fallback on commission % when the
+  // mission object doesn't carry a direct commission_eur field) ──
+  const [configPct, setConfigPct] = useState<number | undefined>(undefined);
+  useEffect(() => {
+    (async () => {
+      try {
+        const cfgRaw: any = await getMarketplaceConfig();
+        const cfg = cfgRaw?.config ?? cfgRaw;
+        const pct =
+          cfg?.commission_pct ??
+          cfg?.commission_percent ??
+          cfg?.commission_percentage;
+        if (pct != null && Number.isFinite(Number(pct))) {
+          setConfigPct(Number(pct));
+        }
+      } catch {}
     })();
   }, []);
 
@@ -551,8 +568,8 @@ export default function MissionDetail() {
         {(() => {
           const immediate = isImmediateRide(mission);
           const price = pickPrice(mission);
-          const com = pickCommissionEur(mission);
-          const net = pickDriverNetEur(mission);
+          const com = pickCommissionEur(mission, configPct);
+          const net = pickDriverNetEur(mission, configPct);
           const cd = !immediate && pickDt(mission) ? formatPickupCountdown(pickDt(mission)) : null;
           const cs = cd ? countdownStyle(cd.kind) : null;
           const warningTxt = immediate

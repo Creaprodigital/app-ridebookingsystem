@@ -281,7 +281,9 @@ export default function MissionsScreen() {
       }
 
       if (cfg.status === 'fulfilled') {
-        setConfig(cfg.value);
+        const raw: any = cfg.value;
+        // Backend may wrap the response as { config: { ... } }; unwrap.
+        setConfig(raw?.config ?? raw);
       }
 
       if (prof.status === 'fulfilled') {
