@@ -136,8 +136,8 @@ function drawMarkers(list){
   });
 }
 function drawPolylines(list){
-  // Stop any in-flight animation and clear previous polys
-  otherPolys.forEach(p=>{ try{ stopAnim(p); }catch(e){} p.setMap(null); });
+  // Stop any in-flight animation and clear previous polys/markers
+  otherPolys.forEach(p=>{ try{ stopAnim(p); }catch(e){} try{ p.setMap(null); }catch(e){} });
   otherPolys=[];
   if (!google.maps.geometry || !google.maps.geometry.encoding) return;
   (list||[]).forEach(p=>{
@@ -151,26 +151,46 @@ function drawPolylines(list){
     if (!path || !path.length) return;
 
     if (p.animated && google.maps.geometry.spherical) {
-      // Faint static "ghost" of the full route — keeps the original colour
-      // visible behind the moving stroke so the user always sees the path.
+      const w = p.weight || 6;
+      const col = p.color || '#22C55E';
+
+      // Faint static ghost of the full route — keeps the original colour
+      // visible so the user always sees the path.
       const ghost = new google.maps.Polyline({
         path: path, geodesic: true, map: map,
-        strokeColor: p.color || '#22C55E',
-        strokeOpacity: 0.25,
-        strokeWeight: p.weight || 6,
+        strokeColor: col, strokeOpacity: 0.22, strokeWeight: w,
       });
       otherPolys.push(ghost);
 
-      // Animated bright polyline that progresses along the same path.
-      const live = new google.maps.Polyline({
+      // Three stacked tail polylines (wide+faint glow, mid, bright core)
+      // give the illusion of a smooth fading comet tail.
+      const glow = new google.maps.Polyline({
         path: [path[0]], geodesic: true, map: map,
-        strokeColor: p.color || '#22C55E',
-        strokeOpacity: 1,
-        strokeWeight: (p.weight || 6) + 1,
+        strokeColor: col, strokeOpacity: 0.30, strokeWeight: w + 8,
       });
-      live._fullPath = path;
-      otherPolys.push(live);
-      animatePolyline(live, path, 4500);
+      const mid = new google.maps.Polyline({
+        path: [path[0]], geodesic: true, map: map,
+        strokeColor: col, strokeOpacity: 0.60, strokeWeight: w + 3,
+      });
+      const core = new google.maps.Polyline({
+        path: [path[0]], geodesic: true, map: map,
+        strokeColor: '#FFFFFF', strokeOpacity: 1, strokeWeight: Math.max(2, w - 1),
+      });
+      otherPolys.push(glow, mid, core);
+
+      // Glowing white head — sits on top of the core
+      const head = new google.maps.Marker({
+        position: path[0], map: map, zIndex: 999,
+        icon: {
+          path: 0, // CIRCLE
+          fillColor: '#FFFFFF', fillOpacity: 1,
+          strokeColor: col, strokeWeight: 3,
+          scale: w + 1,
+        },
+      });
+      otherPolys.push(head);
+
+      animateComet({ glow, mid, core, head }, path, 4200);
       return;
     }
 
@@ -189,12 +209,10 @@ function drawPolylines(list){
   });
 }
 
-// Animates a polyline by progressively revealing its path from start to end,
-// then pausing and looping. The animation length is in milliseconds.
-function animatePolyline(poly, fullPath, durationMs){
+// Comet animation: a glowing white head travels along the path while a
+// 3-layer fading tail follows behind it. Loops with a short pause at the end.
+function animateComet(parts, fullPath, durationMs){
   if (!fullPath || fullPath.length < 2) return;
-  // Pre-compute segment lengths so the speed of progression matches the
-  // actual road distance (smooth even on irregular point spacing).
   const segLens = [];
   let total = 0;
   for (let i=1; i<fullPath.length; i++){
@@ -203,40 +221,70 @@ function animatePolyline(poly, fullPath, durationMs){
     total += d;
   }
   if (total <= 0) return;
-  poly._animRunning = true;
-  let startTs = null;
-  function step(ts){
-    if (!poly._animRunning) return;
-    if (startTs === null) startTs = ts;
-    const t = Math.min((ts - startTs) / durationMs, 1);
-    const target = t * total;
-    const pts = [fullPath[0]];
+
+  function pointAtDist(d){
+    if (d <= 0) return fullPath[0];
+    if (d >= total) return fullPath[fullPath.length-1];
     let acc = 0;
     for (let i=0; i<segLens.length; i++){
-      if (acc + segLens[i] <= target){
-        pts.push(fullPath[i+1]);
-        acc += segLens[i];
-      } else {
-        const remaining = target - acc;
-        const frac = segLens[i] > 0 ? remaining / segLens[i] : 0;
-        const interp = google.maps.geometry.spherical.interpolate(fullPath[i], fullPath[i+1], frac);
-        pts.push(interp);
-        break;
+      if (acc + segLens[i] >= d){
+        const frac = segLens[i] > 0 ? (d - acc) / segLens[i] : 0;
+        return google.maps.geometry.spherical.interpolate(fullPath[i], fullPath[i+1], frac);
       }
+      acc += segLens[i];
     }
-    try { poly.setPath(pts); } catch(e){}
-    if (t < 1){
-      poly._animFrame = requestAnimationFrame(step);
+    return fullPath[fullPath.length-1];
+  }
+  function pathBetween(startDist, endDist){
+    if (endDist <= startDist) return [pointAtDist(endDist), pointAtDist(endDist)];
+    const pts = [pointAtDist(startDist)];
+    let acc = 0;
+    for (let i=0; i<segLens.length; i++){
+      const segEnd = acc + segLens[i];
+      if (segEnd > startDist && segEnd < endDist){
+        pts.push(fullPath[i+1]);
+      }
+      acc = segEnd;
+      if (acc >= endDist) break;
+    }
+    pts.push(pointAtDist(endDist));
+    return pts;
+  }
+  // Ease-in-out so the comet starts/ends gently and moves faster in the middle.
+  function easeInOut(t){ return t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2) / 2; }
+
+  parts.core._animRunning = true;
+  let startTs = null;
+  function step(ts){
+    if (!parts.core._animRunning) return;
+    if (startTs === null) startTs = ts;
+    const raw = Math.min((ts - startTs) / durationMs, 1);
+    const t = easeInOut(raw);
+    const headDist = t * total;
+
+    const lenGlow = total * 0.20;
+    const lenMid  = total * 0.12;
+    const lenCore = total * 0.05;
+
+    try {
+      parts.glow.setPath(pathBetween(Math.max(0, headDist - lenGlow), headDist));
+      parts.mid.setPath(pathBetween(Math.max(0, headDist - lenMid),  headDist));
+      parts.core.setPath(pathBetween(Math.max(0, headDist - lenCore), headDist));
+      if (parts.head) parts.head.setPosition(pointAtDist(headDist));
+    } catch(e){}
+
+    if (raw < 1){
+      parts.core._animFrame = requestAnimationFrame(step);
     } else {
-      // Hold the completed trace briefly, then restart from A.
-      poly._animTimeout = setTimeout(function(){
-        if (!poly._animRunning) return;
+      // Brief hold at B, then restart from A
+      parts.core._animTimeout = setTimeout(function(){
+        if (!parts.core._animRunning) return;
         startTs = null;
-        poly._animFrame = requestAnimationFrame(step);
-      }, 900);
+        parts.core._animFrame = requestAnimationFrame(step);
+      }, 700);
     }
   }
-  poly._animFrame = requestAnimationFrame(step);
+  parts.core._animFrame = requestAnimationFrame(step);
 }
 
 function stopAnim(poly){
