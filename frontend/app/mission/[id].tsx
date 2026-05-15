@@ -33,11 +33,11 @@ import {
 import { getLastCoords, subscribeCoords } from '../../src/locationStore';
 import { formatPickupCountdown, countdownStyle } from '../../src/timeUtils';
 
-const NEXT: Record<string, { next: string; label: string }> = {
-  assigned: { next: 'en_route', label: 'GLISSER POUR DÉMARRER' },
-  en_route: { next: 'arrived', label: 'GLISSER — JE SUIS ARRIVÉ' },
-  arrived: { next: 'in_progress', label: 'GLISSER — CLIENT À BORD' },
-  in_progress: { next: 'completed', label: 'GLISSER POUR TERMINER' },
+const NEXT: Record<string, { next: string; label: string; subLabel: string; color: string }> = {
+  assigned:    { next: 'en_route',    label: 'JE DÉMARRE',         subLabel: 'Glissez pour démarrer la course',     color: colors.primary },
+  en_route:    { next: 'arrived',     label: 'JE SUIS ARRIVÉ',     subLabel: 'Glissez pour confirmer votre arrivée', color: colors.success },
+  arrived:     { next: 'in_progress', label: 'CLIENT À BORD',      subLabel: 'Glissez pour démarrer le trajet',     color: colors.primary },
+  in_progress: { next: 'completed',   label: 'TERMINER LA COURSE', subLabel: 'Glissez pour terminer la course',    color: colors.success },
 };
 
 function pickAddr(m: any, t: 'pickup' | 'dropoff') {
@@ -542,65 +542,82 @@ export default function MissionDetail() {
             <Ionicons name="chevron-back" size={24} color={colors.text} />
           </TouchableOpacity>
         )}
-        <Text style={styles.topTitle}>{isLocked ? 'Course en cours' : 'Mission'}</Text>
+        <Text style={styles.topTitle}>Détail de la mission</Text>
         <View style={styles.iconBtn} />
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 200, gap: spacing.md, paddingHorizontal: spacing.md }}>
-        {/* Ride kind banner — the first thing the driver sees so immediate
-            vs. planned is never ambiguous. */}
+      <ScrollView contentContainerStyle={{ paddingBottom: 220, gap: spacing.md, paddingHorizontal: spacing.md }}>
+        {/* ── HEADER INFO CARD (Type · Countdown · Warning · Financials) ── */}
         {(() => {
           const immediate = isImmediateRide(mission);
+          const price = pickPrice(mission);
+          const com = pickCommissionEur(mission);
+          const net = pickDriverNetEur(mission);
+          const cd = !immediate && pickDt(mission) ? formatPickupCountdown(pickDt(mission)) : null;
+          const cs = cd ? countdownStyle(cd.kind) : null;
+          const warningTxt = immediate
+            ? "Cette course est à départ immédiat. Démarrez dès que possible. Si vous annulez, vous pourriez ne plus recevoir de nouvelles demandes immédiates à l'avenir."
+            : "Si vous annulez une course planifiée déjà acceptée, vous pourriez ne plus recevoir de nouvelles demandes de courses planifiées à l'avenir.";
           return (
             <View
               style={[
-                styles.kindBanner,
-                immediate ? styles.kindBannerImmediate : styles.kindBannerPlanned,
+                styles.infoCard,
+                { borderColor: immediate ? colors.danger : colors.primary },
               ]}
-              testID="ride-kind-banner"
+              testID="mission-info-card"
             >
-              <View
-                style={[
-                  styles.kindBannerIcon,
-                  immediate ? { backgroundColor: '#ffffff33' } : { backgroundColor: colors.primary + '33' },
-                ]}
-              >
-                <Ionicons
-                  name={immediate ? 'flash' : 'calendar'}
-                  size={18}
-                  color={immediate ? '#fff' : colors.primary}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
+              <View style={styles.infoHeader}>
+                <View style={[
+                  styles.infoIconWrap,
+                  { backgroundColor: (immediate ? colors.danger : colors.primary) + '22' },
+                ]}>
+                  <Ionicons
+                    name={immediate ? 'flash' : 'calendar'}
+                    size={22}
+                    color={immediate ? colors.danger : colors.primary}
+                  />
+                </View>
                 <Text
                   style={[
-                    styles.kindBannerTitle,
-                    { color: immediate ? '#fff' : colors.text },
+                    styles.infoTitle,
+                    { color: immediate ? colors.danger : colors.primary },
                   ]}
+                  numberOfLines={1}
                 >
                   {immediate ? 'COURSE IMMÉDIATE' : 'COURSE PLANIFIÉE'}
                 </Text>
-                <Text
-                  style={[
-                    styles.kindBannerSub,
-                    { color: immediate ? '#ffffffCC' : colors.textSecondary },
-                  ]}
-                >
-                  {immediate
-                    ? 'Départ maintenant · Priorité haute'
-                    : 'Départ prévu à une heure programmée'}
-                </Text>
-              </View>
-              {!isImmediateRide(mission) && pickDt(mission) ? (() => {
-                const cd = formatPickupCountdown(pickDt(mission));
-                if (!cd) return null;
-                const cs = countdownStyle(cd.kind);
-                return (
-                  <View style={[styles.kindBannerCd, cs.chip]}>
-                    <Text style={[styles.kindBannerCdTxt, { color: cs.fg }]}>{cd.label}</Text>
+                {cd && cs ? (
+                  <View style={[styles.infoCd, cs.chip]} testID="info-cd">
+                    <Ionicons name="time-outline" size={13} color={cs.fg} />
+                    <Text style={[styles.infoCdTxt, { color: cs.fg }]}>{cd.label}</Text>
                   </View>
-                );
-              })() : null}
+                ) : null}
+              </View>
+
+              <Text style={styles.infoWarning} numberOfLines={4}>
+                {warningTxt}
+              </Text>
+
+              <View style={styles.priceRowGrid}>
+                <View style={[styles.priceCell, styles.priceCellLeft]}>
+                  <Text style={styles.priceCellLbl}>Net chauffeur</Text>
+                  <Text style={[styles.priceCellVal, { color: colors.success }]} testID="info-net">
+                    {net != null ? `${Number(net).toFixed(2)} €` : '—'}
+                  </Text>
+                </View>
+                <View style={[styles.priceCell, styles.priceCellCenter]}>
+                  <Text style={styles.priceCellLbl}>Prix client</Text>
+                  <Text style={[styles.priceCellVal, { color: colors.text }]} testID="info-price">
+                    {price != null ? `${Number(price).toFixed(2)} €` : '—'}
+                  </Text>
+                </View>
+                <View style={[styles.priceCell, styles.priceCellRight]}>
+                  <Text style={styles.priceCellLbl}>Commission</Text>
+                  <Text style={[styles.priceCellVal, { color: colors.danger }]} testID="info-commission">
+                    {com != null ? `−${Number(com).toFixed(2)} €` : '—'}
+                  </Text>
+                </View>
+              </View>
             </View>
           );
         })()}
@@ -614,188 +631,101 @@ export default function MissionDetail() {
             fitBounds
             style={StyleSheet.absoluteFill}
           />
-          {/* Legend overlay */}
-          {(pickupRoute || tripRoute) ? (
-            <View style={styles.mapLegend} testID="map-legend">
-              {pickupRoute && showLegToPickup ? (
-                <View style={styles.legendRow}>
-                  <View style={[styles.legendDash, { backgroundColor: colors.primary }]} />
-                  <Text style={styles.legendTxt}>Vers prise en charge</Text>
-                </View>
-              ) : null}
-              {tripRoute ? (
-                <View style={styles.legendRow}>
-                  <View style={[styles.legendSolid, { backgroundColor: colors.success }]} />
-                  <Text style={styles.legendTxt}>Trajet client</Text>
-                </View>
-              ) : null}
-            </View>
-          ) : null}
-
-          {/* Floating navigation FAB — top-right of the map */}
-          <TouchableOpacity
-            style={styles.navFab}
-            onPress={openNav}
-            onLongPress={openNavSheet}
-            activeOpacity={0.85}
-            testID="nav-fab"
-          >
-            <Ionicons name="navigate" size={20} color={colors.bg} />
-            <Text style={styles.navFabTxt}>{navProvider === 'waze' ? 'WAZE' : 'MAPS'}</Text>
-            <TouchableOpacity
-              style={styles.navFabSwitch}
-              onPress={openNavSheet}
-              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-              testID="nav-fab-switch"
-            >
-              <Ionicons name="chevron-down" size={14} color={colors.bg} />
-            </TouchableOpacity>
-          </TouchableOpacity>
+          {/* Floating "Aperçu sur la carte" pill — bottom right */}
+          <View style={styles.mapPreviewPill} testID="map-preview-pill" pointerEvents="none">
+            <Text style={styles.mapPreviewTxt}>Aperçu sur la carte</Text>
+            <Ionicons name="expand-outline" size={14} color={colors.text} />
+          </View>
         </View>
 
-        <View style={styles.card}>
-          <View style={styles.priceRow}>
-            <Text style={styles.priceLbl}>PRIX DE LA COURSE</Text>
-            <Text style={styles.priceVal}>
-              {price != null ? `${Number(price).toFixed(2)} €` : '—'}
-            </Text>
-          </View>
-
-          {/* Commission + driver net breakdown */}
-          {(() => {
-            const com = pickCommissionEur(mission);
-            const net = pickDriverNetEur(mission);
-            if (com == null && net == null) return null;
-            return (
-              <View style={styles.priceBreakdown}>
-                {com != null && com > 0 ? (
-                  <View style={styles.priceRow}>
-                    <View style={styles.breakdownLbl}>
-                      <Ionicons name="business-outline" size={13} color={colors.danger} />
-                      <Text style={styles.breakdownLblTxt}>
-                        Commission société
-                      </Text>
-                    </View>
-                    <Text style={[styles.breakdownVal, { color: colors.danger }]} testID="commission-detail">
-                      −{Number(com).toFixed(2)} €
-                    </Text>
-                  </View>
-                ) : null}
-                {net != null ? (
-                  <View style={styles.priceRow}>
-                    <View style={styles.breakdownLbl}>
-                      <Ionicons name="cash-outline" size={13} color={colors.success} />
-                      <Text style={[styles.breakdownLblTxt, { color: colors.success }]}>
-                        Net chauffeur
-                      </Text>
-                    </View>
-                    <Text style={[styles.breakdownVal, { color: colors.success }]} testID="driver-net-detail">
-                      {Number(net).toFixed(2)} €
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-            );
-          })()}
-
-          <View style={styles.divider} />
-
+        {/* ── ROUTE BLOCK : Prise en charge & Destination ─────────────── */}
+        <View style={styles.routeCard}>
           <View style={styles.route}>
             <View style={styles.routeLine}>
-              <View style={[styles.routeDot, { backgroundColor: colors.primary }]} />
+              <View style={styles.routeDotPickup} />
               <View style={styles.routeVert} />
-              <View style={[styles.routeDot, { backgroundColor: colors.danger }]} />
+              <View style={styles.routeDotDrop} />
             </View>
             <View style={{ flex: 1, gap: spacing.md }}>
-              <View>
-                <View style={styles.routeHead}>
-                  <Text style={styles.routeLabel}>DÉPART</Text>
-                  {pickupRoute && showLegToPickup ? (
-                    <View style={[styles.legBadge, { backgroundColor: colors.primary + '22', borderColor: colors.primary + '55' }]}>
-                      <Ionicons name="navigate" size={10} color={colors.primary} />
-                      <Text style={[styles.legBadgeTxt, { color: colors.primary }]}>
-                        {fmtDistanceKm(pickupRoute.distanceMeters)} · {fmtDurationMin(pickupRoute.durationSec)}
-                      </Text>
-                    </View>
-                  ) : null}
+              {/* PRISE EN CHARGE */}
+              <View style={styles.routeItem}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.routeLabel, { color: colors.primary }]}>PRISE EN CHARGE</Text>
+                  <Text style={styles.addr}>{pickAddr(mission, 'pickup')}</Text>
                 </View>
-                <Text style={styles.addr}>{pickAddr(mission, 'pickup')}</Text>
+                {pickupRoute && showLegToPickup ? (
+                  <View style={styles.legChipGrey} testID="leg1-chip">
+                    <Ionicons name="car" size={13} color={colors.textSecondary} />
+                    <Text style={styles.legChipTxt}>
+                      {fmtDistanceKm(pickupRoute.distanceMeters)}{'\n'}{fmtDurationMin(pickupRoute.durationSec)}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
-              <View>
-                <View style={styles.routeHead}>
-                  <Text style={styles.routeLabel}>ARRIVÉE</Text>
-                  {tripRoute ? (
-                    <View style={[styles.legBadge, { backgroundColor: colors.success + '22', borderColor: colors.success + '55' }]}>
-                      <Ionicons name="car" size={10} color={colors.success} />
-                      <Text style={[styles.legBadgeTxt, { color: colors.success }]} testID="leg2-badge">
-                        {fmtDistanceKm(tripRoute.distanceMeters)} · {fmtDurationMin(tripRoute.durationSec)}
-                      </Text>
-                    </View>
-                  ) : null}
+              {/* DESTINATION */}
+              <View style={styles.routeItem}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.routeLabel, { color: colors.danger }]}>DESTINATION</Text>
+                  <Text style={styles.addr}>{pickAddr(mission, 'dropoff')}</Text>
                 </View>
-                <Text style={styles.addr}>{pickAddr(mission, 'dropoff')}</Text>
+                {tripRoute ? (
+                  <View style={styles.legChipGrey} testID="leg2-chip">
+                    <Ionicons name="car" size={13} color={colors.textSecondary} />
+                    <Text style={styles.legChipTxt}>
+                      {fmtDistanceKm(tripRoute.distanceMeters)}{'\n'}{fmtDurationMin(tripRoute.durationSec)}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
             </View>
           </View>
 
-          {/* TOTAL TRAJET — Somme Leg 1 (Driver→Pickup) + Leg 2 (Pickup→Dropoff) */}
+          {/* ── 3 MINI STATS : Date · Pax · Total distance ──────────── */}
           {(() => {
+            const dt = pickDt(mission);
+            let dateLine = '—';
+            let timeLine = '';
+            if (dt) {
+              try {
+                const d = new Date(dt);
+                dateLine = d.toLocaleDateString('fr-FR');
+                timeLine = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+              } catch {}
+            }
+            const pax =
+              mission?.booking?.pax ??
+              mission?.pax ??
+              mission?.passengers ??
+              mission?.passenger_count;
             const leg1Dist = pickupRoute && showLegToPickup ? pickupRoute.distanceMeters : 0;
-            const leg1Dur = pickupRoute && showLegToPickup ? pickupRoute.durationSec : 0;
             const leg2Dist = tripRoute ? tripRoute.distanceMeters : 0;
-            const leg2Dur = tripRoute ? tripRoute.durationSec : 0;
             const totalDist = leg1Dist + leg2Dist;
-            const totalDur = leg1Dur + leg2Dur;
-            if (totalDist <= 0 && totalDur <= 0) return null;
-            const hasBoth =
-              pickupRoute && showLegToPickup && tripRoute;
             return (
-              <View style={styles.totalBlock} testID="total-trip-block">
-                <View style={styles.totalRow}>
-                  <View style={styles.totalLblWrap}>
-                    <Ionicons name="flag" size={14} color={colors.primary} />
-                    <Text style={styles.totalLbl}>TOTAL TRAJET</Text>
-                  </View>
-                  <View style={styles.totalValWrap}>
-                    <View style={styles.totalChip}>
-                      <Ionicons name="speedometer-outline" size={12} color={colors.text} />
-                      <Text style={styles.totalChipTxt} testID="total-distance">
-                        {fmtDistanceKm(totalDist)}
-                      </Text>
-                    </View>
-                    <View style={styles.totalChip}>
-                      <Ionicons name="time-outline" size={12} color={colors.text} />
-                      <Text style={styles.totalChipTxt} testID="total-duration">
-                        {fmtDurationMin(totalDur)}
-                      </Text>
-                    </View>
+              <View style={styles.miniStatsRow}>
+                <View style={styles.miniStat}>
+                  <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
+                  <View>
+                    <Text style={styles.miniStatVal}>{dateLine}</Text>
+                    {timeLine ? <Text style={styles.miniStatSub}>{timeLine}</Text> : null}
                   </View>
                 </View>
-                {hasBoth ? (
-                  <View style={styles.totalBreakdown}>
-                    <View style={styles.totalBreakdownRow}>
-                      <View style={[styles.legDot, { backgroundColor: colors.primary }]} />
-                      <Text style={styles.totalBreakdownLbl}>Vers prise en charge</Text>
-                      <Text style={styles.totalBreakdownVal}>
-                        {fmtDistanceKm(leg1Dist)} · {fmtDurationMin(leg1Dur)}
-                      </Text>
-                    </View>
-                    <View style={styles.totalBreakdownRow}>
-                      <View style={[styles.legDot, { backgroundColor: colors.success }]} />
-                      <Text style={styles.totalBreakdownLbl}>Trajet client</Text>
-                      <Text style={styles.totalBreakdownVal}>
-                        {fmtDistanceKm(leg2Dist)} · {fmtDurationMin(leg2Dur)}
-                      </Text>
-                    </View>
-                  </View>
-                ) : null}
+                <View style={styles.miniStat}>
+                  <Ionicons name="people-outline" size={14} color={colors.textSecondary} />
+                  <Text style={styles.miniStatVal}>{pax ? `${pax} pax` : '—'}</Text>
+                </View>
+                <View style={styles.miniStat}>
+                  <Ionicons name="navigate-outline" size={14} color={colors.textSecondary} />
+                  <Text style={styles.miniStatVal} testID="mini-total-dist">
+                    {totalDist > 0 ? fmtDistanceKm(totalDist) : '—'}
+                  </Text>
+                </View>
               </View>
             );
           })()}
         </View>
 
         {(passenger || phone) ? (
-          <View style={styles.card}>
+          <View style={styles.passengerCard}>
             <Text style={styles.sectionTitle}>Passager</Text>
             {passenger ? <Text style={styles.paxName}>{passenger}</Text> : null}
             {phone ? (
@@ -810,34 +740,6 @@ export default function MissionDetail() {
             ) : null}
           </View>
         ) : null}
-
-        <TouchableOpacity
-          style={styles.navBtn}
-          onPress={openNav}
-          onLongPress={openNavSheet}
-          activeOpacity={0.85}
-          testID="nav-btn"
-        >
-          <Ionicons name="navigate" size={20} color={colors.bg} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.navTxt}>
-              {mission.status === 'in_progress'
-                ? 'NAVIGUER VERS LE CLIENT'
-                : 'NAVIGUER VERS LA PRISE EN CHARGE'}
-            </Text>
-            <Text style={styles.navSub}>
-              via {navProvider === 'waze' ? 'Waze' : 'Google Maps'}
-            </Text>
-          </View>
-          <TouchableOpacity
-            style={styles.navChange}
-            onPress={openNavSheet}
-            hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
-            testID="nav-change-btn"
-          >
-            <Text style={styles.navChangeTxt}>Changer</Text>
-          </TouchableOpacity>
-        </TouchableOpacity>
       </ScrollView>
 
       {/* Navigation provider chooser bottom-sheet */}
@@ -940,8 +842,35 @@ export default function MissionDetail() {
         </View>
       ) : cta ? (
         <View style={styles.footer}>
+          {/* CTA Naviguer en jaune (vers prise en charge ou vers client) */}
+          <TouchableOpacity
+            style={styles.navCtaBtn}
+            onPress={openNav}
+            onLongPress={openNavSheet}
+            activeOpacity={0.85}
+            testID="nav-cta-btn"
+          >
+            <Ionicons name="navigate" size={18} color={colors.bg} />
+            <Text style={styles.navCtaTxt}>
+              {mission.status === 'in_progress'
+                ? 'NAVIGUER VERS LE CLIENT'
+                : 'NAVIGUER VERS LA PRISE EN CHARGE'}
+            </Text>
+            <TouchableOpacity
+              style={styles.navCtaChange}
+              onPress={openNavSheet}
+              hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+              testID="nav-cta-change"
+            >
+              <Ionicons name="chevron-down" size={14} color={colors.bg} />
+            </TouchableOpacity>
+          </TouchableOpacity>
+
+          {/* Slide button (couleur selon l'étape) */}
           <SlideButton
             label={cta.label}
+            subLabel={cta.subLabel}
+            color={cta.color}
             onConfirm={advance}
             testID={`slide-${mission.status}`}
           />
@@ -1042,6 +971,171 @@ const styles = StyleSheet.create({
   lockedIconBtn: { backgroundColor: colors.warning + '22', borderWidth: 1, borderColor: colors.warning },
   topTitle: { flex: 1, textAlign: 'center', color: colors.text, fontSize: 16, fontWeight: '800' },
   mapBox: { height: 220, borderRadius: radius.xl, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, position: 'relative' },
+
+  // ── New info card (top) — Type · Countdown · Warning · 3 financials ──
+  infoCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    borderWidth: 1.5,
+    padding: spacing.md,
+    gap: 12,
+  },
+  infoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  infoIconWrap: {
+    width: 44, height: 44, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  infoTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  infoCd: {
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    paddingHorizontal: 10, paddingVertical: 6,
+    borderRadius: 999, borderWidth: 1,
+  },
+  infoCdTxt: { fontSize: 12, fontWeight: '900' },
+  infoWarning: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: '500',
+  },
+  priceRowGrid: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 12,
+  },
+  priceCell: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 4,
+    gap: 4,
+  },
+  priceCellLeft: { borderRightWidth: 1, borderRightColor: colors.border },
+  priceCellCenter: { borderRightWidth: 1, borderRightColor: colors.border },
+  priceCellRight: {},
+  priceCellLbl: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  priceCellVal: {
+    fontSize: 18,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+  },
+
+  // ── Aperçu sur la carte pill (bottom right of map) ──
+  mapPreviewPill: {
+    position: 'absolute',
+    bottom: 10, right: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.bg + 'CC',
+    borderColor: colors.border,
+    borderWidth: 1,
+    paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: 999,
+  },
+  mapPreviewTxt: { color: colors.text, fontSize: 11, fontWeight: '700' },
+
+  // ── New route card (PRISE EN CHARGE / DESTINATION) ──
+  routeCard: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: 1,
+    borderRadius: radius.xl,
+    padding: spacing.md,
+    gap: spacing.md,
+  },
+  routeItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  routeDotPickup: {
+    width: 14, height: 14, borderRadius: 7,
+    borderWidth: 3,
+    borderColor: colors.primary,
+    backgroundColor: 'transparent',
+  },
+  routeDotDrop: {
+    width: 16, height: 16, borderRadius: 8,
+    backgroundColor: colors.danger,
+  },
+  legChipGrey: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12, paddingVertical: 8,
+    borderRadius: radius.lg,
+    backgroundColor: colors.elevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    minWidth: 80,
+  },
+  legChipTxt: { color: colors.text, fontSize: 11, fontWeight: '800', lineHeight: 14 },
+
+  // ── Mini stats (date · pax · total km) ──
+  miniStatsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md,
+  },
+  miniStat: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.bg,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingHorizontal: 10, paddingVertical: 8,
+  },
+  miniStatVal: { color: colors.text, fontSize: 12, fontWeight: '700' },
+  miniStatSub: { color: colors.textSecondary, fontSize: 10, fontWeight: '600' },
+
+  // ── Navigation CTA (Yellow primary in footer) ──
+  navCtaBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: colors.primary,
+    paddingHorizontal: 16,
+    height: 56,
+    borderRadius: radius.full,
+    shadowColor: colors.primary, shadowOpacity: 0.35, shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 }, elevation: 4,
+  },
+  navCtaTxt: {
+    flex: 1,
+    color: colors.bg,
+    fontWeight: '900',
+    fontSize: 13,
+    letterSpacing: 1,
+    textAlign: 'center',
+  },
+  navCtaChange: {
+    width: 28, height: 28, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: '#00000022',
+  },
+
+  // ── Passenger card (kept simple — appears below map block) ──
+  passengerCard: {
+    backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
+    borderRadius: radius.xl, padding: spacing.md, gap: spacing.sm,
+  },
 
   // Ride-kind banner (IMMÉDIATE / PLANIFIÉE)
   kindBanner: {

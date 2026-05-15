@@ -611,8 +611,7 @@ export default function MissionsScreen() {
           const cdStyles = cd ? countdownStyle(cd.kind) : null;
           return (
             <TouchableOpacity
-              activeOpacity={tab === 'assigned' ? 0.8 : 1}
-              onPress={() => tab === 'assigned' && openMission(String(item.id ?? item._id))}
+              activeOpacity={1}
               style={[
                 styles.card,
                 // Left-edge accent band — red for immediate, primary-yellow for planned.

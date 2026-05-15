@@ -12,6 +12,7 @@ import { colors, radius } from '../theme';
 
 type Props = {
   label: string;
+  subLabel?: string;
   onConfirm: () => Promise<void> | void;
   color?: string;
   testID?: string;
@@ -20,7 +21,7 @@ type Props = {
 
 const KNOB = 56;
 
-export default function SlideButton({ label, onConfirm, color = colors.primary, testID, disabled }: Props) {
+export default function SlideButton({ label, subLabel, onConfirm, color = colors.primary, testID, disabled }: Props) {
   const trackWidth = useRef(0);
   const [maxX, setMaxX] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -60,18 +61,32 @@ export default function SlideButton({ label, onConfirm, color = colors.primary, 
   const fillStyle = useAnimatedStyle(() => ({ width: offsetX.value + KNOB + 8 }));
 
   return (
-    <View style={[styles.track, disabled && { opacity: 0.5 }]} onLayout={handleLayout} testID={testID}>
+    <View style={[styles.track, { borderColor: color + '88' }, disabled && { opacity: 0.5 }]} onLayout={handleLayout} testID={testID}>
       <Animated.View style={[styles.fill, { backgroundColor: color + '40' }, fillStyle]} />
-      <Text style={styles.label} numberOfLines={1}>{label}</Text>
+      <View style={styles.labelWrap} pointerEvents="none">
+        <Text style={[styles.label, { color }]} numberOfLines={1}>{label}</Text>
+        {subLabel ? (
+          <Text style={styles.subLabel} numberOfLines={1}>{subLabel}</Text>
+        ) : null}
+      </View>
       <GestureDetector gesture={pan}>
         <Animated.View style={[styles.knob, { backgroundColor: color }, knobStyle]}>
           {loading ? (
             <ActivityIndicator color={colors.bg} />
           ) : (
-            <Ionicons name="chevron-forward" size={24} color={colors.bg} />
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="chevron-forward" size={22} color={colors.bg} />
+              <Ionicons name="chevron-forward" size={22} color={colors.bg} style={{ marginLeft: -14 }} />
+            </View>
           )}
         </Animated.View>
       </GestureDetector>
+      {/* trailing chevrons hint */}
+      <View style={styles.hintWrap} pointerEvents="none">
+        <Ionicons name="chevron-forward" size={18} color={color + '55'} />
+        <Ionicons name="chevron-forward" size={18} color={color + '55'} style={{ marginLeft: -10 }} />
+        <Ionicons name="chevron-forward" size={18} color={color + '55'} style={{ marginLeft: -10 }} />
+      </View>
     </View>
   );
 }
@@ -94,13 +109,27 @@ const styles = StyleSheet.create({
     bottom: 0,
     borderRadius: radius.full,
   },
+  labelWrap: { alignItems: 'center', justifyContent: 'center' },
   label: {
-    color: colors.textSecondary,
     textAlign: 'center',
-    fontWeight: '700',
+    fontWeight: '900',
     letterSpacing: 1.2,
     fontSize: 14,
     textTransform: 'uppercase',
+  },
+  subLabel: {
+    color: colors.textSecondary,
+    textAlign: 'center',
+    fontWeight: '600',
+    fontSize: 11,
+    marginTop: 2,
+  },
+  hintWrap: {
+    position: 'absolute',
+    right: 18,
+    top: 0, bottom: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   knob: {
     position: 'absolute',
