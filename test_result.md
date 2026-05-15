@@ -103,6 +103,18 @@
 #====================================================================================================
 
 frontend:
+  - task: "RideRequestModal redesigned (new mockup with swipe-to-accept)"
+    implemented: true
+    working: "NA"
+    file: "src/components/RideRequestModal.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+        - working: "NA"
+          agent: "main"
+          comment: "Full visual + interaction refresh of the Uber-style RideRequestModal so the driver gets exactly the layout from the supplied mockup (Modal - immédiate.png). Verified: it's the same component rendered globally in app/_layout.tsx, so it appears on Carte, Missions and every tab. Changes: 1) Timer ring color → success green (was primary yellow), still flips to danger red when ≤ 5 s. 2) Header re-laid out into 3 columns separated by a vertical divider — TIMER (left, 22 sec inside the ring) · GAIN NET (middle, big green amount + 'Votre gain' pill) · PRIX CLIENT (right, big yellow amount + payment-method pill). Payment pill shows ONLY the chosen mode (Espèces / Carte / Carte en ligne) — no extra suffix per user request. 3) Route block keeps the green/red dot column but each row gains a right-side pill: green '🧭 X km · Y min' + 'VERS LE DÉPART' label for leg 1 (driver→pickup), neutral '🚗 X km · Y min' + 'TRAJET CLIENT' label for leg 2 (pickup→dropoff). leg2 distance is read from booking.distance_km, ETA estimated at 30 km/h via estimateEtaMin. 4) New stats row (3 columns separated by vertical dividers): 🕒 TEMPS TOTAL = leg1+leg2 min · 🛣 DISTANCE TOTALE = leg1+leg2 km · 👤 PASSAGERS = count from booking.passengers/pax + '+ Bagages' or 'Sans bagages' line. testID ride-stats-row. 5) Engagement warning card (orange outlined): '⚠️ En acceptant cette course, vous vous engagez à vous y rendre. Les annulations répétées peuvent limiter l'accès aux courses.' testID ride-engagement-warning. 6) Bottom actions completely re-engineered per user spec — small REFUSER tap button (left, 92 px wide, red outlined + red text, testID ride-refuse) + green SlideButton 'GLISSEZ POUR ACCEPTER' (right, flex 2, reuses existing src/components/SlideButton.tsx, testID ride-accept-slide). 7) Removed the old vertical swipe-up/swipe-down PanResponder handlers from the modal body since acceptance is now strictly via the slide button (refuse is strictly via tap). Old swipeHint hint text removed. 8) NO 'Course rentable' badge and NO 'Taux d'acceptation' footer per user request — kept the modal focused on the essentials. Bundle clean, login screen verified, 0 TS error in modified files."
+
   - task: "New Historique tab (driver completed-rides history)"
     implemented: true
     working: "NA"

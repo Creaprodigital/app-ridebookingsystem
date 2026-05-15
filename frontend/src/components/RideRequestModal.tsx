@@ -21,6 +21,7 @@ import { colors, radius, spacing } from '../theme';
 import { haptic } from '../feedback';
 import { getLastCoords } from '../locationStore';
 import { pickPickupCoords, haversineKm, estimateEtaMin } from '../rideTypes';
+import SlideButton from './SlideButton';
 
 const TIMER_SECONDS = 30;
 const RING_SIZE = 80;
@@ -72,6 +73,40 @@ function pickDistance(item: any) {
     item?.estimated_distance_km;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
+}
+
+/**
+ * Number of passengers on this booking. Defaults to 1 if absent.
+ */
+function pickPaxCount(item: any): number {
+  const v =
+    item?.passengers ??
+    item?.pax ??
+    item?.nb_passengers ??
+    item?.passenger_count ??
+    item?.booking?.passengers ??
+    item?.booking?.pax;
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? n : 1;
+}
+
+/**
+ * Whether the client requested luggage. Returns true if any of the common
+ * boolean / numeric flags is truthy.
+ */
+function pickHasLuggage(item: any): boolean {
+  const v =
+    item?.has_luggage ??
+    item?.luggage ??
+    item?.booking?.has_luggage ??
+    item?.booking?.luggage ??
+    item?.bags ??
+    item?.booking?.bags;
+  if (v == null) return false;
+  if (typeof v === 'boolean') return v;
+  const n = Number(v);
+  if (Number.isFinite(n)) return n > 0;
+  return !!v;
 }
 function pickAmount(item: any) {
   const v =
@@ -335,10 +370,12 @@ export default function RideRequestModal() {
   });
 
   const item = currentRequest;
-  const distance = pickDistance(item);
+  const tripDistanceKm = pickDistance(item);
   const amount = pickAmount(item);
   const commissionEur = pickCommission(item);
   const driverNet = pickDriverNet(item);
+  const paxCount = pickPaxCount(item);
+  const hasLuggage = pickHasLuggage(item);
 
   // ── Distance & ETA from driver to pickup point (live GPS based) ──────
   const me = getLastCoords();
@@ -352,13 +389,24 @@ export default function RideRequestModal() {
       pickupEta = estimateEtaMin(km);
     }
   }
+  // Leg 2 — client trip distance + ETA. Distance comes from booking, ETA
+  // is estimated at the same 30 km/h urban average used elsewhere.
+  const tripEta = tripDistanceKm != null ? estimateEtaMin(tripDistanceKm) : null;
+  // Totals shown in the stats row.
+  const totalDistanceKm =
+    pickupKm != null || tripDistanceKm != null
+      ? Number(((pickupKm ?? 0) + (tripDistanceKm ?? 0)).toFixed(1))
+      : null;
+  const totalEtaMin =
+    pickupEta != null || tripEta != null
+      ? (pickupEta ?? 0) + (tripEta ?? 0)
+      : null;
 
   return (
     <Modal visible={visible} transparent animationType="none" statusBarTranslucent>
       <Pressable style={styles.backdrop} onPress={() => {}} testID="ride-request-backdrop">
         <Animated.View
           style={[styles.cardWrap, { transform: [{ translateY }, { scale }], opacity }]}
-          {...panResponder.panHandlers}
           testID="ride-request-modal"
         >
           {/* Pending count badge */}
@@ -376,8 +424,9 @@ export default function RideRequestModal() {
               <Ionicons name="flash" size={12} color="#fff" />
               <Text style={styles.urgentTxt}>COURSE IMMÉDIATE · DÉPART MAINTENANT</Text>
             </View>
-            {/* Header: timer ring + amount */}
+            {/* Header: timer ring (green) · GAIN NET · PRIX CLIENT */}
             <View style={styles.header}>
+              {/* Timer (green) */}
               <View style={styles.timerWrap}>
                 <Svg width={RING_SIZE} height={RING_SIZE}>
                   <Circle
@@ -402,54 +451,48 @@ export default function RideRequestModal() {
                   />
                 </Svg>
                 <View style={styles.timerCenter}>
-                  <Text style={[styles.timerText, secondsLeft <= 5 && { color: colors.danger }]}>
+                  <Text
+                    style={[
+                      styles.timerText,
+                      { color: secondsLeft <= 5 ? colors.danger : colors.success },
+                    ]}
+                  >
                     {secondsLeft}
                   </Text>
                   <Text style={styles.timerSub}>sec</Text>
                 </View>
               </View>
 
-              <View style={{ flex: 1, alignItems: 'flex-end' }}>
-                {amount != null ? (
-                  <>
-                    <Text style={styles.amountLabel}>PRIX DE LA COURSE</Text>
-                    <Text style={styles.amount}>{amount.toFixed(2)} €</Text>
-                    {commissionEur != null && commissionEur > 0 ? (
-                      <Text style={styles.amountCommission} testID="modal-commission">
-                        Société : −{commissionEur.toFixed(2)} €
-                      </Text>
-                    ) : null}
-                    {driverNet != null ? (
-                      <Text style={styles.amountNet} testID="modal-driver-net">
-                        Net : {driverNet.toFixed(2)} €
-                      </Text>
-                    ) : null}
-                  </>
-                ) : (
-                  <Text style={styles.amount}>—</Text>
-                )}
+              {/* Gain net (green) */}
+              <View style={styles.headerCol}>
+                <Text style={styles.gainLabel}>GAIN NET</Text>
+                <Text style={styles.gainAmount} testID="modal-driver-net">
+                  {driverNet != null ? `${driverNet.toFixed(2)} €` : '—'}
+                </Text>
+                <View style={styles.gainPill}>
+                  <Text style={styles.gainPillTxt}>Votre gain</Text>
+                </View>
+              </View>
+
+              {/* Vertical separator */}
+              <View style={styles.headerSep} />
+
+              {/* Prix client (yellow) */}
+              <View style={styles.headerCol}>
+                <Text style={styles.priceClientLabel}>PRIX CLIENT</Text>
+                <Text style={styles.priceClientAmount} testID="modal-price">
+                  {amount != null ? `${amount.toFixed(2)} €` : '—'}
+                </Text>
                 <View style={styles.payPill}>
                   <Ionicons
-                    name={pickPaymentLabel(item).includes('ligne') ? 'card' : 'cash'}
+                    name={pickPaymentLabel(item).toLowerCase().includes('ligne') ? 'card-outline' : 'cash-outline'}
                     size={11}
                     color={colors.textSecondary}
                   />
-                  <Text style={styles.payText}>{pickPaymentLabel(item)}</Text>
+                  <Text style={styles.payText} numberOfLines={1}>
+                    {pickPaymentLabel(item)}
+                  </Text>
                 </View>
-              </View>
-            </View>
-
-            {/* Client */}
-            <View style={styles.client}>
-              <View style={styles.avatar}>
-                <Ionicons name="person" size={20} color={colors.bg} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.clientName} numberOfLines={1}>{pickName(item)}</Text>
-                <Text style={styles.clientMeta} numberOfLines={1}>
-                  {fmtDt(pickWhen(item))}
-                  {distance != null ? ` · ${distance.toFixed(1)} km` : ''}
-                </Text>
               </View>
             </View>
 
@@ -461,25 +504,83 @@ export default function RideRequestModal() {
                 <View style={[styles.routeDot, { backgroundColor: colors.danger }]} />
               </View>
               <View style={{ flex: 1, gap: 14 }}>
-                <View>
-                  <View style={styles.routeHead}>
-                    <Text style={styles.routeLabel}>DÉPART</Text>
-                    {pickupKm != null && pickupEta != null ? (
-                      <View style={styles.etaBadge} testID="pickup-eta">
+                {/* DÉPART */}
+                <View style={styles.routeRow}>
+                  <View style={{ flex: 1, paddingRight: 8 }}>
+                    <Text style={[styles.routeLabel, { color: colors.success }]}>DÉPART</Text>
+                    <Text style={styles.routeAddr} numberOfLines={2}>{pickPickup(item)}</Text>
+                  </View>
+                  {pickupKm != null && pickupEta != null ? (
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <View style={[styles.legPill, styles.legPillGreen]} testID="pickup-eta">
                         <Ionicons name="navigate" size={10} color={colors.success} />
-                        <Text style={styles.etaText}>
-                          À {pickupKm < 10 ? pickupKm.toFixed(1) : Math.round(pickupKm)} km · {pickupEta} min
+                        <Text style={[styles.legPillTxt, { color: colors.success }]}>
+                          {pickupKm < 10 ? pickupKm.toFixed(1) : Math.round(pickupKm)} km · {pickupEta} min
                         </Text>
                       </View>
-                    ) : null}
-                  </View>
-                  <Text style={styles.routeAddr} numberOfLines={2}>{pickPickup(item)}</Text>
+                      <Text style={styles.legSubLabel}>VERS LE DÉPART</Text>
+                    </View>
+                  ) : null}
                 </View>
-                <View>
-                  <Text style={styles.routeLabel}>DESTINATION</Text>
-                  <Text style={styles.routeAddr} numberOfLines={2}>{pickDropoff(item)}</Text>
+
+                {/* DESTINATION */}
+                <View style={styles.routeRow}>
+                  <View style={{ flex: 1, paddingRight: 8 }}>
+                    <Text style={[styles.routeLabel, { color: colors.danger }]}>DESTINATION</Text>
+                    <Text style={styles.routeAddr} numberOfLines={2}>{pickDropoff(item)}</Text>
+                  </View>
+                  {tripDistanceKm != null && tripEta != null ? (
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <View style={[styles.legPill, styles.legPillNeutral]} testID="trip-eta">
+                        <Ionicons name="car" size={10} color={colors.textSecondary} />
+                        <Text style={[styles.legPillTxt, { color: colors.textSecondary }]}>
+                          {tripDistanceKm < 10 ? tripDistanceKm.toFixed(1) : Math.round(tripDistanceKm)} km · {tripEta} min
+                        </Text>
+                      </View>
+                      <Text style={styles.legSubLabel}>TRAJET CLIENT</Text>
+                    </View>
+                  ) : null}
                 </View>
               </View>
+            </View>
+
+            {/* Stats row: Temps total · Distance totale · Passagers */}
+            <View style={styles.statsRow} testID="ride-stats-row">
+              <View style={styles.statCol}>
+                <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
+                <Text style={styles.statLabel}>TEMPS TOTAL</Text>
+                <Text style={styles.statValue}>
+                  {totalEtaMin != null ? `${totalEtaMin} min` : '—'}
+                </Text>
+                <Text style={styles.statHint}>Estimation</Text>
+              </View>
+              <View style={styles.statSep} />
+              <View style={styles.statCol}>
+                <Ionicons name="map-outline" size={16} color={colors.textSecondary} />
+                <Text style={styles.statLabel}>DISTANCE TOTALE</Text>
+                <Text style={styles.statValue}>
+                  {totalDistanceKm != null ? `${totalDistanceKm} km` : '—'}
+                </Text>
+                <Text style={styles.statHint}>Estimation</Text>
+              </View>
+              <View style={styles.statSep} />
+              <View style={styles.statCol}>
+                <Ionicons name="person-outline" size={16} color={colors.textSecondary} />
+                <Text style={styles.statLabel}>PASSAGERS</Text>
+                <Text style={styles.statValue}>
+                  {paxCount} passager{paxCount > 1 ? 's' : ''}
+                </Text>
+                <Text style={styles.statHint}>{hasLuggage ? '+ Bagages' : 'Sans bagages'}</Text>
+              </View>
+            </View>
+
+            {/* Engagement warning */}
+            <View style={styles.warnCard} testID="ride-engagement-warning">
+              <Ionicons name="warning" size={16} color={colors.warning} />
+              <Text style={styles.warnTxt}>
+                En acceptant cette course, vous vous engagez à vous y rendre.
+                Les annulations répétées peuvent limiter l’accès aux courses.
+              </Text>
             </View>
 
             {/* Error */}
@@ -490,7 +591,7 @@ export default function RideRequestModal() {
               </View>
             ) : null}
 
-            {/* Actions */}
+            {/* Actions: tap-refuse + swipe-to-accept */}
             <View style={styles.actions}>
               <TouchableOpacity
                 style={styles.refuseBtn}
@@ -498,34 +599,25 @@ export default function RideRequestModal() {
                 testID="ride-refuse"
                 activeOpacity={0.8}
               >
-                <Ionicons name="close" size={20} color={colors.text} />
-                <Text style={styles.refuseText}>REFUSER</Text>
+                <Ionicons name="close" size={20} color={colors.danger} />
+                <Text style={styles.refuseTxt}>REFUSER</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.acceptBtn}
-                onPress={handleAccept}
-                disabled={accepting}
-                testID="ride-accept"
-                activeOpacity={0.85}
-              >
-                {accepting ? (
-                  <ActivityIndicator color={'#fff'} />
-                ) : (
-                  <>
-                    <Ionicons name="checkmark" size={22} color={'#fff'} />
-                    <Text style={styles.acceptText}>ACCEPTER</Text>
-                  </>
-                )}
-              </TouchableOpacity>
+              <View style={{ flex: 2 }}>
+                <SlideButton
+                  label="GLISSEZ POUR ACCEPTER"
+                  color={colors.success}
+                  onConfirm={handleAccept}
+                  disabled={accepting}
+                  testID="ride-accept-slide"
+                />
+              </View>
             </View>
 
             <TouchableOpacity onPress={handleDetails} style={styles.detailsLink} testID="ride-details">
               <Text style={styles.detailsLinkText}>Voir les détails de la course</Text>
               <Ionicons name="arrow-forward" size={14} color={colors.primary} />
             </TouchableOpacity>
-
-            <Text style={styles.swipeHint}>↑ glissez pour accepter   ↓ glissez pour refuser</Text>
           </View>
         </Animated.View>
       </Pressable>
@@ -579,8 +671,24 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   timerWrap: { width: RING_SIZE, height: RING_SIZE, alignItems: 'center', justifyContent: 'center' },
   timerCenter: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
-  timerText: { color: colors.text, fontSize: 26, fontWeight: '900', letterSpacing: -0.5 },
+  timerText: { color: colors.success, fontSize: 26, fontWeight: '900', letterSpacing: -0.5 },
   timerSub: { color: colors.textMuted, fontSize: 9, fontWeight: '800', letterSpacing: 1.2 },
+  headerCol: { flex: 1, alignItems: 'center', gap: 4 },
+  headerSep: { width: 1, height: 70, backgroundColor: colors.border, marginHorizontal: 2 },
+
+  gainLabel: { color: colors.success, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
+  gainAmount: { color: colors.success, fontSize: 26, fontWeight: '900', letterSpacing: -1 },
+  gainPill: {
+    paddingHorizontal: 10, paddingVertical: 3,
+    borderRadius: 999, borderWidth: 1,
+    borderColor: colors.success + '88',
+    backgroundColor: colors.success + '1A',
+  },
+  gainPillTxt: { color: colors.success, fontSize: 10, fontWeight: '900', letterSpacing: 0.4 },
+
+  priceClientLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '900', letterSpacing: 1.2 },
+  priceClientAmount: { color: colors.primary, fontSize: 26, fontWeight: '900', letterSpacing: -1 },
+
   amountLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },
   amount: { color: colors.primary, fontSize: 32, fontWeight: '900', letterSpacing: -1 },
   amountCommission: { color: colors.danger, fontSize: 11, fontWeight: '700', marginTop: 4 },
@@ -589,6 +697,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1,
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, marginTop: 4,
+    maxWidth: 130,
   },
   payText: { color: colors.textSecondary, fontSize: 10, fontWeight: '700' },
 
@@ -606,6 +715,7 @@ const styles = StyleSheet.create({
   routeLine: { flex: 1, width: 2, backgroundColor: colors.border, marginVertical: 4 },
   routeLabel: { color: colors.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
   routeAddr: { color: colors.text, fontSize: 14, fontWeight: '600', marginTop: 2 },
+  routeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
   routeHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
   etaBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
@@ -615,6 +725,43 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   etaText: { color: colors.success, fontSize: 10, fontWeight: '900', letterSpacing: 0.4 },
+  legPill: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    paddingHorizontal: 8, paddingVertical: 4,
+    borderRadius: 999, borderWidth: 1,
+  },
+  legPillGreen: {
+    backgroundColor: colors.success + '1F',
+    borderColor: colors.success + '66',
+  },
+  legPillNeutral: {
+    backgroundColor: colors.bg,
+    borderColor: colors.border,
+  },
+  legPillTxt: { fontSize: 10, fontWeight: '900', letterSpacing: 0.3 },
+  legSubLabel: { color: colors.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 1.2, marginTop: 2 },
+
+  // Stats row
+  statsRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    backgroundColor: colors.bg,
+    borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg,
+    paddingVertical: 12, paddingHorizontal: 6,
+  },
+  statCol: { flex: 1, alignItems: 'center', gap: 2 },
+  statLabel: { color: colors.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 0.8, marginTop: 2 },
+  statValue: { color: colors.text, fontSize: 14, fontWeight: '900', marginTop: 2 },
+  statHint: { color: colors.textSecondary, fontSize: 10, fontWeight: '700' },
+  statSep: { width: 1, height: 36, backgroundColor: colors.border, marginHorizontal: 2 },
+
+  // Warning card
+  warnCard: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
+    backgroundColor: colors.warning + '14',
+    borderColor: colors.warning + '66', borderWidth: 1,
+    borderRadius: radius.lg, padding: 10,
+  },
+  warnTxt: { color: colors.text, fontSize: 11, fontWeight: '600', flex: 1, lineHeight: 16 },
 
   errorBox: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -623,12 +770,13 @@ const styles = StyleSheet.create({
   },
   errorText: { color: colors.danger, fontSize: 12, fontWeight: '700', flex: 1 },
 
-  actions: { flexDirection: 'row', gap: 10, marginTop: 4 },
+  actions: { flexDirection: 'row', gap: 10, marginTop: 4, alignItems: 'center' },
   refuseBtn: {
-    width: 100, height: 60, borderRadius: 30,
-    backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1,
+    width: 92, height: 56, borderRadius: 28,
+    backgroundColor: colors.danger + '14', borderColor: colors.danger, borderWidth: 1,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
   },
+  refuseTxt: { color: colors.danger, fontWeight: '900', letterSpacing: 0.8, fontSize: 11 },
   refuseText: { color: colors.text, fontWeight: '900', letterSpacing: 0.8, fontSize: 12 },
   acceptBtn: {
     flex: 1, height: 60, borderRadius: 30, backgroundColor: colors.success,
