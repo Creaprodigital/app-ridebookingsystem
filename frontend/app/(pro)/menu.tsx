@@ -67,7 +67,7 @@ export default function ProMenu() {
           <Text style={styles.logoutTxt}>Déconnexion</Text>
         </TouchableOpacity>
 
-        <Text style={styles.footer}>HOPPLA Pro • Phase 1 MVP</Text>
+        <Text style={styles.footer}>Ridebookingsystem V.1.0</Text>
       </ScrollView>
     </SafeAreaView>
   );

@@ -124,7 +124,7 @@ export default function Profile() {
           </View>
         </TouchableOpacity>
 
-        <Text style={styles.footer}>SharedRide Driver · v1.0</Text>
+        <Text style={styles.footer}>Ridebookingsystem V1.0</Text>
       </ScrollView>
     </SafeAreaView>
   );

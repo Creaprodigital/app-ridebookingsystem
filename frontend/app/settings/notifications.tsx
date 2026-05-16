@@ -93,7 +93,7 @@ export default function NotificationsSettings() {
     }
     await notifyNewRide({
       title: 'Test — Nouvelle course',
-      body: 'Ceci est une notification de test SharedRide Driver.',
+      body: 'Ceci est une notification de test Ridebookingsystem.',
       data: { route: '/(tabs)/missions', test: true },
     });
   };

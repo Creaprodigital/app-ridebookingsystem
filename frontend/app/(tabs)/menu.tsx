@@ -89,7 +89,7 @@ export default function MenuScreen() {
         <Section title="Application" rows={app} />
         <Section title="Session" rows={session} />
 
-        <Text style={styles.footer}>SharedRide Driver · v1.0</Text>
+        <Text style={styles.footer}>Ridebookingsystem V1.0</Text>
       </ScrollView>
     </SafeAreaView>
   );
