@@ -13,7 +13,7 @@ import { haptic } from '../src/feedback';
 import { hydrateLastCoords } from '../src/locationStore';
 
 function RouteGuard({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, isPro } = useAuth();
   const segments = useSegments();
   const router = useRouter();
   const { refreshShift, forceRefresh, hasActiveMission, activeMissionId } = useRides();
@@ -29,19 +29,28 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     if (loading) return;
     const inAuthGroup = segments[0] === 'login';
+    const inProGroup = segments[0] === '(pro)';
+    const inTabsGroup = segments[0] === '(tabs)';
     if (!user && !inAuthGroup) {
       router.replace('/login');
     } else if (user && inAuthGroup) {
+      router.replace(isPro ? '/(pro)' : '/(tabs)');
+    } else if (user && isPro && inTabsGroup) {
+      // Driver routes are off-limits for pro accounts
+      router.replace('/(pro)');
+    } else if (user && !isPro && inProGroup) {
+      // Pro routes are off-limits for drivers
       router.replace('/(tabs)');
     }
-  }, [user, loading, segments, router]);
+  }, [user, loading, isPro, segments, router]);
 
   // Auto-redirect to the active mission whenever the driver opens the app
   // with an in-progress course (assigned/en_route/arrived/in_progress).
   // This guarantees that closing/reopening the app brings the driver
   // straight back to the ride they accepted, exactly like Uber Driver.
+  // Pro accounts skip this entirely.
   React.useEffect(() => {
-    if (!user || loading) return;
+    if (!user || loading || isPro) return;
     if (!hasActiveMission || !activeMissionId) return;
 
     // Don't redirect if already on the mission detail screen
@@ -60,10 +69,10 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
     try {
       router.replace(`/mission/${activeMissionId}` as any);
     } catch {}
-  }, [user, loading, hasActiveMission, activeMissionId, segments, router]);
+  }, [user, loading, isPro, hasActiveMission, activeMissionId, segments, router]);
 
   React.useEffect(() => {
-    if (!user) return;
+    if (!user || isPro) return;
     let cancelled = false;
     (async () => {
       try {
@@ -85,7 +94,7 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
       } catch {}
     })();
     return () => { cancelled = true; };
-  }, [user, router, refreshShift, forceRefresh]);
+  }, [user, isPro, router, refreshShift, forceRefresh]);
 
   if (loading) {
     return (
@@ -115,6 +124,7 @@ export default function RootLayout() {
                 <Stack.Screen name="index" />
                 <Stack.Screen name="login" />
                 <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="(pro)" />
                 <Stack.Screen name="profile" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="notifications" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="settings/index" options={{ animation: 'slide_from_right' }} />

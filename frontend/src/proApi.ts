@@ -1,0 +1,202 @@
+/**
+ * Pro (dispatcher) API client.
+ *
+ * All endpoints live under /pro/* on the shared-ride-pool backend.
+ * Public booking creation uses /public/booking (same endpoint as the V1 widget).
+ */
+import { api } from './api';
+
+// ---------- Types ----------
+export type ProDriver = {
+  id: string;
+  email?: string;
+  first_name?: string;
+  last_name?: string;
+  phone?: string;
+  driver_status?: 'available' | 'busy' | 'offline' | string;
+  on_shift?: boolean;
+  active?: boolean;
+  vehicle_id?: string | null;
+  allowed_category_ids?: string[];
+  last_location?: {
+    lat: number;
+    lng: number;
+    heading?: number;
+    speed?: number;
+    updated_at?: string;
+  } | null;
+};
+
+export type ProBooking = {
+  id: string;
+  tenant_id: string;
+  driver_id?: string | null;
+  vehicle_id?: string | null;
+  vehicle_type?: string | null;
+  trip_type?: string;
+  pickup_address: string;
+  dropoff_address?: string;
+  pickup_lat?: number | null;
+  pickup_lng?: number | null;
+  dropoff_lat?: number | null;
+  dropoff_lng?: number | null;
+  pickup_at: string;
+  schedule_mode?: 'now' | 'later';
+  is_immediate?: boolean;
+  duration_hours?: number;
+  pax?: number;
+  bags?: number;
+  status?: 'pending' | 'assigned' | 'in_progress' | 'completed' | 'cancelled' | string;
+  payment_method?: string;
+  payment_status?: string;
+  pricing?: any;
+  guest_contact?: { first_name?: string; last_name?: string; email?: string; phone?: string };
+  notes?: string;
+  priority?: 'low' | 'normal' | 'high' | 'urgent';
+  internal_notes?: string; // dispatcher-only
+  created_at?: string;
+};
+
+export type ProVehicle = {
+  id: string;
+  tenant_id: string;
+  category_id?: string;
+  type?: string;
+  brand?: string;
+  model?: string;
+  plate?: string;
+  capacity?: number;
+  color?: string;
+};
+
+export type ProCategory = {
+  id: string;
+  label: string;
+  description?: string;
+  max_seats?: number;
+  max_luggage?: number;
+  multiplier?: number;
+  image_url?: string;
+};
+
+export type ProDashboardStats = {
+  bookings: number;
+  pending: number;
+  completed: number;
+  today: number;
+  drivers: number;
+  vehicles: number;
+  revenue: number;
+};
+
+// ---------- Endpoints ----------
+export async function getProDashboard(): Promise<{
+  stats: ProDashboardStats;
+  recent_bookings: ProBooking[];
+}> {
+  const { data } = await api.get('/pro/dashboard');
+  return data;
+}
+
+export async function getProBookings(): Promise<ProBooking[]> {
+  const { data } = await api.get('/pro/bookings');
+  return Array.isArray(data) ? data : data?.items ?? [];
+}
+
+export async function getProDispatch(): Promise<{
+  drivers: ProDriver[];
+  bookings: ProBooking[];
+  vehicles: ProVehicle[];
+}> {
+  const { data } = await api.get('/pro/dispatch');
+  return data;
+}
+
+export async function getProDrivers(): Promise<ProDriver[]> {
+  const { data } = await api.get('/pro/drivers');
+  return Array.isArray(data) ? data : data?.items ?? [];
+}
+
+export async function getProVehicles(): Promise<ProVehicle[]> {
+  const { data } = await api.get('/pro/vehicles');
+  return Array.isArray(data) ? data : data?.items ?? [];
+}
+
+export async function getProVehicleCategories(): Promise<ProCategory[]> {
+  const { data } = await api.get('/pro/vehicle-categories');
+  return Array.isArray(data) ? data : data?.items ?? [];
+}
+
+export async function getProWidgetConfig(): Promise<any> {
+  const { data } = await api.get('/pro/widget-config');
+  return data;
+}
+
+/**
+ * Assign a booking to a specific driver.
+ */
+export async function assignBookingToDriver(bookingId: string, driverId: string) {
+  const { data } = await api.post(`/pro/bookings/${bookingId}/assign`, { driver_id: driverId });
+  return data;
+}
+
+/**
+ * Update a booking status (assigned / in_progress / completed / cancelled).
+ */
+export async function updateProBookingStatus(bookingId: string, status: string) {
+  const { data } = await api.patch(`/pro/bookings/${bookingId}/status`, { status });
+  return data;
+}
+
+/**
+ * Get a price quote — same endpoint used by the public V1 widget.
+ */
+export type QuoteRequest = {
+  tenant_id: string;
+  pickup_address: string;
+  pickup_at: string;
+  dropoff_address?: string;
+  vehicle_type?: string;
+  trip_type?: string;
+  pax?: number;
+  bags?: number;
+  duration_hours?: number;
+};
+
+export async function quoteBooking(body: QuoteRequest): Promise<any> {
+  const { data } = await api.post('/public/quote', body);
+  return data;
+}
+
+/**
+ * Create a booking — same endpoint as the V1 widget.
+ * Required: tenant_id, pickup_address, pickup_at, contact.
+ */
+export type CreateBookingRequest = {
+  tenant_id: string;
+  pickup_address: string;
+  pickup_at: string;
+  dropoff_address?: string;
+  vehicle_type?: string;
+  trip_type?: string;
+  pax?: number;
+  bags?: number;
+  duration_hours?: number;
+  payment_method?: string;
+  contact: {
+    first_name?: string;
+    last_name?: string;
+    email?: string;
+    phone?: string;
+  };
+  notes?: string;
+  // Dispatcher-only extras
+  internal_notes?: string;
+  priority?: 'low' | 'normal' | 'high' | 'urgent';
+  driver_id?: string | null; // for direct manual assignment
+};
+
+export async function createBooking(body: CreateBookingRequest): Promise<any> {
+  const { data } = await api.post('/public/booking', body);
+  return data;
+}
