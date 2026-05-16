@@ -42,7 +42,9 @@ export default function ProMapScreen() {
       }));
   }, [drivers]);
 
-  const center = markers[0] || { lat: 48.8566, lng: 2.3522 };
+  // Always center on Paris with a region-level zoom so the whole Île-de-France
+  // is visible by default. The user can pinch to zoom in/out freely.
+  const PARIS = { lat: 48.8566, lng: 2.3522 };
   const onShift = drivers.filter((d) => d.on_shift).length;
 
   return (
@@ -52,7 +54,15 @@ export default function ProMapScreen() {
         <View style={styles.center}><ActivityIndicator color={colors.primary} /></View>
       ) : (
         <View style={{ flex: 1 }}>
-          <MapView lat={center.lat} lng={center.lng} extraMarkers={markers} fitBounds={markers.length > 0} showDriverMarker={false} style={{ flex: 1 }} />
+          <MapView
+            lat={PARIS.lat}
+            lng={PARIS.lng}
+            zoom={9}
+            extraMarkers={markers}
+            fitBounds={false}
+            showDriverMarker={false}
+            style={{ flex: 1 }}
+          />
           {/* Floating legend */}
           <View style={styles.legend} pointerEvents="none">
             <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: colors.success }]} /><Text style={styles.legendTxt}>En service</Text></View>

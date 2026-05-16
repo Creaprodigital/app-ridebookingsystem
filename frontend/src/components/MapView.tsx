@@ -29,6 +29,8 @@ type Props = {
   fitBounds?: boolean;
   /** Show the yellow "You are here" marker at lat/lng. Default true. */
   showDriverMarker?: boolean;
+  /** Initial zoom level (1-20). Default 15. Use ~9 for region-level views. */
+  zoom?: number;
   style?: any;
 };
 
@@ -46,7 +48,7 @@ const darkStyle = JSON.stringify([
   { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#52525b' }] },
 ]);
 
-function buildHtml(lat: number, lng: number, markers: Marker[], polylines: Polyline[], fitBounds: boolean, showDriverMarker: boolean) {
+function buildHtml(lat: number, lng: number, markers: Marker[], polylines: Polyline[], fitBounds: boolean, showDriverMarker: boolean, zoom: number) {
   const markersJson = JSON.stringify(markers || []);
   const polysJson = JSON.stringify(polylines || []);
   return `<!DOCTYPE html><html><head>
@@ -98,7 +100,7 @@ function pinIcon(color){
 function initMap(){
   try {
     map = new google.maps.Map(document.getElementById('map'),{
-      center:{lat:${lat},lng:${lng}}, zoom:15,
+      center:{lat:${lat},lng:${lng}}, zoom:${zoom},
       disableDefaultUI:true, zoomControl:false, gestureHandling:'greedy',
       styles:${darkStyle}
     });
@@ -305,13 +307,13 @@ function fitToContent(){
 </body></html>`;
 }
 
-export default function MapView({ lat, lng, extraMarkers = [], polylines = [], fitBounds = false, showDriverMarker = true, style }: Props) {
+export default function MapView({ lat, lng, extraMarkers = [], polylines = [], fitBounds = false, showDriverMarker = true, zoom = 15, style }: Props) {
   const latitude = lat ?? 48.8566;
   const longitude = lng ?? 2.3522;
   // Build the HTML once at first render — subsequent updates flow through
   // postMessage so the map (and its zoom level) is preserved.
   const html = useMemo(
-    () => buildHtml(latitude, longitude, extraMarkers, polylines, fitBounds, showDriverMarker),
+    () => buildHtml(latitude, longitude, extraMarkers, polylines, fitBounds, showDriverMarker, zoom),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );

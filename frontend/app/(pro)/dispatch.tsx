@@ -228,11 +228,12 @@ export default function DispatchScreen() {
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  tabsRow: { flexDirection: 'row', gap: 8, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
+  tabsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
   tab: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
+    flexBasis: '47%', flexGrow: 1,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
-    paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.full,
+    paddingHorizontal: 12, paddingVertical: 10, borderRadius: radius.full,
   },
   tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   tabTxt: { color: colors.textSecondary, fontSize: 11, fontWeight: '800', letterSpacing: 0.3 },
