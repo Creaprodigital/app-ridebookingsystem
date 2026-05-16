@@ -161,29 +161,36 @@ export async function getProMapsConfig(): Promise<ProMapsConfig | null> {
 /**
  * Server-side Google Places Autocomplete proxy.
  *
- * Backend contract (Option A — secure proxy):
+ * Backend contract:
  *   GET /api/pro/places/autocomplete?input=X&sessiontoken=Y&country=fr&language=fr
- *   →  { predictions: [{ place_id, description }] }
+ *   →  { items: [{ label, main, secondary, place_id, lat, lng, source }] }
  *
  * The tenant's Google Maps API key never leaves the backend. The endpoint
- * forwards to https://maps.googleapis.com/maps/api/place/autocomplete/json
- * using the tenant's configured key.
- *
- * Returns null silently on 404 (backend not yet ready) so the caller can
- * fall back to direct Google calls with the global EXPO_PUBLIC key.
+ * forwards to Google Places using the tenant's configured key.
  */
-export type PlacesPrediction = { place_id: string; description: string };
+export type PlacesPrediction = {
+  place_id: string;
+  label: string;          // full description (e.g. "Paris, France")
+  main?: string;          // primary text (e.g. "Paris")
+  secondary?: string;     // secondary text (e.g. "France")
+  lat?: number | null;
+  lng?: number | null;
+  source?: string;
+};
 export async function proPlacesAutocomplete(
   input: string,
   sessionToken?: string,
   country: string = 'fr',
   language: string = 'fr',
-): Promise<{ predictions: PlacesPrediction[] } | null> {
+): Promise<{ items: PlacesPrediction[] } | null> {
   try {
     const { data } = await api.get('/pro/places/autocomplete', {
       params: { input, sessiontoken: sessionToken, country, language },
     });
-    return data || null;
+    if (!data) return null;
+    // Accept both `items` and `predictions` for forward-compat
+    const items = data.items ?? data.predictions ?? [];
+    return { items: Array.isArray(items) ? items : [] };
   } catch (e: any) {
     if (e?.response?.status === 404) return null;
     return null;

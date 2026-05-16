@@ -15,11 +15,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radius, spacing } from '../theme';
-import { proPlacesAutocomplete } from '../proApi';
+import { proPlacesAutocomplete, PlacesPrediction } from '../proApi';
 
 const GMAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY as string;
 
-type Suggestion = { place_id: string; description: string };
+type Suggestion = PlacesPrediction;
 
 type Props = {
   label: string;
@@ -59,7 +59,12 @@ export default function AddressInput({
       const res = await fetch(url);
       const data = await res.json();
       if (data?.status === 'OK' && Array.isArray(data.predictions)) {
-        return data.predictions.slice(0, 5).map((p: any) => ({ place_id: p.place_id, description: p.description }));
+        return data.predictions.slice(0, 5).map((p: any) => ({
+          place_id: p.place_id,
+          label: p.description,
+          main: p.structured_formatting?.main_text,
+          secondary: p.structured_formatting?.secondary_text,
+        }));
       }
     } catch {}
     return [];
@@ -85,8 +90,8 @@ export default function AddressInput({
         // 1) Try the secure backend proxy first
         if (transportRef.current === 'proxy') {
           const r = await proPlacesAutocomplete(value, sessionTokenRef.current, country, 'fr');
-          if (r && Array.isArray(r.predictions) && r.predictions.length >= 0) {
-            preds = r.predictions.slice(0, 5);
+          if (r && Array.isArray(r.items)) {
+            preds = r.items.slice(0, 5);
           } else {
             // Proxy not available — switch to direct calls for the rest of the session
             transportRef.current = 'direct';
@@ -105,8 +110,8 @@ export default function AddressInput({
   }, [value, country, directKey]);
 
   const pick = (s: Suggestion) => {
-    lastQueryRef.current = s.description;
-    onChange(s.description);
+    lastQueryRef.current = s.label;
+    onChange(s.label);
     setSuggestions([]);
     setOpen(false);
     // Refresh session token after a pick — Google bills per session
@@ -146,7 +151,16 @@ export default function AddressInput({
               activeOpacity={0.7}
             >
               <Ionicons name="location" size={14} color={colors.textMuted} />
-              <Text style={styles.suggestionTxt} numberOfLines={2}>{s.description}</Text>
+              <View style={{ flex: 1 }}>
+                {s.main ? (
+                  <Text style={styles.suggestionMain} numberOfLines={1}>{s.main}</Text>
+                ) : (
+                  <Text style={styles.suggestionMain} numberOfLines={1}>{s.label}</Text>
+                )}
+                {s.secondary ? (
+                  <Text style={styles.suggestionSub} numberOfLines={1}>{s.secondary}</Text>
+                ) : null}
+              </View>
             </TouchableOpacity>
           ))}
         </View>
@@ -184,5 +198,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md, paddingVertical: 10,
     borderBottomColor: colors.border, borderBottomWidth: 1,
   },
+  suggestionMain: { color: colors.text, fontSize: 13, fontWeight: '700' },
+  suggestionSub: { color: colors.textMuted, fontSize: 11, marginTop: 2, fontWeight: '500' },
   suggestionTxt: { color: colors.text, fontSize: 13, fontWeight: '600', flex: 1 },
 });
