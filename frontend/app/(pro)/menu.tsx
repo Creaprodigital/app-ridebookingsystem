@@ -6,18 +6,26 @@ import { useRouter } from 'expo-router';
 import { colors, radius, spacing } from '../../src/theme';
 import ProHeader from '../../src/components/ProHeader';
 import { useAuth } from '../../src/auth';
+import { useProNotifications } from '../../src/proNotifications';
 
 type Item = { icon: keyof typeof Ionicons.glyphMap; label: string; sub?: string; onPress: () => void; badge?: string };
 
 export default function ProMenu() {
   const router = useRouter();
   const { user, tenant, signOut } = useAuth();
+  const { unreadCount } = useProNotifications();
 
   const mocked = (title: string) => () => Alert.alert(title, 'Cette fonctionnalité sera disponible prochainement (MOCKÉE pour la Phase 1).');
 
   const items: Item[] = [
     { icon: 'list-outline', label: 'Historique des courses', sub: 'Toutes les courses terminées', onPress: mocked('Historique') },
-    { icon: 'notifications-outline', label: 'Notifications', sub: 'Centre de notifications', badge: 'NOUVEAU', onPress: mocked('Notifications') },
+    {
+      icon: 'notifications-outline',
+      label: 'Notifications',
+      sub: unreadCount > 0 ? `${unreadCount} non lue${unreadCount > 1 ? 's' : ''}` : 'Centre de notifications',
+      badge: unreadCount > 0 ? String(unreadCount) : undefined,
+      onPress: () => router.push('/(pro)/notifications' as any),
+    },
     { icon: 'chatbubbles-outline', label: 'Chat interne', sub: 'Dispatcher ↔ chauffeurs', badge: 'MOCK', onPress: mocked('Chat interne') },
     { icon: 'settings-outline', label: 'Paramètres pro', sub: 'Tarification, widget, marketplace', onPress: mocked('Paramètres pro') },
     { icon: 'shield-checkmark-outline', label: 'Rôles & permissions', sub: 'Admin / Dispatcher / Superviseur', badge: 'MOCK', onPress: mocked('Rôles') },

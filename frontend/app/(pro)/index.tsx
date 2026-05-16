@@ -68,7 +68,6 @@ export default function ProDashboard() {
       <ProHeader
         title="Tableau de bord"
         subtitle={tenant?.company_name || 'Espace pro'}
-        rightAction={{ icon: 'notifications-outline', onPress: () => router.push('/(pro)/menu' as any) }}
       />
       {loading ? (
         <View style={styles.center}><ActivityIndicator color={colors.primary} /></View>

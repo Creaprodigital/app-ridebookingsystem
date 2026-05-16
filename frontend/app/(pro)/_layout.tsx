@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Platform, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../src/theme';
+import { ProNotificationsProvider } from '../../src/proNotifications';
 
 function FabIcon() {
   return (
@@ -19,6 +20,7 @@ export default function ProLayout() {
   // area never hides the content on Android phones with gesture nav bar.
   const bottomPad = Math.max(insets.bottom, Platform.OS === 'ios' ? 24 : 12);
   return (
+    <ProNotificationsProvider>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -82,7 +84,9 @@ export default function ProLayout() {
         }}
       />
       <Tabs.Screen name="menu" options={{ href: null }} />
+      <Tabs.Screen name="notifications" options={{ href: null }} />
     </Tabs>
+    </ProNotificationsProvider>
   );
 }
 
