@@ -10,6 +10,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './auth';
 import { getProBookings, getProDrivers, ProBooking, ProDriver } from './proApi';
+import { notifyLocal } from './feedback';
 
 export type NotifKind =
   | 'booking_pending'
@@ -106,6 +107,18 @@ export function ProNotificationsProvider({ children }: { children: React.ReactNo
       };
       const out = [next, ...prev].slice(0, MAX_NOTIFS);
       void persist(out);
+      // Fire a local OS notification so the user is notified on the lock
+      // screen / notification tray even when they are not in the app.
+      // Only the most operationally-important events trigger time-sensitive.
+      const important =
+        n.kind === 'booking_pending' ||
+        n.kind === 'booking_cancelled';
+      void notifyLocal({
+        title: next.title,
+        body: next.body,
+        important,
+        data: { route: n.link, refId: n.refId, kind: n.kind },
+      });
       return out;
     });
   }, [persist]);

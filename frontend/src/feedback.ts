@@ -188,3 +188,34 @@ export async function notifyNewRide(opts: { title: string; body: string; data?: 
     });
   } catch {}
 }
+
+/**
+ * Generic local OS notification.
+ * Used by the pro app to surface in-app notifications on the lock screen and
+ * notification tray when delta polling detects a booking/driver change.
+ */
+export async function notifyLocal(opts: {
+  title: string;
+  body?: string;
+  data?: any;
+  /** When true, vibrates / shows on lock screen with high priority. */
+  important?: boolean;
+}) {
+  if (Platform.OS === 'web' || !Notifications) return;
+  try {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: opts.title,
+        body: opts.body ?? '',
+        sound: 'default',
+        priority: opts.important
+          ? (Notifications.AndroidNotificationPriority?.HIGH ?? 'high')
+          : (Notifications.AndroidNotificationPriority?.DEFAULT ?? 'default'),
+        interruptionLevel: opts.important ? 'time-sensitive' : 'active',
+        data: { ...(opts.data ?? {}), kind: 'pro_notification' },
+        color: '#F5B72E',
+      },
+      trigger: null, // fire immediately
+    });
+  } catch {}
+}

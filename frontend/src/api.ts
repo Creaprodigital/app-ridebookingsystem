@@ -192,13 +192,18 @@ export async function registerPushToken(token: string, platform: string) {
     platform,
     device_type: platform,
   };
-  try {
-    const { data } = await api.post('/driver/push-token', payload);
-    return data;
-  } catch (e) {
-    // Swallow registration errors — push is non-critical for app function.
-    return null;
+  // Try driver endpoint first (works for drivers), then pro variants, then
+  // a universal one — we accept the first 2xx and silently move on otherwise.
+  const candidates = ['/driver/push-token', '/pro/push-token', '/me/push-token', '/push-token'];
+  for (const path of candidates) {
+    try {
+      const { data } = await api.post(path, payload);
+      return data;
+    } catch {
+      // try next
+    }
   }
+  return null;
 }
 
 export async function unregisterPushToken(token?: string) {

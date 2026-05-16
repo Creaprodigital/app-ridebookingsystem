@@ -72,23 +72,30 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
   }, [user, loading, isPro, hasActiveMission, activeMissionId, segments, router]);
 
   React.useEffect(() => {
-    if (!user || isPro) return;
+    if (!user) return;
     let cancelled = false;
     (async () => {
       try {
         await setupPushNotifications({
           onTap: (data: any) => {
             if (cancelled) return;
-            // Bring the user to the most relevant screen on tap
-            const route = data?.route || '/(tabs)/missions';
+            // Bring the user to the most relevant screen on tap.
+            // Pro tappable notifications carry a route in their data payload
+            // (set by proNotifications.push when calling notifyLocal).
+            const route = data?.route || (isPro ? '/(pro)/notifications' : '/(tabs)/missions');
             try { router.push(route); } catch {}
             haptic('light');
           },
           onIncoming: (_data: any) => {
-            // Push received in foreground → force an immediate marketplace
-            // refresh so the RideRequestModal opens within ~1 second.
+            // Push received in foreground.
+            // For drivers: force an immediate marketplace refresh so the
+            // RideRequestModal opens within ~1 second.
+            // For pros: the in-app polling already keeps UI fresh, so just
+            // play the haptic feedback.
             haptic('heavy');
-            try { forceRefresh(); } catch {}
+            if (!isPro) {
+              try { forceRefresh(); } catch {}
+            }
           },
         });
       } catch {}
