@@ -1,16 +1,21 @@
 /**
  * Lightweight Google Places autocomplete input.
  *
- * Wraps a native TextInput + an absolute-positioned suggestion list. Queries
- * the Places Autocomplete API directly from the device with debouncing.
+ * Strategy:
+ *  1. Try the secure backend proxy `/api/pro/places/autocomplete` first (the
+ *     tenant's API key never leaves the server).
+ *  2. If the proxy returns nothing/404 (not yet deployed), automatically fall
+ *     back to a direct call to Google's Places Autocomplete API with the
+ *     globally-configured EXPO_PUBLIC_GOOGLE_MAPS_API_KEY.
  *
- * NOTE: On Web preview, the API returns CORS errors — autocomplete only works
- * on real native devices. The fallback is a plain text input.
+ * The fallback runs only on the first miss — afterwards the component remembers
+ * which transport is alive to avoid wasting roundtrips.
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radius, spacing } from '../theme';
+import { proPlacesAutocomplete } from '../proApi';
 
 const GMAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY as string;
 
@@ -24,11 +29,13 @@ type Props = {
   iconColor?: string;
   iconName?: keyof typeof Ionicons.glyphMap;
   testID?: string;
-  /** Optional override for the API key (per-tenant key). */
+  /** Optional explicit key — overrides the global key for the direct fallback. */
   apiKey?: string;
   /** Bias suggestions toward a given country (ISO 3166-1 alpha-2). */
   country?: string;
 };
+
+type Transport = 'proxy' | 'direct';
 
 export default function AddressInput({
   label, placeholder, value, onChange, iconName = 'location-outline', iconColor = colors.textSecondary,
@@ -40,16 +47,30 @@ export default function AddressInput({
   const debounceRef = useRef<any>(null);
   const lastQueryRef = useRef<string>('');
   const sessionTokenRef = useRef<string>(`${Date.now()}-${Math.random()}`);
+  // Try the secure proxy first; auto-switch to direct on the first miss.
+  const transportRef = useRef<Transport>('proxy');
 
-  const key = apiKey || GMAPS_KEY;
+  const directKey = apiKey || GMAPS_KEY;
+
+  const fetchDirect = async (input: string): Promise<Suggestion[]> => {
+    if (!directKey) return [];
+    try {
+      const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&key=${directKey}&language=fr&components=country:${country}&sessiontoken=${sessionTokenRef.current}`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data?.status === 'OK' && Array.isArray(data.predictions)) {
+        return data.predictions.slice(0, 5).map((p: any) => ({ place_id: p.place_id, description: p.description }));
+      }
+    } catch {}
+    return [];
+  };
 
   useEffect(() => {
-    if (!value || !key) {
+    if (!value) {
       setSuggestions([]);
       setOpen(false);
       return;
     }
-    // Avoid querying again if the value matches the last picked suggestion
     if (value === lastQueryRef.current) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(async () => {
@@ -60,27 +81,28 @@ export default function AddressInput({
       }
       setLoading(true);
       try {
-        const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(value)}&key=${key}&language=fr&components=country:${country}&sessiontoken=${sessionTokenRef.current}`;
-        const res = await fetch(url);
-        const data = await res.json();
-        if (data?.status === 'OK' && Array.isArray(data.predictions)) {
-          setSuggestions(
-            data.predictions.slice(0, 5).map((p: any) => ({ place_id: p.place_id, description: p.description })),
-          );
-          setOpen(true);
+        let preds: Suggestion[] = [];
+        // 1) Try the secure backend proxy first
+        if (transportRef.current === 'proxy') {
+          const r = await proPlacesAutocomplete(value, sessionTokenRef.current, country, 'fr');
+          if (r && Array.isArray(r.predictions) && r.predictions.length >= 0) {
+            preds = r.predictions.slice(0, 5);
+          } else {
+            // Proxy not available — switch to direct calls for the rest of the session
+            transportRef.current = 'direct';
+            preds = await fetchDirect(value);
+          }
         } else {
-          setSuggestions([]);
-          setOpen(false);
+          preds = await fetchDirect(value);
         }
-      } catch {
-        setSuggestions([]);
-        setOpen(false);
+        setSuggestions(preds);
+        setOpen(preds.length > 0);
       } finally {
         setLoading(false);
       }
     }, 350);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [value, key, country]);
+  }, [value, country, directKey]);
 
   const pick = (s: Suggestion) => {
     lastQueryRef.current = s.description;
@@ -150,7 +172,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     marginTop: 4,
     overflow: 'hidden',
-    // Elevation/shadow for Android
     elevation: 8,
     zIndex: 999,
     ...Platform.select({

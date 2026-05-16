@@ -143,6 +143,8 @@ export async function getProWidgetConfig(): Promise<any> {
  * fall back to the global EXPO_PUBLIC_GOOGLE_MAPS_API_KEY.
  */
 export type ProMapsConfig = {
+  has_key?: boolean;
+  key_mask?: string;
   google_maps_api_key?: string;
   country?: string;
   region?: string;
@@ -152,6 +154,38 @@ export async function getProMapsConfig(): Promise<ProMapsConfig | null> {
     const { data } = await api.get('/pro/maps-config');
     return data || null;
   } catch {
+    return null;
+  }
+}
+
+/**
+ * Server-side Google Places Autocomplete proxy.
+ *
+ * Backend contract (Option A — secure proxy):
+ *   GET /api/pro/places/autocomplete?input=X&sessiontoken=Y&country=fr&language=fr
+ *   →  { predictions: [{ place_id, description }] }
+ *
+ * The tenant's Google Maps API key never leaves the backend. The endpoint
+ * forwards to https://maps.googleapis.com/maps/api/place/autocomplete/json
+ * using the tenant's configured key.
+ *
+ * Returns null silently on 404 (backend not yet ready) so the caller can
+ * fall back to direct Google calls with the global EXPO_PUBLIC key.
+ */
+export type PlacesPrediction = { place_id: string; description: string };
+export async function proPlacesAutocomplete(
+  input: string,
+  sessionToken?: string,
+  country: string = 'fr',
+  language: string = 'fr',
+): Promise<{ predictions: PlacesPrediction[] } | null> {
+  try {
+    const { data } = await api.get('/pro/places/autocomplete', {
+      params: { input, sessiontoken: sessionToken, country, language },
+    });
+    return data || null;
+  } catch (e: any) {
+    if (e?.response?.status === 404) return null;
     return null;
   }
 }
