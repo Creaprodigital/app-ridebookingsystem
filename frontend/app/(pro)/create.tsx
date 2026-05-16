@@ -11,7 +11,7 @@ import ProHeader from '../../src/components/ProHeader';
 import { useAuth } from '../../src/auth';
 import {
   createBooking, quoteBooking, getProVehicleCategories, getProDrivers,
-  ProCategory, ProDriver,
+  ProCategory, ProDriver, getProMapsConfig,
 } from '../../src/proApi';
 import { getProClients, ProClient } from '../../src/proClients';
 import { haptic } from '../../src/feedback';
@@ -147,20 +147,25 @@ export default function CreateBookingScreen() {
   const [quote, setQuote] = useState<any>(null);
   const [quoting, setQuoting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [mapsKey, setMapsKey] = useState<string | undefined>(undefined);
+  const [mapsCountry, setMapsCountry] = useState<string>('fr');
 
   // Load static data once
   useEffect(() => {
     (async () => {
       try {
-        const [cats, drvs, cls] = await Promise.all([
+        const [cats, drvs, cls, mapsCfg] = await Promise.all([
           getProVehicleCategories(),
           getProDrivers().catch(() => []),
           getProClients().catch(() => []),
+          getProMapsConfig().catch(() => null),
         ]);
         setCategories(cats);
         if (cats?.[0]) setVehicleType(cats[0].id);
         setDrivers(drvs);
         setClients(cls);
+        if (mapsCfg?.google_maps_api_key) setMapsKey(mapsCfg.google_maps_api_key);
+        if (mapsCfg?.country) setMapsCountry(mapsCfg.country);
       } catch {}
     })();
   }, []);
@@ -312,6 +317,8 @@ export default function CreateBookingScreen() {
               value={pickup}
               onChange={setPickup}
               iconName="navigate-circle-outline"
+              apiKey={mapsKey}
+              country={mapsCountry}
               testID="pickup-input"
             />
             <AddressInput
@@ -320,6 +327,8 @@ export default function CreateBookingScreen() {
               value={dropoff}
               onChange={setDropoff}
               iconName="location-outline"
+              apiKey={mapsKey}
+              country={mapsCountry}
               testID="dropoff-input"
             />
           </View>

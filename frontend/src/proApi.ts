@@ -133,6 +133,30 @@ export async function getProWidgetConfig(): Promise<any> {
 }
 
 /**
+ * Fetches the per-tenant Google Maps configuration (API key, region biasing, etc.).
+ *
+ * Backend contract (proposed):
+ *   GET /pro/maps-config
+ *   →  { google_maps_api_key: string, country?: string, region?: string }
+ *
+ * Returns null silently if the endpoint is not yet available so callers can
+ * fall back to the global EXPO_PUBLIC_GOOGLE_MAPS_API_KEY.
+ */
+export type ProMapsConfig = {
+  google_maps_api_key?: string;
+  country?: string;
+  region?: string;
+};
+export async function getProMapsConfig(): Promise<ProMapsConfig | null> {
+  try {
+    const { data } = await api.get('/pro/maps-config');
+    return data || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Assign a booking to a specific driver.
  */
 export async function assignBookingToDriver(bookingId: string, driverId: string) {
