@@ -17,6 +17,8 @@ function statusColor(s?: string) {
   if (v === 'completed') return colors.success;
   if (v === 'pending') return colors.warning;
   if (v === 'assigned') return colors.info;
+  if (v === 'en_route') return colors.primary;
+  if (v === 'arrived') return '#FFB020';
   if (v === 'in_progress') return colors.primary;
   if (v === 'cancelled' || v === 'canceled') return colors.danger;
   return colors.textMuted;
@@ -24,9 +26,11 @@ function statusColor(s?: string) {
 function statusLabel(s?: string) {
   const v = (s || '').toLowerCase();
   if (v === 'completed') return 'Terminée';
-  if (v === 'pending') return 'En attente';
-  if (v === 'assigned') return 'Assignée';
-  if (v === 'in_progress') return 'En cours';
+  if (v === 'pending') return 'À dispatcher';
+  if (v === 'assigned') return 'Attribuée';
+  if (v === 'en_route') return 'En route';
+  if (v === 'arrived') return 'Sur place';
+  if (v === 'in_progress') return 'Prise en charge';
   if (v === 'cancelled' || v === 'canceled') return 'Annulée';
   return s || '—';
 }
@@ -36,6 +40,8 @@ function driverName(d?: ProDriver) {
 }
 
 type Filter = 'pending' | 'assigned' | 'in_progress' | 'all';
+// In-flight statuses grouped under the "En cours" filter
+const INFLIGHT_STATUSES = new Set(['en_route', 'arrived', 'in_progress']);
 
 export default function DispatchScreen() {
   const [bookings, setBookings] = useState<ProBooking[]>([]);
