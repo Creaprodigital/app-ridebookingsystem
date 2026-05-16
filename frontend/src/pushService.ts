@@ -13,6 +13,20 @@ try { Notifications = require('expo-notifications'); } catch {}
 
 const PUSH_ENABLED_KEY = 'push_enabled';
 const PUSH_TOKEN_KEY = 'push_token_last';
+const DEVICE_ID_KEY = 'push_device_id';
+
+/**
+ * Returns a stable per-install UUID. Generated once and persisted so the
+ * backend can reliably upsert/dedupe push tokens per device.
+ */
+async function getOrCreateDeviceId(): Promise<string> {
+  let id = (await prefGet(DEVICE_ID_KEY, '')) || '';
+  if (!id) {
+    id = `dev-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    await prefSet(DEVICE_ID_KEY, id);
+  }
+  return id;
+}
 
 export async function isPushEnabled(): Promise<boolean> {
   const v = await prefGet(PUSH_ENABLED_KEY, '1');
@@ -85,7 +99,8 @@ export async function setupPushNotifications(opts?: PushSetupOptions): Promise<P
   result.token = tk.token;
 
   await prefSet(PUSH_TOKEN_KEY, tk.token);
-  const reg = await registerPushToken(tk.token, Platform.OS);
+  const deviceId = await getOrCreateDeviceId();
+  const reg = await registerPushToken(tk.token, Platform.OS, deviceId);
   result.registered = !!reg;
 
   // Set up listeners once

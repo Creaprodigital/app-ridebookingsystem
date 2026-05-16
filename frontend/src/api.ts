@@ -183,7 +183,7 @@ export async function claimMarketplace(id: string) {
 }
 
 // ---------- Push notifications ----------
-export async function registerPushToken(token: string, platform: string) {
+export async function registerPushToken(token: string, platform: string, deviceId?: string) {
   // Try the most common shapes — the backend will accept the first one it understands.
   const payload = {
     token,
@@ -191,6 +191,7 @@ export async function registerPushToken(token: string, platform: string) {
     push_token: token,
     platform,
     device_type: platform,
+    device_id: deviceId,
   };
   // Try driver endpoint first (works for drivers), then pro variants, then
   // a universal one — we accept the first 2xx and silently move on otherwise.
