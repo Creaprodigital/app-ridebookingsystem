@@ -52,7 +52,7 @@ export default function ProMapScreen() {
         <View style={styles.center}><ActivityIndicator color={colors.primary} /></View>
       ) : (
         <View style={{ flex: 1 }}>
-          <MapView lat={center.lat} lng={center.lng} extraMarkers={markers} fitBounds style={{ flex: 1 }} />
+          <MapView lat={center.lat} lng={center.lng} extraMarkers={markers} fitBounds={markers.length > 0} showDriverMarker={false} style={{ flex: 1 }} />
           {/* Floating legend */}
           <View style={styles.legend} pointerEvents="none">
             <View style={styles.legendRow}><View style={[styles.legendDot, { backgroundColor: colors.success }]} /><Text style={styles.legendTxt}>En service</Text></View>

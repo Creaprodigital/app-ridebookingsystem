@@ -28,11 +28,11 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     if (loading) return;
-    const inAuthGroup = segments[0] === 'login';
+    const inAuthGroup = segments[0] === 'login' || segments[0] === 'welcome';
     const inProGroup = segments[0] === '(pro)';
     const inTabsGroup = segments[0] === '(tabs)';
     if (!user && !inAuthGroup) {
-      router.replace('/login');
+      router.replace('/welcome');
     } else if (user && inAuthGroup) {
       router.replace(isPro ? '/(pro)' : '/(tabs)');
     } else if (user && isPro && inTabsGroup) {
@@ -122,6 +122,7 @@ export default function RootLayout() {
                 }}
               >
                 <Stack.Screen name="index" />
+                <Stack.Screen name="welcome" />
                 <Stack.Screen name="login" />
                 <Stack.Screen name="(tabs)" />
                 <Stack.Screen name="(pro)" />

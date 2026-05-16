@@ -12,7 +12,7 @@ export default function Index() {
       </View>
     );
   }
-  if (!user) return <Redirect href="/login" />;
+  if (!user) return <Redirect href="/welcome" />;
   return <Redirect href={isPro ? '/(pro)' : '/(tabs)'} />;
 }
 

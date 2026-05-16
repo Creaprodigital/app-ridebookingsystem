@@ -2,9 +2,22 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform, View, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '../../src/theme';
 
+function FabIcon() {
+  return (
+    <View style={styles.fabIcon}>
+      <Ionicons name="add" size={26} color={colors.bg} />
+    </View>
+  );
+}
+
 export default function ProLayout() {
+  const insets = useSafeAreaInsets();
+  // Add the safe-area bottom inset to the tab bar so the navigation gesture
+  // area never hides the content on Android phones with gesture nav bar.
+  const bottomPad = Math.max(insets.bottom, Platform.OS === 'ios' ? 24 : 12);
   return (
     <Tabs
       screenOptions={{
@@ -16,11 +29,12 @@ export default function ProLayout() {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
           borderTopWidth: 1,
-          height: Platform.OS === 'ios' ? 84 : 64,
+          height: 64 + bottomPad,
           paddingTop: 6,
-          paddingBottom: Platform.OS === 'ios' ? 24 : 6,
+          paddingBottom: bottomPad,
         },
         tabBarLabelStyle: { fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },
+        sceneStyle: { backgroundColor: colors.bg },
       }}
     >
       <Tabs.Screen
@@ -45,11 +59,7 @@ export default function ProLayout() {
         name="create"
         options={{
           title: 'Créer',
-          tabBarIcon: ({ color }) => (
-            <View style={styles.fabIcon}>
-              <Ionicons name="add" size={26} color={colors.bg} />
-            </View>
-          ),
+          tabBarIcon: () => <FabIcon />,
           tabBarLabelStyle: { fontSize: 10, fontWeight: '900', letterSpacing: 0.3, color: colors.primary },
         }}
       />
@@ -71,12 +81,7 @@ export default function ProLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="menu"
-        options={{
-          href: null, // hidden from tab bar, accessed from headers
-        }}
-      />
+      <Tabs.Screen name="menu" options={{ href: null }} />
     </Tabs>
   );
 }
@@ -87,7 +92,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center', justifyContent: 'center',
     marginTop: -8,
-    shadowColor: colors.primary, shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
 });

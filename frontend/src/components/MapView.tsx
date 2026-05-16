@@ -27,6 +27,8 @@ type Props = {
   polylines?: Polyline[];
   /** Auto-fit the map to include all markers + polylines. */
   fitBounds?: boolean;
+  /** Show the yellow "You are here" marker at lat/lng. Default true. */
+  showDriverMarker?: boolean;
   style?: any;
 };
 
@@ -44,7 +46,7 @@ const darkStyle = JSON.stringify([
   { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#52525b' }] },
 ]);
 
-function buildHtml(lat: number, lng: number, markers: Marker[], polylines: Polyline[], fitBounds: boolean) {
+function buildHtml(lat: number, lng: number, markers: Marker[], polylines: Polyline[], fitBounds: boolean, showDriverMarker: boolean) {
   const markersJson = JSON.stringify(markers || []);
   const polysJson = JSON.stringify(polylines || []);
   return `<!DOCTYPE html><html><head>
@@ -101,7 +103,7 @@ function initMap(){
       styles:${darkStyle}
     });
     driverMarker = new google.maps.Marker({
-      position:{lat:${lat},lng:${lng}}, map, icon: DOT_ICON, title:'Vous'
+      position:{lat:${lat},lng:${lng}}, map: ${showDriverMarker ? 'map' : 'null'}, icon: DOT_ICON, title:'Vous'
     });
     drawMarkers(${markersJson});
     drawPolylines(${polysJson});
@@ -303,13 +305,13 @@ function fitToContent(){
 </body></html>`;
 }
 
-export default function MapView({ lat, lng, extraMarkers = [], polylines = [], fitBounds = false, style }: Props) {
+export default function MapView({ lat, lng, extraMarkers = [], polylines = [], fitBounds = false, showDriverMarker = true, style }: Props) {
   const latitude = lat ?? 48.8566;
   const longitude = lng ?? 2.3522;
   // Build the HTML once at first render — subsequent updates flow through
   // postMessage so the map (and its zoom level) is preserved.
   const html = useMemo(
-    () => buildHtml(latitude, longitude, extraMarkers, polylines, fitBounds),
+    () => buildHtml(latitude, longitude, extraMarkers, polylines, fitBounds, showDriverMarker),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );

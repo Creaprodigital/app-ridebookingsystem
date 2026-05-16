@@ -78,8 +78,8 @@ export default function Login() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.brandWrap}>
-            <Text style={styles.brandTitle}>SharedRide</Text>
-            <Text style={styles.brandKicker}>Driver</Text>
+            <Text style={styles.brandTitle}>Ride Booking</Text>
+            <Text style={styles.brandKicker}>System</Text>
           </View>
 
           <View style={styles.card}>
@@ -170,7 +170,7 @@ export default function Login() {
             </Text>
           </View>
 
-          <Text style={styles.footer}>© {new Date().getFullYear()} SharedRide Driver</Text>
+          <Text style={styles.footer}>© {new Date().getFullYear()} Ride Booking System</Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

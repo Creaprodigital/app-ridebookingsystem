@@ -15,26 +15,32 @@ import {
 } from '../../src/proApi';
 import { getProClients, ProClient } from '../../src/proClients';
 import { haptic } from '../../src/feedback';
+import AddressInput from '../../src/components/AddressInput';
 
 // ─────────────────────────────────────────────────────────────────────────
 // Types / helpers
 // ─────────────────────────────────────────────────────────────────────────
 
-type TripType = 'oneway' | 'tour' | 'hourly' | 'pool';
+type TripType = 'oneway' | 'round_trip' | 'hourly' | 'pool' | 'tour';
 type PayMode = 'online' | 'cash_onboard' | 'card_onboard';
 
-const TRIP_TYPES: { k: TripType; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+const ALL_TRIP_TYPES: { k: TripType; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { k: 'oneway', label: 'Aller simple', icon: 'arrow-forward' },
-  { k: 'tour', label: 'Aller-retour', icon: 'swap-horizontal' },
-  { k: 'hourly', label: 'À disposition', icon: 'time-outline' },
+  { k: 'round_trip', label: 'Aller-retour', icon: 'swap-horizontal' },
+  { k: 'hourly', label: 'Mise à disposition', icon: 'time-outline' },
   { k: 'pool', label: 'Taxi Partagé', icon: 'people-outline' },
+  { k: 'tour', label: 'Circuit touristique', icon: 'compass-outline' },
 ];
 
-const PAY_OPTIONS: { k: PayMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+const ALL_PAY_OPTIONS: { k: PayMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
   { k: 'online', label: 'À bord', icon: 'card-outline' },
   { k: 'cash_onboard', label: 'Espèces à bord', icon: 'cash-outline' },
   { k: 'card_onboard', label: 'CB à bord (TPE)', icon: 'card' },
 ];
+
+// Trip types where "Prise en charge maintenant" cannot apply — these need
+// advance scheduling because of vehicle/driver coordination.
+const FORCE_LATER: TripType[] = ['hourly', 'pool', 'tour'];
 
 function pad(n: number) { return n < 10 ? `0${n}` : String(n); }
 function fmtDate(d: Date) { return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`; }
@@ -60,12 +66,54 @@ export default function CreateBookingScreen() {
   const router = useRouter();
   const { tenant } = useAuth();
   const tenantId = tenant?.id;
+  const tt = (tenant as any)?.trip_types_config || {};
+  const pc = (tenant as any)?.payment_config || {};
+  const pool = (tenant as any)?.pool_config || {};
+
+  // Filter trip types from tenant config — hidden if disabled in backoffice
+  const TRIP_TYPES = useMemo(() => {
+    return ALL_TRIP_TYPES.filter((t) => {
+      if (t.k === 'oneway') return tt?.one_way?.enabled !== false;
+      if (t.k === 'round_trip') return tt?.round_trip?.enabled === true;
+      if (t.k === 'hourly') return tt?.hourly?.enabled === true;
+      if (t.k === 'pool') return pool?.enabled === true;
+      if (t.k === 'tour') return tt?.tour?.enabled === true || (tt?.tour_circuit?.enabled === true);
+      return false;
+    });
+  }, [tt, pool]);
+
+  // Filter payment methods from tenant config — only enabled methods show up.
+  // "À bord" (online) appears if any online gateway is enabled (Stripe / PayPal / SumUp / MyPOS).
+  const PAY_OPTIONS = useMemo(() => {
+    return ALL_PAY_OPTIONS.filter((p) => {
+      if (p.k === 'online') {
+        return !!(pc?.stripe?.enabled || pc?.paypal?.enabled || pc?.sumup?.enabled || pc?.mypos?.enabled);
+      }
+      if (p.k === 'cash_onboard') return pc?.cash_onboard_enabled === true;
+      if (p.k === 'card_onboard') return pc?.card_onboard_enabled === true;
+      return false;
+    });
+  }, [pc]);
 
   // Form state
   const [tripType, setTripType] = useState<TripType>('oneway');
   const [pickup, setPickup] = useState('');
   const [dropoff, setDropoff] = useState('');
   const [scheduleMode, setScheduleMode] = useState<'now' | 'later'>('later');
+
+  // Auto-pick the first available trip type / payment method once the tenant
+  // config has loaded, and force "later" scheduling for restricted services.
+  useEffect(() => {
+    if (TRIP_TYPES.length > 0 && !TRIP_TYPES.find((t) => t.k === tripType)) {
+      setTripType(TRIP_TYPES[0].k);
+    }
+  }, [TRIP_TYPES, tripType]);
+  useEffect(() => {
+    if (FORCE_LATER.includes(tripType) && scheduleMode === 'now') {
+      setScheduleMode('later');
+    }
+  }, [tripType, scheduleMode]);
+  const nowDisabled = FORCE_LATER.includes(tripType);
   const [date, setDate] = useState<Date>(() => { const d = new Date(); d.setDate(d.getDate()); return d; });
   const [hour, setHour] = useState<number>(() => new Date().getHours());
   const [minute, setMinute] = useState<number>(0);
@@ -88,6 +136,13 @@ export default function CreateBookingScreen() {
   const [trainNumber, setTrainNumber] = useState('');
   const [notes, setNotes] = useState('');
   const [payment, setPayment] = useState<PayMode>('online');
+
+  // Auto-pick the first available payment method once the tenant config loads.
+  useEffect(() => {
+    if (PAY_OPTIONS.length > 0 && !PAY_OPTIONS.find((p) => p.k === payment)) {
+      setPayment(PAY_OPTIONS[0].k);
+    }
+  }, [PAY_OPTIONS, payment]);
   const [drivers, setDrivers] = useState<ProDriver[]>([]); // used only for marketplace flow
   const [quote, setQuote] = useState<any>(null);
   const [quoting, setQuoting] = useState(false);
@@ -249,49 +304,49 @@ export default function CreateBookingScreen() {
             </View>
           </View>
 
-          {/* ─── ADRESSES ─── */}
-          <View style={styles.block}>
-            <View style={styles.field}>
-              <Ionicons name="navigate-circle-outline" size={18} color={colors.textSecondary} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.fieldLabel}>Adresse de départ</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  placeholder="Ex : Paris, Gare de Lyon…"
-                  placeholderTextColor={colors.textMuted}
-                  value={pickup}
-                  onChangeText={setPickup}
-                />
-              </View>
-            </View>
-            <View style={styles.field}>
-              <Ionicons name="location-outline" size={18} color={colors.textSecondary} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.fieldLabel}>Destination</Text>
-                <TextInput
-                  style={styles.fieldInput}
-                  placeholder="Ex : Paris CDG, Versailles…"
-                  placeholderTextColor={colors.textMuted}
-                  value={dropoff}
-                  onChangeText={setDropoff}
-                />
-              </View>
-            </View>
+          {/* ─── ADRESSES (with Google Places autocomplete) ─── */}
+          <View style={[styles.block, { zIndex: 30 }]}>
+            <AddressInput
+              label="Adresse de départ"
+              placeholder="Ex : Paris, Gare de Lyon…"
+              value={pickup}
+              onChange={setPickup}
+              iconName="navigate-circle-outline"
+              testID="pickup-input"
+            />
+            <AddressInput
+              label="Destination"
+              placeholder="Ex : Paris CDG, Versailles…"
+              value={dropoff}
+              onChange={setDropoff}
+              iconName="location-outline"
+              testID="dropoff-input"
+            />
           </View>
 
           {/* ─── QUAND ─── */}
           <View style={styles.block}>
             <Text style={styles.kicker}>QUAND ?</Text>
             <TouchableOpacity
-              style={[styles.whenCard, scheduleMode === 'now' && styles.whenCardActive]}
-              onPress={() => { setScheduleMode('now'); haptic('light'); }}
-              activeOpacity={0.85}
+              style={[
+                styles.whenCard,
+                scheduleMode === 'now' && !nowDisabled && styles.whenCardActive,
+                nowDisabled && styles.whenCardDisabled,
+              ]}
+              onPress={() => { if (nowDisabled) return; setScheduleMode('now'); haptic('light'); }}
+              activeOpacity={nowDisabled ? 1 : 0.85}
+              disabled={nowDisabled}
             >
-              <Ionicons name="flash-outline" size={22} color={scheduleMode === 'now' ? colors.primary : colors.textSecondary} />
+              <Ionicons name="flash-outline" size={22} color={nowDisabled ? colors.textMuted : (scheduleMode === 'now' ? colors.primary : colors.textSecondary)} />
               <View style={{ flex: 1 }}>
-                <Text style={[styles.whenTitle, scheduleMode === 'now' && { color: colors.primary }]}>Prise en charge maintenant</Text>
-                <Text style={styles.whenSub}>Départ immédiat (~15 min)</Text>
+                <Text style={[styles.whenTitle, scheduleMode === 'now' && !nowDisabled && { color: colors.primary }, nowDisabled && { color: colors.textMuted }]}>
+                  Prise en charge maintenant
+                </Text>
+                <Text style={styles.whenSub}>
+                  {nowDisabled ? 'Indisponible pour ce service' : 'Départ immédiat (~15 min)'}
+                </Text>
               </View>
+              {nowDisabled ? <Ionicons name="lock-closed" size={14} color={colors.textMuted} /> : null}
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.whenCard, scheduleMode === 'later' && styles.whenCardActive]}
@@ -334,7 +389,7 @@ export default function CreateBookingScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.label}>Bagage(s)</Text>
-                <Counter value={bags} onChange={setBags} min={0} max={20} icon="briefcase-outline" suffix="bagage" />
+                <Counter value={bags} onChange={setBags} min={0} max={20} icon="briefcase-outline" />
               </View>
             </View>
           </View>
@@ -657,6 +712,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md, padding: spacing.md,
   },
   whenCardActive: { backgroundColor: colors.primary + '15', borderColor: colors.primary, borderWidth: 1.5 },
+  whenCardDisabled: { opacity: 0.45 },
   whenTitle: { color: colors.text, fontSize: 14, fontWeight: '800' },
   whenSub: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
 
