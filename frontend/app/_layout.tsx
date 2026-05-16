@@ -77,6 +77,7 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
     (async () => {
       try {
         await setupPushNotifications({
+          role: isPro ? 'pro' : 'driver',
           onTap: (data: any) => {
             if (cancelled) return;
             // Bring the user to the most relevant screen on tap.

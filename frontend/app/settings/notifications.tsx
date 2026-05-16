@@ -22,9 +22,11 @@ import {
   getStoredPushToken,
 } from '../../src/pushService';
 import { ensureNotifPermission, notifyNewRide, haptic } from '../../src/feedback';
+import { useAuth } from '../../src/auth';
 
 export default function NotificationsSettings() {
   const router = useRouter();
+  const { isPro } = useAuth();
   const [enabled, setEnabled] = useState(false);
   const [permission, setPermission] = useState<boolean>(false);
   const [token, setToken] = useState<string | null>(null);
@@ -58,7 +60,7 @@ export default function NotificationsSettings() {
     try {
       if (next) {
         await setPushEnabled(true);
-        const r = await setupPushNotifications();
+        const r = await setupPushNotifications({ role: isPro ? 'pro' : 'driver' });
         setEnabled(r.enabled);
         setPermission(r.permission);
         setToken(r.token);

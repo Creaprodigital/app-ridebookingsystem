@@ -59,6 +59,8 @@ export type PushSetupOptions = {
   onTap?: (data: any) => void;
   /** Fired when an `incoming_ride` notification is received in foreground. */
   onIncoming?: (data: any) => void;
+  /** Caller's role so we hit the right backend endpoint first. */
+  role?: 'pro' | 'driver' | string;
 };
 
 /**
@@ -100,7 +102,7 @@ export async function setupPushNotifications(opts?: PushSetupOptions): Promise<P
 
   await prefSet(PUSH_TOKEN_KEY, tk.token);
   const deviceId = await getOrCreateDeviceId();
-  const reg = await registerPushToken(tk.token, Platform.OS, deviceId);
+  const reg = await registerPushToken(tk.token, Platform.OS, deviceId, opts?.role);
   result.registered = !!reg;
 
   // Set up listeners once

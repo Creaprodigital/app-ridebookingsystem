@@ -183,7 +183,12 @@ export async function claimMarketplace(id: string) {
 }
 
 // ---------- Push notifications ----------
-export async function registerPushToken(token: string, platform: string, deviceId?: string) {
+export async function registerPushToken(
+  token: string,
+  platform: string,
+  deviceId?: string,
+  role?: 'pro' | 'driver' | string,
+) {
   // Try the most common shapes — the backend will accept the first one it understands.
   const payload = {
     token,
@@ -193,9 +198,13 @@ export async function registerPushToken(token: string, platform: string, deviceI
     device_type: platform,
     device_id: deviceId,
   };
-  // Try driver endpoint first (works for drivers), then pro variants, then
-  // a universal one — we accept the first 2xx and silently move on otherwise.
-  const candidates = ['/driver/push-token', '/pro/push-token', '/me/push-token', '/push-token'];
+  // Try the role-specific endpoint first to avoid noisy 403s in production
+  // (e.g. a Pro user posting to /driver/push-token returns Forbidden).
+  // Then fall back to the other variants so this stays robust if the
+  // backend renames or adds endpoints later.
+  const proFirst = ['/pro/push-token', '/driver/push-token', '/me/push-token', '/push-token'];
+  const driverFirst = ['/driver/push-token', '/pro/push-token', '/me/push-token', '/push-token'];
+  const candidates = role === 'pro' ? proFirst : driverFirst;
   for (const path of candidates) {
     try {
       const { data } = await api.post(path, payload);
