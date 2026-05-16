@@ -1,91 +1,177 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
+  ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Image, Modal,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { colors, radius, spacing } from '../../src/theme';
 import ProHeader from '../../src/components/ProHeader';
 import { useAuth } from '../../src/auth';
-import { createBooking, quoteBooking, getProVehicleCategories, getProDrivers, ProCategory, ProDriver } from '../../src/proApi';
+import {
+  createBooking, quoteBooking, getProVehicleCategories, getProDrivers,
+  ProCategory, ProDriver,
+} from '../../src/proApi';
+import { getProClients, ProClient } from '../../src/proClients';
 import { haptic } from '../../src/feedback';
 
-type Priority = 'low' | 'normal' | 'high' | 'urgent';
+// ─────────────────────────────────────────────────────────────────────────
+// Types / helpers
+// ─────────────────────────────────────────────────────────────────────────
+
+type TripType = 'oneway' | 'tour' | 'hourly' | 'pool';
+type PayMode = 'online' | 'cash_onboard' | 'card_onboard';
+
+const TRIP_TYPES: { k: TripType; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { k: 'oneway', label: 'Aller simple', icon: 'arrow-forward' },
+  { k: 'tour', label: 'Aller-retour', icon: 'swap-horizontal' },
+  { k: 'hourly', label: 'À disposition', icon: 'time-outline' },
+  { k: 'pool', label: 'Taxi Partagé', icon: 'people-outline' },
+];
+
+const PAY_OPTIONS: { k: PayMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { k: 'online', label: 'À bord', icon: 'card-outline' },
+  { k: 'cash_onboard', label: 'Espèces à bord', icon: 'cash-outline' },
+  { k: 'card_onboard', label: 'CB à bord (TPE)', icon: 'card' },
+];
 
 function pad(n: number) { return n < 10 ? `0${n}` : String(n); }
-function toIsoLocal(d: Date) {
-  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+function fmtDate(d: Date) { return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`; }
+function buildIso(date: Date, h: number, m: number) {
+  const d = new Date(date); d.setHours(h, m, 0, 0);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(h)}:${pad(m)}`;
 }
-function driverName(d: ProDriver) {
-  return `${d.first_name || ''} ${d.last_name || ''}`.trim() || d.email || d.id.slice(0,6);
+function clientName(c: ProClient) {
+  return `${c.first_name || ''} ${c.last_name || ''}`.trim() || c.email || '—';
 }
+function categoryPrice(baseTotal: number | null, baseMultiplier: number, c: ProCategory): number | null {
+  if (baseTotal == null) return null;
+  const m = Number(c.multiplier ?? 1) || 1;
+  const base = baseMultiplier > 0 ? baseTotal / baseMultiplier : baseTotal;
+  return Number((base * m).toFixed(2));
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Screen
+// ─────────────────────────────────────────────────────────────────────────
 
 export default function CreateBookingScreen() {
-  const { tenant } = useAuth();
   const router = useRouter();
+  const { tenant } = useAuth();
   const tenantId = tenant?.id;
 
+  // Form state
+  const [tripType, setTripType] = useState<TripType>('oneway');
   const [pickup, setPickup] = useState('');
   const [dropoff, setDropoff] = useState('');
-  const [whenIso, setWhenIso] = useState<string>(() => {
-    const d = new Date(); d.setMinutes(d.getMinutes() + 30); d.setSeconds(0, 0);
-    return toIsoLocal(d);
-  });
-  const [scheduleNow, setScheduleNow] = useState(false);
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
-  const [pax, setPax] = useState('1');
-  const [bags, setBags] = useState('0');
+  const [scheduleMode, setScheduleMode] = useState<'now' | 'later'>('later');
+  const [date, setDate] = useState<Date>(() => { const d = new Date(); d.setDate(d.getDate()); return d; });
+  const [hour, setHour] = useState<number>(() => new Date().getHours());
+  const [minute, setMinute] = useState<number>(0);
+  const [pax, setPax] = useState(1);
+  const [bags, setBags] = useState(0);
   const [categories, setCategories] = useState<ProCategory[]>([]);
   const [vehicleType, setVehicleType] = useState<string | null>(null);
-  const [drivers, setDrivers] = useState<ProDriver[]>([]);
-  const [assignedDriver, setAssignedDriver] = useState<string | null>(null);
-  const [autoAssign, setAutoAssign] = useState(true);
-  const [priority, setPriority] = useState<Priority>('normal');
-  const [internalNotes, setInternalNotes] = useState('');
+  const [manualPrice, setManualPrice] = useState<string>('');
+  const [clients, setClients] = useState<ProClient[]>([]);
+  const [clientPickerOpen, setClientPickerOpen] = useState(false);
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [hourPickerOpen, setHourPickerOpen] = useState(false);
+  const [minutePickerOpen, setMinutePickerOpen] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<ProClient | null>(null);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [flightNumber, setFlightNumber] = useState('');
+  const [trainNumber, setTrainNumber] = useState('');
   const [notes, setNotes] = useState('');
-  const [payment, setPayment] = useState<'cash_onboard' | 'card_online'>('cash_onboard');
+  const [payment, setPayment] = useState<PayMode>('online');
+  const [drivers, setDrivers] = useState<ProDriver[]>([]); // used only for marketplace flow
   const [quote, setQuote] = useState<any>(null);
   const [quoting, setQuoting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // Load static data once
   useEffect(() => {
     (async () => {
       try {
-        const [cats, drvs] = await Promise.all([getProVehicleCategories(), getProDrivers()]);
+        const [cats, drvs, cls] = await Promise.all([
+          getProVehicleCategories(),
+          getProDrivers().catch(() => []),
+          getProClients().catch(() => []),
+        ]);
         setCategories(cats);
         if (cats?.[0]) setVehicleType(cats[0].id);
         setDrivers(drvs);
+        setClients(cls);
       } catch {}
     })();
   }, []);
 
-  const canQuote = !!(tenantId && pickup.trim() && (scheduleNow || whenIso));
-  const canSubmit = !!(tenantId && pickup.trim() && (scheduleNow || whenIso) && firstName.trim() && phone.trim());
+  const isoPickup = useMemo(() => {
+    if (scheduleMode === 'now') {
+      const d = new Date(); d.setMinutes(d.getMinutes() + 15);
+      return buildIso(d, d.getHours(), d.getMinutes());
+    }
+    return buildIso(date, hour, minute);
+  }, [scheduleMode, date, hour, minute]);
 
-  const onQuote = useCallback(async () => {
+  // Auto-quote whenever required fields change
+  const canQuote = !!(tenantId && pickup.trim() && isoPickup);
+  const triggerQuote = useCallback(async () => {
     if (!canQuote || !tenantId) return;
     setQuoting(true);
     try {
-      const at = scheduleNow ? toIsoLocal(new Date()) : whenIso;
       const q = await quoteBooking({
         tenant_id: tenantId,
         pickup_address: pickup.trim(),
         dropoff_address: dropoff.trim() || undefined,
-        pickup_at: at,
-        vehicle_type: vehicleType || undefined,
-        pax: Number(pax) || 1,
-        bags: Number(bags) || 0,
+        pickup_at: isoPickup,
+        trip_type: tripType,
+        pax,
+        bags,
       });
       setQuote(q);
-      haptic('light');
-    } catch (e: any) {
-      Alert.alert('Estimation impossible', e?.message || 'Vérifiez les adresses.');
+    } catch {
+      setQuote(null);
     } finally {
       setQuoting(false);
     }
-  }, [canQuote, tenantId, pickup, dropoff, scheduleNow, whenIso, vehicleType, pax, bags]);
+  }, [canQuote, tenantId, pickup, dropoff, isoPickup, tripType, pax, bags]);
+
+  useEffect(() => {
+    const id = setTimeout(() => { triggerQuote(); }, 700);
+    return () => clearTimeout(id);
+  }, [pickup, dropoff, isoPickup, tripType, triggerQuote]);
+
+  const selectedCategory = useMemo(
+    () => categories.find((c) => c.id === vehicleType) || null,
+    [categories, vehicleType],
+  );
+  const baseTotal: number | null = quote ? Number(quote.final ?? quote.total ?? quote.subtotal) : null;
+  const baseMultiplier = quote?.multiplier ? Number(quote.multiplier) : 1;
+  const selectedPrice = selectedCategory ? categoryPrice(baseTotal, baseMultiplier, selectedCategory) : baseTotal;
+
+  // When user fills manualPrice, use that for submission. Otherwise use computed.
+  const finalPrice = useMemo(() => {
+    const m = Number(manualPrice);
+    if (Number.isFinite(m) && m > 0) return m;
+    return selectedPrice ?? 0;
+  }, [manualPrice, selectedPrice]);
+
+  const canSubmit = !!(tenantId && pickup.trim() && isoPickup && (firstName.trim() || selectedClient) && (phone.trim() || selectedClient?.phone));
+
+  const pickClient = (c: ProClient) => {
+    setSelectedClient(c);
+    setFirstName(c.first_name || '');
+    setLastName(c.last_name || '');
+    setEmail(c.email || '');
+    setPhone(c.phone || '');
+    setClientPickerOpen(false);
+    haptic('light');
+  };
 
   const onSubmit = async () => {
     if (!canSubmit || !tenantId) {
@@ -94,252 +180,577 @@ export default function CreateBookingScreen() {
     }
     setSubmitting(true);
     try {
-      const at = scheduleNow ? toIsoLocal(new Date()) : whenIso;
       await createBooking({
         tenant_id: tenantId,
         pickup_address: pickup.trim(),
         dropoff_address: dropoff.trim() || undefined,
-        pickup_at: at,
+        pickup_at: isoPickup,
+        trip_type: tripType,
         vehicle_type: vehicleType || undefined,
-        pax: Number(pax) || 1,
-        bags: Number(bags) || 0,
+        pax,
+        bags,
         payment_method: payment,
-        contact: { first_name: firstName.trim(), last_name: lastName.trim(), phone: phone.trim(), email: email.trim() || undefined },
+        contact: {
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
+          phone: phone.trim(),
+          email: email.trim() || undefined,
+        },
         notes: notes.trim() || undefined,
-        internal_notes: internalNotes.trim() || undefined,
-        priority,
-        driver_id: autoAssign ? null : assignedDriver,
       });
       haptic('success');
-      Alert.alert('Course créée', 'La course a été enregistrée avec succès.', [
+      Alert.alert('Réservation créée', 'La course a été enregistrée avec succès.', [
         { text: 'OK', onPress: () => router.replace('/(pro)/dispatch' as any) },
       ]);
     } catch (e: any) {
-      Alert.alert('Échec de création', e?.response?.data?.detail || e?.message || 'Erreur lors de la création.');
+      const msg = e?.response?.data?.detail || e?.message || 'Erreur lors de la création.';
+      Alert.alert('Échec de création', typeof msg === 'string' ? msg : 'Erreur lors de la création.');
     } finally {
       setSubmitting(false);
     }
   };
 
+  // Date helpers for picker
+  const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
+  const nextDays = useMemo(() => {
+    const arr: Date[] = [];
+    for (let i = 0; i < 30; i++) {
+      const d = new Date(today); d.setDate(today.getDate() + i); arr.push(d);
+    }
+    return arr;
+  }, [today]);
+
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <ProHeader title="Créer une course" subtitle={tenant?.company_name || 'Nouvelle réservation'} />
+      <ProHeader title="Créer une course" subtitle="Nouvelle réservation" />
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ padding: spacing.md, gap: spacing.md, paddingBottom: 160 }} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={{ padding: spacing.md, gap: spacing.md, paddingBottom: 180 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* ─── TYPE DE COURSE ─── */}
+          <View style={styles.block}>
+            <Text style={styles.kicker}>TYPE DE COURSE</Text>
+            <View style={styles.tripGrid}>
+              {TRIP_TYPES.map((t) => {
+                const active = tripType === t.k;
+                return (
+                  <TouchableOpacity
+                    key={t.k}
+                    style={[styles.tripCard, active && styles.tripCardActive]}
+                    onPress={() => { setTripType(t.k); haptic('light'); }}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name={t.icon} size={22} color={active ? colors.primary : colors.textSecondary} />
+                    <Text style={[styles.tripLabel, active && { color: colors.primary }]}>{t.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
 
-          {/* Trajet */}
-          <View style={styles.card}>
-            <Text style={styles.section}>Trajet</Text>
+          {/* ─── ADRESSES ─── */}
+          <View style={styles.block}>
             <View style={styles.field}>
-              <Ionicons name="radio-button-on" size={16} color={colors.primary} />
-              <TextInput style={styles.input} placeholder="Adresse de départ" placeholderTextColor={colors.textMuted} value={pickup} onChangeText={setPickup} />
+              <Ionicons name="navigate-circle-outline" size={18} color={colors.textSecondary} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fieldLabel}>Adresse de départ</Text>
+                <TextInput
+                  style={styles.fieldInput}
+                  placeholder="Ex : Paris, Gare de Lyon…"
+                  placeholderTextColor={colors.textMuted}
+                  value={pickup}
+                  onChangeText={setPickup}
+                />
+              </View>
             </View>
             <View style={styles.field}>
-              <Ionicons name="location" size={16} color={colors.danger} />
-              <TextInput style={styles.input} placeholder="Destination (optionnel)" placeholderTextColor={colors.textMuted} value={dropoff} onChangeText={setDropoff} />
-            </View>
-          </View>
-
-          {/* Date / Heure */}
-          <View style={styles.card}>
-            <View style={styles.rowBetween}>
-              <Text style={styles.section}>Date & heure</Text>
-              <View style={styles.segRow}>
-                <TouchableOpacity style={[styles.segBtn, !scheduleNow && styles.segBtnActive]} onPress={() => setScheduleNow(false)}>
-                  <Text style={[styles.segTxt, !scheduleNow && styles.segTxtActive]}>Plus tard</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.segBtn, scheduleNow && styles.segBtnActive]} onPress={() => setScheduleNow(true)}>
-                  <Text style={[styles.segTxt, scheduleNow && styles.segTxtActive]}>Immédiat</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            {!scheduleNow ? (
-              <View style={styles.field}>
-                <Ionicons name="calendar-outline" size={16} color={colors.textSecondary} />
-                <TextInput style={styles.input} placeholder="YYYY-MM-DDTHH:MM" placeholderTextColor={colors.textMuted} value={whenIso} onChangeText={setWhenIso} />
-              </View>
-            ) : (
-              <Text style={styles.hint}>La course sera planifiée pour maintenant.</Text>
-            )}
-          </View>
-
-          {/* Catégorie véhicule */}
-          <View style={styles.card}>
-            <Text style={styles.section}>Catégorie véhicule</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-              {categories.map((c) => (
-                <TouchableOpacity key={c.id} style={[styles.chip, vehicleType === c.id && styles.chipActive]} onPress={() => setVehicleType(c.id)}>
-                  <Text style={[styles.chipTxt, vehicleType === c.id && styles.chipTxtActive]}>{c.label}</Text>
-                </TouchableOpacity>
-              ))}
-              {categories.length === 0 ? <Text style={styles.hint}>Aucune catégorie disponible.</Text> : null}
-            </ScrollView>
-            <View style={styles.row}>
-              <View style={[styles.fieldSm, { flex: 1 }]}>
-                <Ionicons name="people-outline" size={14} color={colors.textSecondary} />
-                <TextInput style={styles.input} keyboardType="number-pad" placeholder="Pax" placeholderTextColor={colors.textMuted} value={pax} onChangeText={setPax} />
-              </View>
-              <View style={[styles.fieldSm, { flex: 1 }]}>
-                <Ionicons name="briefcase-outline" size={14} color={colors.textSecondary} />
-                <TextInput style={styles.input} keyboardType="number-pad" placeholder="Bagages" placeholderTextColor={colors.textMuted} value={bags} onChangeText={setBags} />
+              <Ionicons name="location-outline" size={18} color={colors.textSecondary} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fieldLabel}>Destination</Text>
+                <TextInput
+                  style={styles.fieldInput}
+                  placeholder="Ex : Paris CDG, Versailles…"
+                  placeholderTextColor={colors.textMuted}
+                  value={dropoff}
+                  onChangeText={setDropoff}
+                />
               </View>
             </View>
           </View>
 
-          {/* Passager */}
-          <View style={styles.card}>
-            <Text style={styles.section}>Passager</Text>
-            <View style={styles.row}>
-              <View style={[styles.field, { flex: 1 }]}>
+          {/* ─── QUAND ─── */}
+          <View style={styles.block}>
+            <Text style={styles.kicker}>QUAND ?</Text>
+            <TouchableOpacity
+              style={[styles.whenCard, scheduleMode === 'now' && styles.whenCardActive]}
+              onPress={() => { setScheduleMode('now'); haptic('light'); }}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="flash-outline" size={22} color={scheduleMode === 'now' ? colors.primary : colors.textSecondary} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.whenTitle, scheduleMode === 'now' && { color: colors.primary }]}>Prise en charge maintenant</Text>
+                <Text style={styles.whenSub}>Départ immédiat (~15 min)</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.whenCard, scheduleMode === 'later' && styles.whenCardActive]}
+              onPress={() => { setScheduleMode('later'); haptic('light'); }}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="calendar-outline" size={22} color={scheduleMode === 'later' ? colors.primary : colors.textSecondary} />
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.whenTitle, scheduleMode === 'later' && { color: colors.primary }]}>Planifier plus tard</Text>
+                <Text style={styles.whenSub}>Choisir date & heure</Text>
+              </View>
+            </TouchableOpacity>
+
+            {scheduleMode === 'later' ? (
+              <>
+                <Text style={styles.label}>Date & heure</Text>
+                <View style={styles.dateRow}>
+                  <TouchableOpacity style={[styles.dateBtn, { flex: 1.4 }]} onPress={() => setDatePickerOpen(true)}>
+                    <Ionicons name="calendar-outline" size={16} color={colors.textSecondary} />
+                    <Text style={styles.dateTxt}>{fmtDate(date)}</Text>
+                    <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.dateBtn, { flex: 1 }]} onPress={() => setHourPickerOpen(true)}>
+                    <Text style={styles.dateTxt}>{pad(hour)} h</Text>
+                    <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
+                  </TouchableOpacity>
+                  <TouchableOpacity style={[styles.dateBtn, { flex: 1 }]} onPress={() => setMinutePickerOpen(true)}>
+                    <Text style={styles.dateTxt}>{pad(minute)}</Text>
+                    <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : null}
+
+            {/* Passenger + Bags counters */}
+            <View style={styles.row2}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Passager(s)</Text>
+                <Counter value={pax} onChange={setPax} min={1} max={20} icon="people-outline" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Bagage(s)</Text>
+                <Counter value={bags} onChange={setBags} min={0} max={20} icon="briefcase-outline" suffix="bagage" />
+              </View>
+            </View>
+          </View>
+
+          {/* ─── VÉHICULES ─── */}
+          <View style={styles.block}>
+            <Text style={styles.kicker}>CHOISISSEZ VOTRE VÉHICULE</Text>
+            {categories.map((c) => {
+              const active = vehicleType === c.id;
+              const price = categoryPrice(baseTotal, baseMultiplier, c);
+              return (
+                <TouchableOpacity
+                  key={c.id}
+                  style={[styles.vehicleCard, active && styles.vehicleCardActive]}
+                  onPress={() => { setVehicleType(c.id); haptic('light'); }}
+                  activeOpacity={0.9}
+                >
+                  {c.image_url ? (
+                    <Image source={{ uri: c.image_url }} style={styles.vehicleImg} resizeMode="cover" />
+                  ) : (
+                    <View style={[styles.vehicleImg, { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }]}>
+                      <Ionicons name="car-sport" size={28} color={colors.textMuted} />
+                    </View>
+                  )}
+                  <View style={{ flex: 1, gap: 4 }}>
+                    <Text style={styles.vehicleName}>{c.label}</Text>
+                    <View style={styles.vehicleMeta}>
+                      <View style={styles.vehicleMetaItem}>
+                        <Ionicons name="people-outline" size={12} color={colors.textSecondary} />
+                        <Text style={styles.vehicleMetaTxt}>{c.max_seats ?? '—'} pax</Text>
+                      </View>
+                      <View style={styles.vehicleMetaItem}>
+                        <Ionicons name="briefcase-outline" size={12} color={colors.textSecondary} />
+                        <Text style={styles.vehicleMetaTxt}>{c.max_luggage ?? '—'} bag.</Text>
+                      </View>
+                    </View>
+                    {c.description ? <Text style={styles.vehicleDesc} numberOfLines={2}>{c.description}</Text> : null}
+                  </View>
+                  <View style={styles.vehicleRight}>
+                    <Text style={[styles.vehiclePrice, active && { color: colors.primary }]}>
+                      {price != null ? `${price.toFixed(2)} €` : '—'}
+                    </Text>
+                    <View style={[styles.radio, active && styles.radioActive]}>
+                      {active ? <Ionicons name="checkmark" size={14} color={colors.bg} /> : null}
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryLeft}>
+                <Ionicons name="git-network-outline" size={14} color={colors.textSecondary} />
+                <Text style={styles.summaryLeftTxt}>
+                  {quote ? `${(quote.distance_km ?? 0).toFixed(2)} km · ${Math.round(quote.duration_min ?? 0)} min` : (quoting ? 'Calcul…' : 'Renseignez les adresses')}
+                </Text>
+              </View>
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={styles.summaryKicker}>TARIF ESTIMÉ</Text>
+                <Text style={styles.summaryValue}>{selectedPrice != null ? `${selectedPrice.toFixed(2)} €` : '—'}</Text>
+              </View>
+            </View>
+
+            <View style={styles.manualRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.manualLabel}>Tarif manuel <Text style={styles.manualOpt}>(optionnel)</Text></Text>
+                <Text style={styles.manualSub}>Remplace le tarif estimé</Text>
+              </View>
+              <View style={styles.manualInputWrap}>
+                <TextInput
+                  style={styles.manualInput}
+                  placeholder={selectedPrice != null ? selectedPrice.toFixed(2) : '0.00'}
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="decimal-pad"
+                  value={manualPrice}
+                  onChangeText={setManualPrice}
+                />
+                <Text style={styles.manualCurrency}>€</Text>
+                <Ionicons name="create-outline" size={14} color={colors.textMuted} />
+              </View>
+            </View>
+          </View>
+
+          {/* ─── PASSAGER & CONTACT ─── */}
+          <View style={styles.block}>
+            <Text style={styles.kicker}>PASSAGER & CONTACT</Text>
+
+            <TouchableOpacity style={styles.clientSelect} onPress={() => setClientPickerOpen(true)}>
+              <Ionicons name="person-circle-outline" size={18} color={colors.textSecondary} />
+              <Text style={[styles.clientSelectTxt, !selectedClient && { color: colors.textMuted }]}>
+                {selectedClient ? clientName(selectedClient) : 'Sélectionner un client'}
+              </Text>
+              <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
+            </TouchableOpacity>
+
+            <View style={styles.row2}>
+              <View style={[styles.inputBox, { flex: 1 }]}>
                 <Ionicons name="person-outline" size={14} color={colors.textSecondary} />
                 <TextInput style={styles.input} placeholder="Prénom *" placeholderTextColor={colors.textMuted} value={firstName} onChangeText={setFirstName} />
               </View>
-              <View style={[styles.field, { flex: 1 }]}>
+              <View style={[styles.inputBox, { flex: 1 }]}>
                 <TextInput style={styles.input} placeholder="Nom" placeholderTextColor={colors.textMuted} value={lastName} onChangeText={setLastName} />
               </View>
             </View>
-            <View style={styles.field}>
-              <Ionicons name="call-outline" size={14} color={colors.textSecondary} />
-              <TextInput style={styles.input} keyboardType="phone-pad" placeholder="Téléphone *" placeholderTextColor={colors.textMuted} value={phone} onChangeText={setPhone} />
-            </View>
-            <View style={styles.field}>
+            <View style={styles.inputBox}>
               <Ionicons name="mail-outline" size={14} color={colors.textSecondary} />
-              <TextInput style={styles.input} keyboardType="email-address" autoCapitalize="none" placeholder="Email" placeholderTextColor={colors.textMuted} value={email} onChangeText={setEmail} />
+              <TextInput style={styles.input} placeholder="Email" placeholderTextColor={colors.textMuted} keyboardType="email-address" autoCapitalize="none" value={email} onChangeText={setEmail} />
+            </View>
+            <View style={styles.inputBox}>
+              <Ionicons name="call-outline" size={14} color={colors.textSecondary} />
+              <TextInput style={styles.input} placeholder="Téléphone *" placeholderTextColor={colors.textMuted} keyboardType="phone-pad" value={phone} onChangeText={setPhone} />
+            </View>
+            <View style={styles.inputBox}>
+              <Ionicons name="airplane-outline" size={14} color={colors.textSecondary} />
+              <TextInput style={styles.input} placeholder="Numéro de vol (optionnel)" placeholderTextColor={colors.textMuted} autoCapitalize="characters" value={flightNumber} onChangeText={setFlightNumber} />
+            </View>
+            <View style={styles.inputBox}>
+              <Ionicons name="train-outline" size={14} color={colors.textSecondary} />
+              <TextInput style={styles.input} placeholder="Numéro de train (optionnel)" placeholderTextColor={colors.textMuted} autoCapitalize="characters" value={trainNumber} onChangeText={setTrainNumber} />
+            </View>
+            <View style={styles.notesBox}>
+              <TextInput
+                style={styles.notesInput}
+                placeholder="Siège bébé, panneau d'accueil, arrêt intermédiaire…"
+                placeholderTextColor={colors.textMuted}
+                multiline
+                maxLength={200}
+                value={notes}
+                onChangeText={setNotes}
+              />
+              <Text style={styles.notesCount}>{notes.length} / 200</Text>
             </View>
           </View>
 
-          {/* Attribution */}
-          <View style={styles.card}>
-            <View style={styles.rowBetween}>
-              <Text style={styles.section}>Attribution</Text>
-              <View style={styles.segRow}>
-                <TouchableOpacity style={[styles.segBtn, autoAssign && styles.segBtnActive]} onPress={() => setAutoAssign(true)}>
-                  <Text style={[styles.segTxt, autoAssign && styles.segTxtActive]}>Auto</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.segBtn, !autoAssign && styles.segBtnActive]} onPress={() => setAutoAssign(false)}>
-                  <Text style={[styles.segTxt, !autoAssign && styles.segTxtActive]}>Manuel</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-            {!autoAssign ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
-                {drivers.map((d) => (
-                  <TouchableOpacity key={d.id} style={[styles.chip, assignedDriver === d.id && styles.chipActive]} onPress={() => setAssignedDriver(d.id)}>
-                    <View style={[styles.driverDot, { backgroundColor: d.on_shift ? colors.success : colors.textMuted }]} />
-                    <Text style={[styles.chipTxt, assignedDriver === d.id && styles.chipTxtActive]}>{driverName(d)}</Text>
+          {/* ─── PAIEMENT ─── */}
+          <View style={styles.block}>
+            <Text style={styles.kicker}>OPTIONS DE PAIEMENT</Text>
+            <View style={styles.payCol}>
+              {PAY_OPTIONS.map((p) => {
+                const active = payment === p.k;
+                return (
+                  <TouchableOpacity
+                    key={p.k}
+                    style={[styles.payCard, active && styles.payCardActive]}
+                    onPress={() => { setPayment(p.k); haptic('light'); }}
+                    activeOpacity={0.85}
+                  >
+                    <Ionicons name={p.icon} size={18} color={active ? colors.primary : colors.textSecondary} />
+                    <Text style={[styles.payTxt, active && { color: colors.primary }]}>{p.label}</Text>
+                    <View style={[styles.radio, active && styles.radioActive]}>
+                      {active ? <Ionicons name="checkmark" size={12} color={colors.bg} /> : null}
+                    </View>
                   </TouchableOpacity>
-                ))}
-                {drivers.length === 0 ? <Text style={styles.hint}>Aucun chauffeur disponible.</Text> : null}
-              </ScrollView>
-            ) : (
-              <Text style={styles.hint}>Le système attribuera automatiquement un chauffeur disponible.</Text>
-            )}
+                );
+              })}
+            </View>
+            <Text style={styles.payHint}>Les paiements en ligne sont traités via les passerelles certifiées.</Text>
           </View>
 
-          {/* Priorité + Paiement */}
-          <View style={styles.card}>
-            <Text style={styles.section}>Priorité</Text>
-            <View style={styles.row}>
-              {(['low','normal','high','urgent'] as Priority[]).map((p) => (
-                <TouchableOpacity key={p} style={[styles.priorityChip, priority === p && styles.priorityChipActive(p)]} onPress={() => setPriority(p)}>
-                  <Text style={[styles.priorityTxt, priority === p && { color: colors.bg }]}>{p === 'low' ? 'Basse' : p === 'normal' ? 'Normale' : p === 'high' ? 'Haute' : 'Urgente'}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            <Text style={[styles.section, { marginTop: 10 }]}>Paiement</Text>
-            <View style={styles.row}>
-              <TouchableOpacity style={[styles.chip, payment === 'cash_onboard' && styles.chipActive]} onPress={() => setPayment('cash_onboard')}>
-                <Ionicons name="cash-outline" size={14} color={payment === 'cash_onboard' ? colors.bg : colors.textSecondary} />
-                <Text style={[styles.chipTxt, payment === 'cash_onboard' && styles.chipTxtActive]}>Espèces</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.chip, payment === 'card_online' && styles.chipActive]} onPress={() => setPayment('card_online')}>
-                <Ionicons name="card-outline" size={14} color={payment === 'card_online' ? colors.bg : colors.textSecondary} />
-                <Text style={[styles.chipTxt, payment === 'card_online' && styles.chipTxtActive]}>Carte en ligne</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Notes */}
-          <View style={styles.card}>
-            <Text style={styles.section}>Notes</Text>
-            <View style={styles.fieldMulti}>
-              <TextInput style={[styles.input, { height: 60 }]} multiline placeholder="Notes visibles par le chauffeur" placeholderTextColor={colors.textMuted} value={notes} onChangeText={setNotes} />
-            </View>
-            <Text style={[styles.section, { marginTop: 8 }]}>Notes internes dispatcher</Text>
-            <View style={styles.fieldMulti}>
-              <TextInput style={[styles.input, { height: 60 }]} multiline placeholder="Visibles uniquement par les dispatchers" placeholderTextColor={colors.textMuted} value={internalNotes} onChangeText={setInternalNotes} />
-            </View>
-          </View>
-
-          {/* Estimation */}
-          <View style={styles.card}>
-            <View style={styles.rowBetween}>
-              <Text style={styles.section}>Estimation</Text>
-              <TouchableOpacity onPress={onQuote} disabled={!canQuote || quoting} style={[styles.outlineBtn, (!canQuote || quoting) && { opacity: 0.5 }]}>
-                {quoting ? <ActivityIndicator color={colors.primary} size="small" /> : (
-                  <>
-                    <Ionicons name="calculator-outline" size={14} color={colors.primary} />
-                    <Text style={styles.outlineBtnTxt}>Calculer</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-            {quote ? (
-              <View style={styles.quoteBox}>
-                <View style={styles.quoteRow}><Text style={styles.quoteLabel}>Distance</Text><Text style={styles.quoteVal}>{(quote?.distance_km ?? 0).toFixed(2)} km</Text></View>
-                <View style={styles.quoteRow}><Text style={styles.quoteLabel}>Durée</Text><Text style={styles.quoteVal}>{Math.round(quote?.duration_min ?? 0)} min</Text></View>
-                <View style={styles.quoteRow}><Text style={styles.quoteLabel}>Total</Text><Text style={[styles.quoteVal, { color: colors.primary }]}>{(quote?.final ?? quote?.total ?? 0).toFixed(2)} €</Text></View>
-              </View>
-            ) : <Text style={styles.hint}>Renseignez départ / heure pour calculer.</Text>}
-          </View>
-
-          <TouchableOpacity style={[styles.submit, (!canSubmit || submitting) && { opacity: 0.6 }]} onPress={onSubmit} disabled={!canSubmit || submitting} testID="create-submit">
+          {/* ─── SUBMIT ─── */}
+          <TouchableOpacity
+            style={[styles.submit, (!canSubmit || submitting) && { opacity: 0.6 }]}
+            onPress={onSubmit}
+            disabled={!canSubmit || submitting}
+            testID="create-submit"
+          >
             {submitting ? <ActivityIndicator color={colors.bg} /> : (
               <>
-                <Ionicons name="checkmark-circle" size={20} color={colors.bg} />
-                <Text style={styles.submitTxt}>CRÉER LA COURSE</Text>
+                <Text style={styles.submitTxt}>Créer la réservation</Text>
+                <Ionicons name="arrow-forward" size={20} color={colors.bg} />
               </>
             )}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* ─── Client picker modal ─── */}
+      <Modal visible={clientPickerOpen} transparent animationType="slide" onRequestClose={() => setClientPickerOpen(false)}>
+        <View style={styles.backdrop}>
+          <View style={styles.sheet}>
+            <View style={styles.handle} />
+            <Text style={styles.sheetTitle}>Sélectionner un client</Text>
+            <TouchableOpacity style={styles.newClientRow} onPress={() => { setSelectedClient(null); setFirstName(''); setLastName(''); setEmail(''); setPhone(''); setClientPickerOpen(false); }}>
+              <Ionicons name="add-circle" size={20} color={colors.primary} />
+              <Text style={styles.newClientTxt}>Nouveau client</Text>
+            </TouchableOpacity>
+            <ScrollView style={{ maxHeight: 360 }}>
+              {clients.length === 0 ? (
+                <Text style={styles.empty}>Aucun client enregistré</Text>
+              ) : clients.map((c, idx) => (
+                <TouchableOpacity key={`${c.phone || c.email || idx}`} style={styles.clientRow} onPress={() => pickClient(c)}>
+                  <View>
+                    <Text style={styles.clientName}>{clientName(c)}</Text>
+                    <Text style={styles.clientSub}>{c.phone || c.email || '—'}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity style={styles.closeBtn} onPress={() => setClientPickerOpen(false)}>
+              <Text style={styles.closeBtnTxt}>Fermer</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── Date picker modal ─── */}
+      <Modal visible={datePickerOpen} transparent animationType="slide" onRequestClose={() => setDatePickerOpen(false)}>
+        <View style={styles.backdrop}>
+          <View style={styles.sheet}>
+            <View style={styles.handle} />
+            <Text style={styles.sheetTitle}>Choisir la date</Text>
+            <ScrollView style={{ maxHeight: 400 }}>
+              {nextDays.map((d, idx) => {
+                const sel = d.toDateString() === date.toDateString();
+                return (
+                  <TouchableOpacity key={idx} style={[styles.dateOption, sel && styles.dateOptionActive]} onPress={() => { setDate(d); setDatePickerOpen(false); }}>
+                    <Text style={[styles.dateOptionTxt, sel && { color: colors.primary }]}>
+                      {d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' })}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── Hour picker ─── */}
+      <Modal visible={hourPickerOpen} transparent animationType="slide" onRequestClose={() => setHourPickerOpen(false)}>
+        <View style={styles.backdrop}>
+          <View style={styles.sheet}>
+            <View style={styles.handle} />
+            <Text style={styles.sheetTitle}>Heure</Text>
+            <ScrollView style={{ maxHeight: 360 }}>
+              {Array.from({ length: 24 }).map((_, h) => (
+                <TouchableOpacity key={h} style={[styles.dateOption, hour === h && styles.dateOptionActive]} onPress={() => { setHour(h); setHourPickerOpen(false); }}>
+                  <Text style={[styles.dateOptionTxt, hour === h && { color: colors.primary }]}>{pad(h)} h</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ─── Minute picker ─── */}
+      <Modal visible={minutePickerOpen} transparent animationType="slide" onRequestClose={() => setMinutePickerOpen(false)}>
+        <View style={styles.backdrop}>
+          <View style={styles.sheet}>
+            <View style={styles.handle} />
+            <Text style={styles.sheetTitle}>Minutes</Text>
+            <ScrollView style={{ maxHeight: 360 }}>
+              {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map((m) => (
+                <TouchableOpacity key={m} style={[styles.dateOption, minute === m && styles.dateOptionActive]} onPress={() => { setMinute(m); setMinutePickerOpen(false); }}>
+                  <Text style={[styles.dateOptionTxt, minute === m && { color: colors.primary }]}>{pad(m)}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Counter sub-component (passenger / bag)
+// ─────────────────────────────────────────────────────────────────────────
+function Counter({ value, onChange, min, max, icon, suffix }: { value: number; onChange: (n: number) => void; min: number; max: number; icon: keyof typeof Ionicons.glyphMap; suffix?: string }) {
+  return (
+    <View style={styles.counter}>
+      <Ionicons name={icon} size={14} color={colors.textSecondary} />
+      <TouchableOpacity style={styles.counterBtn} onPress={() => onChange(Math.max(min, value - 1))}>
+        <Ionicons name="remove" size={16} color={colors.text} />
+      </TouchableOpacity>
+      <Text style={styles.counterVal}>{value}{suffix ? ` ${suffix}${value > 1 ? 's' : ''}` : ''}</Text>
+      <TouchableOpacity style={styles.counterBtn} onPress={() => onChange(Math.min(max, value + 1))}>
+        <Ionicons name="add" size={16} color={colors.text} />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Styles
+// ─────────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  card: { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm },
-  section: { color: colors.text, fontSize: 14, fontWeight: '900', letterSpacing: -0.2 },
-  hint: { color: colors.textMuted, fontSize: 12, fontStyle: 'italic' },
-  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  row: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  field: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.md, height: 46 },
-  fieldSm: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 10, height: 42 },
-  fieldMulti: { backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: 8 },
-  input: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '500' },
-  segRow: { flexDirection: 'row', backgroundColor: colors.bg, borderRadius: radius.full, padding: 3, gap: 4, borderWidth: 1, borderColor: colors.border },
-  segBtn: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999 },
-  segBtnActive: { backgroundColor: colors.primary },
-  segTxt: { color: colors.textSecondary, fontSize: 11, fontWeight: '800' },
-  segTxtActive: { color: colors.bg },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1, borderRadius: radius.full },
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  chipTxt: { color: colors.textSecondary, fontSize: 12, fontWeight: '800' },
-  chipTxtActive: { color: colors.bg },
-  driverDot: { width: 8, height: 8, borderRadius: 4 },
-  priorityChip: { paddingHorizontal: 12, paddingVertical: 8, backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1, borderRadius: radius.full },
-  priorityChipActive: (p: Priority) => ({
-    backgroundColor: p === 'urgent' ? colors.danger : p === 'high' ? colors.warning : p === 'low' ? colors.textMuted : colors.primary,
-    borderColor: 'transparent',
-  }),
-  priorityTxt: { color: colors.textSecondary, fontSize: 12, fontWeight: '800' },
-  outlineBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 8, backgroundColor: colors.primary + '22', borderColor: colors.primary, borderWidth: 1, borderRadius: radius.full },
-  outlineBtnTxt: { color: colors.primary, fontSize: 12, fontWeight: '900' },
-  quoteBox: { backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1, borderRadius: radius.md, padding: spacing.sm, gap: 4 },
-  quoteRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  quoteLabel: { color: colors.textSecondary, fontSize: 12 },
-  quoteVal: { color: colors.text, fontSize: 13, fontWeight: '800' },
-  submit: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.primary, borderRadius: radius.full, paddingVertical: 16, marginTop: 4 },
-  submitTxt: { color: colors.bg, fontSize: 14, fontWeight: '900', letterSpacing: 1 },
+  block: {
+    backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
+    borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm,
+  },
+  kicker: { color: colors.textMuted, fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
+  label: { color: colors.textSecondary, fontSize: 11, fontWeight: '800', letterSpacing: 0.4, marginTop: 4 },
+
+  // Type de course (2x2)
+  tripGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  tripCard: {
+    flexBasis: '47%', flexGrow: 1, minHeight: 80,
+    backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1,
+    borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', gap: 6,
+    paddingVertical: spacing.md,
+  },
+  tripCardActive: { backgroundColor: colors.primary + '15', borderColor: colors.primary, borderWidth: 1.5 },
+  tripLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '800', textAlign: 'center' },
+
+  // Field with internal label
+  field: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1,
+    borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: 8,
+  },
+  fieldLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },
+  fieldInput: { color: colors.text, fontSize: 14, fontWeight: '600', paddingVertical: 4, marginTop: 2 },
+
+  // Quand cards
+  whenCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1,
+    borderRadius: radius.md, padding: spacing.md,
+  },
+  whenCardActive: { backgroundColor: colors.primary + '15', borderColor: colors.primary, borderWidth: 1.5 },
+  whenTitle: { color: colors.text, fontSize: 14, fontWeight: '800' },
+  whenSub: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
+
+  // Date row
+  dateRow: { flexDirection: 'row', gap: 6 },
+  dateBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 4,
+    backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1,
+    borderRadius: radius.md, paddingHorizontal: 10, height: 44,
+  },
+  dateTxt: { color: colors.text, fontSize: 13, fontWeight: '700' },
+
+  row2: { flexDirection: 'row', gap: 8 },
+
+  // Counter (pax/bags)
+  counter: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1,
+    borderRadius: radius.md, paddingHorizontal: 8, height: 44, marginTop: 4,
+  },
+  counterBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border },
+  counterVal: { flex: 1, color: colors.text, fontSize: 13, fontWeight: '800', textAlign: 'center' },
+
+  // Vehicle cards
+  vehicleCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1,
+    borderRadius: radius.md, padding: 10,
+  },
+  vehicleCardActive: { backgroundColor: colors.primary + '12', borderColor: colors.primary, borderWidth: 1.5 },
+  vehicleImg: { width: 64, height: 50, borderRadius: 8, backgroundColor: colors.surface },
+  vehicleName: { color: colors.text, fontSize: 14, fontWeight: '900' },
+  vehicleMeta: { flexDirection: 'row', gap: 10 },
+  vehicleMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  vehicleMetaTxt: { color: colors.textSecondary, fontSize: 11, fontWeight: '700' },
+  vehicleDesc: { color: colors.textMuted, fontSize: 11, marginTop: 1 },
+  vehicleRight: { alignItems: 'flex-end', gap: 6 },
+  vehiclePrice: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  radioActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+
+  // Summary
+  summaryRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingTop: spacing.sm, borderTopColor: colors.border, borderTopWidth: 1, marginTop: 4,
+  },
+  summaryLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  summaryLeftTxt: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
+  summaryKicker: { color: colors.textMuted, fontSize: 10, fontWeight: '900', letterSpacing: 1 },
+  summaryValue: { color: colors.text, fontSize: 20, fontWeight: '900' },
+
+  // Manual price
+  manualRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
+  manualLabel: { color: colors.text, fontSize: 13, fontWeight: '800' },
+  manualOpt: { color: colors.textMuted, fontWeight: '600' },
+  manualSub: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
+  manualInputWrap: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: 10, height: 40, width: 130 },
+  manualInput: { flex: 1, color: colors.text, fontSize: 13, fontWeight: '800', textAlign: 'right' },
+  manualCurrency: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
+
+  // Passenger & contact
+  clientSelect: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.md, height: 46 },
+  clientSelectTxt: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '600' },
+  inputBox: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.md, height: 44 },
+  input: { flex: 1, color: colors.text, fontSize: 13, fontWeight: '500' },
+  notesBox: { backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1, borderRadius: radius.md, padding: spacing.sm },
+  notesInput: { color: colors.text, fontSize: 13, minHeight: 60, textAlignVertical: 'top' },
+  notesCount: { color: colors.textMuted, fontSize: 11, textAlign: 'right', marginTop: 4 },
+
+  // Paiement
+  payCol: { gap: 8 },
+  payCard: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1, borderRadius: radius.md, padding: spacing.md },
+  payCardActive: { backgroundColor: colors.primary + '12', borderColor: colors.primary, borderWidth: 1.5 },
+  payTxt: { flex: 1, color: colors.text, fontSize: 13, fontWeight: '800' },
+  payHint: { color: colors.textMuted, fontSize: 11, marginTop: 4, fontStyle: 'italic' },
+
+  // Submit
+  submit: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: colors.primary, borderRadius: radius.full, paddingVertical: 16, marginTop: 4 },
+  submitTxt: { color: colors.bg, fontSize: 15, fontWeight: '900', letterSpacing: 0.5 },
+
+  // Modal
+  backdrop: { flex: 1, backgroundColor: '#000C', justifyContent: 'flex-end' },
+  sheet: { backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.md, paddingBottom: spacing.xl, gap: 8 },
+  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 8 },
+  sheetTitle: { color: colors.text, fontSize: 16, fontWeight: '900', textAlign: 'center', marginBottom: 6 },
+  newClientRow: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: spacing.sm, backgroundColor: colors.primary + '15', borderRadius: radius.md, borderColor: colors.primary, borderWidth: 1 },
+  newClientTxt: { color: colors.primary, fontSize: 13, fontWeight: '900' },
+  clientRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.md, borderBottomColor: colors.border, borderBottomWidth: 1 },
+  clientName: { color: colors.text, fontSize: 14, fontWeight: '800' },
+  clientSub: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
+  closeBtn: { height: 44, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  closeBtnTxt: { color: colors.textSecondary, fontWeight: '800' },
+  empty: { color: colors.textMuted, fontSize: 12, textAlign: 'center', paddingVertical: spacing.md },
+  dateOption: { padding: spacing.md, borderBottomColor: colors.border, borderBottomWidth: 1 },
+  dateOptionActive: { backgroundColor: colors.primary + '15' },
+  dateOptionTxt: { color: colors.text, fontSize: 14, fontWeight: '700' },
 });
