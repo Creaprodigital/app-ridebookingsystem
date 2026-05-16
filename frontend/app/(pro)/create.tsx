@@ -21,11 +21,11 @@ import AddressInput from '../../src/components/AddressInput';
 // Types / helpers
 // ─────────────────────────────────────────────────────────────────────────
 
-type TripType = 'oneway' | 'round_trip' | 'hourly' | 'pool' | 'tour';
-type PayMode = 'online' | 'cash_onboard' | 'card_onboard';
+type TripType = 'one_way' | 'round_trip' | 'hourly' | 'pool' | 'tour';
+type PayMode = 'card_online' | 'cash_onboard' | 'card_onboard';
 
 const ALL_TRIP_TYPES: { k: TripType; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { k: 'oneway', label: 'Aller simple', icon: 'arrow-forward' },
+  { k: 'one_way', label: 'Aller simple', icon: 'arrow-forward' },
   { k: 'round_trip', label: 'Aller-retour', icon: 'swap-horizontal' },
   { k: 'hourly', label: 'Mise à disposition', icon: 'time-outline' },
   { k: 'pool', label: 'Taxi Partagé', icon: 'people-outline' },
@@ -33,7 +33,7 @@ const ALL_TRIP_TYPES: { k: TripType; label: string; icon: keyof typeof Ionicons.
 ];
 
 const ALL_PAY_OPTIONS: { k: PayMode; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { k: 'online', label: 'À bord', icon: 'card-outline' },
+  { k: 'card_online', label: 'À bord', icon: 'card-outline' },
   { k: 'cash_onboard', label: 'Espèces à bord', icon: 'cash-outline' },
   { k: 'card_onboard', label: 'CB à bord (TPE)', icon: 'card' },
 ];
@@ -73,7 +73,7 @@ export default function CreateBookingScreen() {
   // Filter trip types from tenant config — hidden if disabled in backoffice
   const TRIP_TYPES = useMemo(() => {
     return ALL_TRIP_TYPES.filter((t) => {
-      if (t.k === 'oneway') return tt?.one_way?.enabled !== false;
+      if (t.k === 'one_way') return tt?.one_way?.enabled !== false;
       if (t.k === 'round_trip') return tt?.round_trip?.enabled === true;
       if (t.k === 'hourly') return tt?.hourly?.enabled === true;
       if (t.k === 'pool') return pool?.enabled === true;
@@ -96,7 +96,7 @@ export default function CreateBookingScreen() {
   }, [pc]);
 
   // Form state
-  const [tripType, setTripType] = useState<TripType>('oneway');
+  const [tripType, setTripType] = useState<TripType>('one_way');
   const [pickup, setPickup] = useState('');
   const [dropoff, setDropoff] = useState('');
   const [scheduleMode, setScheduleMode] = useState<'now' | 'later'>('later');
@@ -135,7 +135,7 @@ export default function CreateBookingScreen() {
   const [flightNumber, setFlightNumber] = useState('');
   const [trainNumber, setTrainNumber] = useState('');
   const [notes, setNotes] = useState('');
-  const [payment, setPayment] = useState<PayMode>('online');
+  const [payment, setPayment] = useState<PayMode>('card_online');
 
   // Auto-pick the first available payment method once the tenant config loads.
   useEffect(() => {
@@ -221,7 +221,10 @@ export default function CreateBookingScreen() {
     return selectedPrice ?? 0;
   }, [manualPrice, selectedPrice]);
 
-  const canSubmit = !!(tenantId && pickup.trim() && isoPickup && (firstName.trim() || selectedClient) && (phone.trim() || selectedClient?.phone));
+  const canSubmit = !!(
+    tenantId && pickup.trim() && isoPickup &&
+    firstName.trim() && lastName.trim() && phone.trim() && email.trim()
+  );
 
   const pickClient = (c: ProClient) => {
     setSelectedClient(c);
@@ -235,7 +238,10 @@ export default function CreateBookingScreen() {
 
   const onSubmit = async () => {
     if (!canSubmit || !tenantId) {
-      Alert.alert('Champs manquants', 'Adresse de départ, date, prénom et téléphone obligatoires.');
+      Alert.alert(
+        'Champs manquants',
+        'Adresse de départ, date, prénom, nom, email et téléphone sont obligatoires.',
+      );
       return;
     }
     setSubmitting(true);
@@ -254,7 +260,7 @@ export default function CreateBookingScreen() {
           first_name: firstName.trim(),
           last_name: lastName.trim(),
           phone: phone.trim(),
-          email: email.trim() || undefined,
+          email: email.trim(),
         },
         notes: notes.trim() || undefined,
       });
@@ -263,18 +269,29 @@ export default function CreateBookingScreen() {
         { text: 'OK', onPress: () => router.replace('/(pro)/dispatch' as any) },
       ]);
     } catch (e: any) {
-      const msg = e?.response?.data?.detail || e?.message || 'Erreur lors de la création.';
-      Alert.alert('Échec de création', typeof msg === 'string' ? msg : 'Erreur lors de la création.');
+      // Surface the Pydantic validation error in a readable way
+      const detail = e?.response?.data?.detail;
+      let msg = '';
+      if (Array.isArray(detail)) {
+        msg = detail
+          .map((d: any) => `${(d.loc || []).join('.')} : ${d.msg}`)
+          .join('\n');
+      } else if (typeof detail === 'string') {
+        msg = detail;
+      } else {
+        msg = e?.message || 'Erreur lors de la création.';
+      }
+      Alert.alert('Échec de création', msg);
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Date helpers for picker
+  // Date helpers for picker — up to 1 year ahead
   const today = useMemo(() => { const d = new Date(); d.setHours(0,0,0,0); return d; }, []);
   const nextDays = useMemo(() => {
     const arr: Date[] = [];
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 365; i++) {
       const d = new Date(today); d.setDate(today.getDate() + i); arr.push(d);
     }
     return arr;
@@ -500,12 +517,12 @@ export default function CreateBookingScreen() {
                 <TextInput style={styles.input} placeholder="Prénom *" placeholderTextColor={colors.textMuted} value={firstName} onChangeText={setFirstName} />
               </View>
               <View style={[styles.inputBox, { flex: 1 }]}>
-                <TextInput style={styles.input} placeholder="Nom" placeholderTextColor={colors.textMuted} value={lastName} onChangeText={setLastName} />
+                <TextInput style={styles.input} placeholder="Nom *" placeholderTextColor={colors.textMuted} value={lastName} onChangeText={setLastName} />
               </View>
             </View>
             <View style={styles.inputBox}>
               <Ionicons name="mail-outline" size={14} color={colors.textSecondary} />
-              <TextInput style={styles.input} placeholder="Email" placeholderTextColor={colors.textMuted} keyboardType="email-address" autoCapitalize="none" value={email} onChangeText={setEmail} />
+              <TextInput style={styles.input} placeholder="Email *" placeholderTextColor={colors.textMuted} keyboardType="email-address" autoCapitalize="none" value={email} onChangeText={setEmail} />
             </View>
             <View style={styles.inputBox}>
               <Ionicons name="call-outline" size={14} color={colors.textSecondary} />
