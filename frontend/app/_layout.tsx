@@ -4,13 +4,20 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { AuthProvider, useAuth } from '../src/auth';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { colors } from '../src/theme';
 import { setupPushNotifications } from '../src/pushService';
 import { RidesProvider, useRides } from '../src/ridesContext';
 import RideRequestModal from '../src/components/RideRequestModal';
+import VideoSplash from '../src/components/VideoSplash';
 import { haptic } from '../src/feedback';
 import { hydrateLastCoords } from '../src/locationStore';
+
+// Hide the native (image) splash as soon as JS boots so our video splash
+// takes over without any flicker. expo-splash-screen is a no-op on web.
+let SplashScreen: any = null;
+try { SplashScreen = require('expo-splash-screen'); } catch {}
+try { SplashScreen?.preventAutoHideAsync?.(); } catch {}
 
 function RouteGuard({ children }: { children: React.ReactNode }) {
   const { user, loading, isPro } = useAuth();
@@ -115,6 +122,15 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
 }
 
 export default function RootLayout() {
+  const [splashDone, setSplashDone] = React.useState(false);
+
+  // As soon as JS is up, hide the native (image) splash so the video can
+  // immediately take over. Native splash is irrelevant on web.
+  React.useEffect(() => {
+    if (Platform.OS === 'web') return;
+    try { SplashScreen?.hideAsync?.(); } catch {}
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
       <SafeAreaProvider>
@@ -150,6 +166,10 @@ export default function RootLayout() {
             </RouteGuard>
           </RidesProvider>
         </AuthProvider>
+        {/* Video splash plays on every cold start for 3s then disappears. */}
+        {!splashDone && (
+          <VideoSplash durationMs={3000} onDone={() => setSplashDone(true)} />
+        )}
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
