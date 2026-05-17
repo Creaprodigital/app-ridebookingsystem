@@ -1,15 +1,19 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ImageBackground } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { colors, radius, spacing } from '../src/theme';
 
+const WELCOME_BG = require('../assets/images/login-bg.png');
+
 export default function Welcome() {
   const router = useRouter();
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <View style={styles.container}>
+    <ImageBackground source={WELCOME_BG} resizeMode="cover" style={styles.bg}>
+      <View style={styles.overlay} />
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        <View style={styles.container}>
         <View style={styles.brandWrap}>
           <View style={styles.logo}>
             <Ionicons name="car-sport" size={42} color={colors.bg} />
@@ -56,11 +60,14 @@ export default function Welcome() {
         <Text style={styles.footer}>© {new Date().getFullYear()} Ride Booking System</Text>
       </View>
     </SafeAreaView>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
+  bg: { flex: 1, width: '100%', height: '100%', backgroundColor: colors.bg },
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.25)' },
+  safe: { flex: 1, backgroundColor: 'transparent' },
   container: { flex: 1, padding: spacing.lg, justifyContent: 'space-between' },
   brandWrap: { alignItems: 'center', marginTop: spacing.xl, gap: 6 },
   logo: {
@@ -83,7 +90,7 @@ const styles = StyleSheet.create({
   cardSubPrimary: { color: colors.bg, fontSize: 12, fontWeight: '600', opacity: 0.8, marginTop: 2 },
   cardSecondary: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-    backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
+    backgroundColor: 'rgba(20, 20, 20, 0.78)', borderColor: colors.border, borderWidth: 1,
     borderRadius: radius.xl, padding: spacing.lg,
   },
   cardTitleSecondary: { color: colors.text, fontSize: 16, fontWeight: '900' },
