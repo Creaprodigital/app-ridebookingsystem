@@ -10,12 +10,15 @@ import {
   ActivityIndicator,
   ScrollView,
   Alert,
+  ImageBackground,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../src/auth';
 import { colors, radius, spacing } from '../src/theme';
 import { apiError, forgotPassword } from '../src/api';
+
+const LOGIN_BG = require('../assets/images/login-bg.png');
 
 export default function Login() {
   const { signIn } = useAuth();
@@ -67,16 +70,18 @@ export default function Login() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          contentContainerStyle={styles.container}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+    <ImageBackground source={LOGIN_BG} resizeMode="cover" style={styles.bg}>
+      <View style={styles.overlay} />
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
+          <ScrollView
+            contentContainerStyle={styles.container}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
           <View style={styles.brandWrap}>
             <Text style={styles.brandTitle}>Ride Booking</Text>
             <Text style={styles.brandKicker}>System</Text>
@@ -174,11 +179,16 @@ export default function Login() {
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.bg },
+  bg: { flex: 1, width: '100%', height: '100%', backgroundColor: colors.bg },
+  // Dark overlay at 25% opacity on top of the wallpaper to keep contrast for
+  // the inputs and texts (the image itself is already very dark).
+  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.25)' },
+  safe: { flex: 1, backgroundColor: 'transparent' },
   container: { flexGrow: 1, padding: spacing.lg, justifyContent: 'center' },
   brandWrap: { alignItems: 'center', marginBottom: spacing.xl },
   logoDot: {
@@ -193,7 +203,7 @@ const styles = StyleSheet.create({
     letterSpacing: 4, textTransform: 'uppercase', marginTop: 2,
   },
   card: {
-    backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
+    backgroundColor: 'rgba(20, 20, 20, 0.78)', borderColor: colors.border, borderWidth: 1,
     borderRadius: radius.xl, padding: spacing.lg, gap: spacing.md,
   },
   title: { color: colors.text, fontSize: 22, fontWeight: '800' },
