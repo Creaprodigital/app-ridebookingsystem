@@ -73,7 +73,7 @@ export default function VideoSplash({
   }, [durationMs]);
 
   return (
-    <Animated.View style={[styles.root, { opacity }]} pointerEvents="none">
+    <Animated.View style={[styles.root, { opacity }]}>
       <VideoView
         player={player}
         style={styles.video}
@@ -92,6 +92,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg,
     zIndex: 9999,
     elevation: 9999,
+    pointerEvents: 'none',
     ...Platform.select({ web: { overflow: 'hidden' as any } }),
   },
   video: {

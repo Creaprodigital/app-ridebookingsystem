@@ -166,9 +166,9 @@ export default function RootLayout() {
             </RouteGuard>
           </RidesProvider>
         </AuthProvider>
-        {/* Video splash plays on every cold start for 3s then disappears. */}
+        {/* Video splash plays on every cold start: 250ms fade-in + 4500ms visible + 450ms fade-out. */}
         {!splashDone && (
-          <VideoSplash durationMs={3000} onDone={() => setSplashDone(true)} />
+          <VideoSplash durationMs={5200} onDone={() => setSplashDone(true)} />
         )}
       </SafeAreaProvider>
     </GestureHandlerRootView>
