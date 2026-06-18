@@ -16,8 +16,7 @@ import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radius, spacing } from '../theme';
 import { proPlacesAutocomplete, PlacesPrediction } from '../proApi';
-
-const GMAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY as string;
+import { getActiveMapsKey } from '../mapsKey';
 
 type Suggestion = PlacesPrediction;
 
@@ -50,7 +49,7 @@ export default function AddressInput({
   // Try the secure proxy first; auto-switch to direct on the first miss.
   const transportRef = useRef<Transport>('proxy');
 
-  const directKey = apiKey || GMAPS_KEY;
+  const directKey = apiKey || getActiveMapsKey();
 
   const fetchDirect = async (input: string): Promise<Suggestion[]> => {
     if (!directKey) return [];

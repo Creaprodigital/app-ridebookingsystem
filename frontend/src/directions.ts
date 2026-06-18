@@ -9,8 +9,10 @@
 //     WebView and decode there, which is faster and ~10× smaller than
 //     sending the decoded array.
 //   • The API key is the same one that already powers the map tiles.
+//     It is read dynamically from `mapsKey` so that the tenant's own key
+//     is used as soon as a Pro user logs in (auth provider pushes it).
 
-const KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY as string;
+import { getActiveMapsKey } from './mapsKey';
 
 export type LatLng = { lat: number; lng: number };
 
@@ -35,6 +37,7 @@ export async function fetchRoute(
   destination: LatLng,
   opts?: { signal?: AbortSignal }
 ): Promise<DirectionsResult | null> {
+  const KEY = getActiveMapsKey();
   if (!KEY) return null;
   if (!origin || !destination) return null;
   if (!Number.isFinite(origin.lat) || !Number.isFinite(origin.lng)) return null;

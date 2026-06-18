@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { tokenStore, login as apiLogin, getMe } from './api';
 import { stopBackgroundLocation } from './backgroundLocation';
+import { setActiveMapsKey } from './mapsKey';
 
 type User = { id?: string; email?: string; first_name?: string; last_name?: string; role?: string; tenant_id?: string };
-type Tenant = { id?: string; slug?: string; company_name?: string; widget_config?: any; pricing?: any } | null;
+type Tenant = { id?: string; slug?: string; company_name?: string; widget_config?: any; pricing?: any; config?: any } | null;
 
 type AuthCtx = {
   user: User | null;
@@ -27,9 +28,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (res && (res.user || res.tenant)) {
       setUser(res.user ?? null);
       setTenant(res.tenant ?? null);
+      // Apply the tenant's own Google Maps API key (Directions, Maps SDK,
+      // Places) so every map call goes through the customer's billing.
+      setActiveMapsKey(res.tenant?.config?.google_maps_api_key);
     } else {
       // Fallback: response is the user object directly
       setUser(res ?? null);
+      setActiveMapsKey(null);
     }
   }, []);
 
@@ -65,6 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (res.user || res.tenant) {
       setUser(res.user ?? null);
       setTenant(res.tenant ?? null);
+      setActiveMapsKey(res.tenant?.config?.google_maps_api_key);
     } else {
       const me = await getMe();
       applyMeResponse(me);
@@ -78,6 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await tokenStore.clear();
     setUser(null);
     setTenant(null);
+    setActiveMapsKey(null);
   }, []);
 
   const isPro = user?.role === 'pro';

@@ -1,8 +1,7 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, View, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
-
-const GMAPS_KEY = process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY as string;
+import { getActiveMapsKey } from '../mapsKey';
 
 type Marker = { lat: number; lng: number; color?: string; label?: string };
 export type Polyline = {
@@ -48,7 +47,7 @@ const darkStyle = JSON.stringify([
   { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#52525b' }] },
 ]);
 
-function buildHtml(lat: number, lng: number, markers: Marker[], polylines: Polyline[], fitBounds: boolean, showDriverMarker: boolean, zoom: number) {
+function buildHtml(lat: number, lng: number, markers: Marker[], polylines: Polyline[], fitBounds: boolean, showDriverMarker: boolean, zoom: number, gmapsKey: string) {
   const markersJson = JSON.stringify(markers || []);
   const polysJson = JSON.stringify(polylines || []);
   return `<!DOCTYPE html><html><head>
@@ -303,7 +302,7 @@ function fitToContent(){
   map.fitBounds(b, {top: 60, right: 40, bottom: 60, left: 40});
 }
 </script>
-<script async defer src="https://maps.googleapis.com/maps/api/js?key=${GMAPS_KEY}&libraries=geometry&callback=initMap&v=weekly"></script>
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=${gmapsKey}&libraries=geometry&callback=initMap&v=weekly"></script>
 </body></html>`;
 }
 
@@ -313,7 +312,7 @@ export default function MapView({ lat, lng, extraMarkers = [], polylines = [], f
   // Build the HTML once at first render — subsequent updates flow through
   // postMessage so the map (and its zoom level) is preserved.
   const html = useMemo(
-    () => buildHtml(latitude, longitude, extraMarkers, polylines, fitBounds, showDriverMarker, zoom),
+    () => buildHtml(latitude, longitude, extraMarkers, polylines, fitBounds, showDriverMarker, zoom, getActiveMapsKey()),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     []
   );
