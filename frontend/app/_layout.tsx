@@ -10,6 +10,7 @@ import { setupPushNotifications } from '../src/pushService';
 import { RidesProvider, useRides } from '../src/ridesContext';
 import RideRequestModal from '../src/components/RideRequestModal';
 import VideoSplash from '../src/components/VideoSplash';
+import { DriverSubscriptionProvider } from '../src/driverSubscription';
 import { haptic } from '../src/feedback';
 import { hydrateLastCoords } from '../src/locationStore';
 
@@ -136,7 +137,8 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <AuthProvider>
           <RidesProvider>
-            <RouteGuard>
+            <DriverSubscriptionProvider>
+              <RouteGuard>
               <StatusBar style="light" />
               <Stack
                 screenOptions={{
@@ -160,10 +162,12 @@ export default function RootLayout() {
                 <Stack.Screen name="settings/permissions" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="settings/debug" options={{ animation: 'slide_from_right' }} />
                 <Stack.Screen name="mission/[id]" options={{ presentation: 'card', animation: 'slide_from_right' }} />
+                <Stack.Screen name="subscription" options={{ animation: 'slide_from_right' }} />
               </Stack>
               {/* Premium Uber-style ride request modal — globally available */}
               <RideRequestModal />
             </RouteGuard>
+            </DriverSubscriptionProvider>
           </RidesProvider>
         </AuthProvider>
         {/* Video splash plays on every cold start: 250ms fade-in + 2500ms visible + 450ms fade-out. */}

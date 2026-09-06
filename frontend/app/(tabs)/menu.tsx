@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { colors, radius, spacing } from '../../src/theme';
 import { useAuth } from '../../src/auth';
+import { useDriverSubscription } from '../../src/driverSubscription';
 
 type Row = {
   icon: keyof typeof Ionicons.glyphMap;
@@ -21,11 +22,14 @@ type Row = {
   onPress: () => void;
   testID?: string;
   danger?: boolean;
+  /** Optional trailing status pill (e.g. "REQUIS", "ACTIF"). */
+  badge?: { text: string; color: string };
 };
 
 export default function MenuScreen() {
   const router = useRouter();
   const { signOut, user } = useAuth();
+  const { state: subState, needsPayment: subNeedsPayment } = useDriverSubscription();
 
   const confirmLogout = () => {
     if (Platform.OS === 'web') {
@@ -46,6 +50,24 @@ export default function MenuScreen() {
       onPress: () => router.push('/profile'),
       testID: 'menu-profile',
     },
+    ...(subState.enabled
+      ? [{
+          icon: 'card-outline' as keyof typeof Ionicons.glyphMap,
+          label: 'Mon abonnement',
+          sub: subNeedsPayment
+            ? 'Paiement requis pour continuer'
+            : subState.status === 'active'
+              ? 'Abonnement actif'
+              : 'Gérer mon abonnement',
+          onPress: () => router.push('/subscription' as any),
+          testID: 'menu-subscription',
+          badge: subNeedsPayment
+            ? { text: 'REQUIS', color: colors.danger }
+            : subState.status === 'active'
+              ? { text: 'ACTIF', color: colors.success }
+              : undefined,
+        }]
+      : []),
     {
       icon: 'notifications-outline',
       label: 'Notifications',
@@ -120,6 +142,11 @@ function Section({ title, rows }: { title: string; rows: Row[] }) {
               <Text style={[styles.rowLabel, r.danger && { color: colors.danger }]}>{r.label}</Text>
               {r.sub ? <Text style={styles.rowSub}>{r.sub}</Text> : null}
             </View>
+            {r.badge ? (
+              <View style={[styles.badge, { backgroundColor: r.badge.color + '22', borderColor: r.badge.color }]}>
+                <Text style={[styles.badgeText, { color: r.badge.color }]}>{r.badge.text}</Text>
+              </View>
+            ) : null}
             <Ionicons
               name="chevron-forward"
               size={18}
@@ -149,5 +176,9 @@ const styles = StyleSheet.create({
   rowIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
   rowLabel: { color: colors.text, fontSize: 15, fontWeight: '700' },
   rowSub: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
+  badge: {
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, borderWidth: 1,
+  },
+  badgeText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
   footer: { color: colors.textMuted, fontSize: 11, textAlign: 'center', marginTop: spacing.md },
 });

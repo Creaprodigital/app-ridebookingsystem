@@ -29,12 +29,14 @@ import { useRides } from '../../src/ridesContext';
 import { getNotifications, subscribe } from '../../src/notificationsHistory';
 import { setLastCoords } from '../../src/locationStore';
 import { startBackgroundLocation, stopBackgroundLocation } from '../../src/backgroundLocation';
+import { useDriverSubscription } from '../../src/driverSubscription';
 
 type Coords = { lat: number; lng: number; heading?: number | null; speed?: number | null };
 
 export default function HomeMap() {
   const router = useRouter();
   const { refreshShift, latest, pendingCount } = useRides();
+  const { needsPayment: subNeedsPayment, state: subState } = useDriverSubscription();
   const [coords, setCoords] = useState<Coords | null>(null);
   const [unreadNotif, setUnreadNotif] = useState(0);
   const counterAnim = useRef(new Animated.Value(0)).current;
@@ -188,6 +190,20 @@ export default function HomeMap() {
   }, [onShift, coords]);
 
   const toggleShift = async () => {
+    // Frontend-only gate: refuse to go on shift when the driver hasn't paid
+    // their required subscription. Backend keeps accepting requests but the
+    // UI never fires them until the payment is settled.
+    if (subNeedsPayment && !onShift) {
+      haptic('error');
+      const msg =
+        'Votre abonnement doit être réglé avant de passer en ligne.';
+      if (Platform.OS === 'web') alert(msg);
+      else Alert.alert('Abonnement requis', msg, [
+        { text: 'Plus tard', style: 'cancel' },
+        { text: 'S’abonner', onPress: () => router.push('/subscription' as any) },
+      ]);
+      return;
+    }
     haptic('medium');
     setToggling(true);
     const next = !onShift;
@@ -314,11 +330,22 @@ export default function HomeMap() {
             onPress={toggleShift}
             activeOpacity={0.85}
             disabled={toggling}
-            style={[styles.shiftBtn, onShift ? styles.shiftBtnOn : styles.shiftBtnOff]}
+            style={[
+              styles.shiftBtn,
+              onShift ? styles.shiftBtnOn : styles.shiftBtnOff,
+              subNeedsPayment && !onShift && styles.shiftBtnLocked,
+            ]}
             testID="toggle-shift-button"
           >
             {toggling ? (
               <ActivityIndicator color={onShift ? colors.text : colors.bg} />
+            ) : subNeedsPayment && !onShift ? (
+              <>
+                <Ionicons name="lock-closed" size={20} color={colors.bg} />
+                <Text style={[styles.shiftText, { color: colors.bg }]}>
+                  ABONNEMENT REQUIS
+                </Text>
+              </>
             ) : (
               <>
                 <Ionicons
@@ -332,6 +359,24 @@ export default function HomeMap() {
               </>
             )}
           </TouchableOpacity>
+
+          {subNeedsPayment ? (
+            <TouchableOpacity
+              onPress={() => { haptic('light'); router.push('/subscription' as any); }}
+              activeOpacity={0.85}
+              style={styles.subBanner}
+              testID="subscription-banner"
+            >
+              <Ionicons name="alert-circle" size={18} color={colors.danger} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.subBannerTitle}>Abonnement requis</Text>
+                <Text style={styles.subBannerSub} numberOfLines={1}>
+                  Réglez votre abonnement pour recevoir des courses
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.danger} />
+            </TouchableOpacity>
+          ) : null}
 
           {profile ? (
             <Text style={styles.hello} testID="greeting">
@@ -412,7 +457,18 @@ const styles = StyleSheet.create({
     shadowColor: colors.primary, shadowOpacity: 0.5, shadowRadius: 16, shadowOffset: { width: 0, height: 0 },
   },
   shiftBtnOn: { backgroundColor: colors.elevated, borderWidth: 1, borderColor: colors.border },
+  shiftBtnLocked: {
+    backgroundColor: colors.danger,
+    shadowColor: colors.danger, shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 0 },
+  },
   shiftText: { fontWeight: '900', fontSize: 14, letterSpacing: 1.5 },
+  subBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+    backgroundColor: '#EF444414', borderColor: colors.danger, borderWidth: 1,
+    borderRadius: radius.lg, padding: spacing.sm,
+  },
+  subBannerTitle: { color: colors.danger, fontSize: 13, fontWeight: '900' },
+  subBannerSub: { color: colors.text, fontSize: 11, fontWeight: '600', marginTop: 1 },
   hello: { color: colors.textSecondary, fontSize: 12, textAlign: 'center', fontWeight: '600' },
   earnRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
