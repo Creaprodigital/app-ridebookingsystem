@@ -29,14 +29,29 @@ const LABELS: Record<string, string> = {
   menu: 'Menu',
 };
 
-export default function TabBar({ state, navigation }: BottomTabBarProps) {
+export default function TabBar({ state, navigation, descriptors }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const bottomPad = Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 12);
+
+  // Respect expo-router's `href: null` convention — a screen with a null
+  // href stays mounted for direct navigation but should not be rendered in
+  // the tab bar. Our custom bar filters both from the descriptor options and
+  // from an explicit deny list because expo-router transforms `href: null`
+  // into a `tabBarButton: () => null` in newer versions, which we handle too.
+  const HIDDEN_ROUTES = new Set(['earnings']);
+  const visibleRoutes = state.routes.filter((route) => {
+    if (HIDDEN_ROUTES.has(route.name)) return false;
+    const opts: any = descriptors[route.key]?.options ?? {};
+    if (opts.href === null) return false;
+    if (opts.tabBarButton === null) return false;
+    return true;
+  });
 
   return (
     <View style={[styles.wrap, { paddingBottom: bottomPad }]} testID="tab-bar">
       <View style={styles.bar}>
-        {state.routes.map((route, index) => {
+        {visibleRoutes.map((route) => {
+          const index = state.routes.indexOf(route);
           const focused = state.index === index;
           const icons = ICONS[route.name] ?? { active: 'ellipse', inactive: 'ellipse-outline' };
           const label = LABELS[route.name] ?? route.name;

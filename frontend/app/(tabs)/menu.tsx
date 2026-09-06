@@ -50,6 +50,13 @@ export default function MenuScreen() {
       onPress: () => router.push('/profile'),
       testID: 'menu-profile',
     },
+    {
+      icon: 'wallet-outline',
+      label: 'Portefeuille',
+      sub: 'Revenus, historique de paiements',
+      onPress: () => router.push('/(tabs)/earnings' as any),
+      testID: 'menu-earnings',
+    },
     ...(subState.enabled
       ? [{
           icon: 'card-outline' as keyof typeof Ionicons.glyphMap,
