@@ -23,7 +23,7 @@
  */
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { AppState, AppStateStatus, Platform } from 'react-native';
+import { AppState, AppStateStatus, Platform, Linking } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { api } from './api';
 import { useAuth } from './auth';
@@ -65,30 +65,85 @@ type Ctx = {
   /** Re-read /api/driver/subscription from the backend. */
   refresh: () => Promise<void>;
   /**
-   * Ask the backend for a Stripe Checkout URL and open it. Resolves once the
-   * browser session is closed, then re-fetches the subscription state so any
-   * successful payment is picked up on the next render.
+   * Ask the backend for a Stripe Checkout URL (recurring subscription with
+   * saved card — Stripe debits every month automatically) and open it.
+   * Resolves once the browser session is closed, then re-fetches the state.
    */
   startCheckout: () => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Open the Stripe Customer Portal so the driver can update the saved card,
+   * download invoices, or cancel their subscription themselves.
+   */
+  openPortal: () => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Cancel the active subscription immediately via the backend.
+   * The card is unlinked and no further debits happen.
+   */
+  cancel: () => Promise<{ ok: boolean; error?: string }>;
 };
 
 const DriverSubscriptionCtx = createContext<Ctx | null>(null);
 
 /**
- * Try a series of plausible backend paths for creating a Stripe Checkout
- * session. The first one that returns HTTP 2xx wins. Servers can add /
- * rename their endpoint without a frontend redeploy as long as the name is
- * still in this list.
+ * Build the origin URL we send to the backend so Stripe knows where to bring
+ * the driver back after Checkout / Portal. On native we use a custom scheme
+ * (deep link handled by expo-router); on web we use the current location so
+ * the browser tab redirects back to the app preview.
  */
-const CHECKOUT_ENDPOINT_CANDIDATES = [
+function buildOriginUrl(): string {
+  if (Platform.OS === 'web') {
+    try {
+      // window is defined on web only
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const w: any = (globalThis as any).window;
+      if (w?.location?.origin) return w.location.origin;
+    } catch {}
+    return 'https://ride-share-app-171.preview.emergentagent.com';
+  }
+  // Custom scheme configured in app.json (`scheme: "sharedridedriver"`) —
+  // Stripe redirects to sharedridedriver://subscription/{success,cancel}
+  // once the flow completes.
+  return 'sharedridedriver://subscription';
+}
+
+/**
+ * Extract a Stripe URL from the many payload shapes servers use in the wild.
+ */
+function pickUrl(data: any): string | undefined {
+  return data?.url || data?.checkout_url || data?.session_url || data?.portal_url || data?.stripe_url;
+}
+
+async function openUrl(url: string): Promise<void> {
+  if (Platform.OS === 'web') {
+    try {
+      // On web preview we open in the same tab so returning back navigates
+      // straight into our origin URL (which we redirect to after payment).
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (globalThis as any).window.open(url, '_blank');
+    } catch {}
+    return;
+  }
+  await WebBrowser.openBrowserAsync(url, { dismissButtonStyle: 'close' });
+}
+
+/**
+ * Endpoints the backend exposes (as of Sept 2026). If any future rename
+ * happens, add the new name to the top of these arrays so the frontend
+ * keeps working without a redeploy.
+ */
+const CHECKOUT_ENDPOINTS = [
   '/driver/subscription/checkout',
   '/driver/subscription/checkout-session',
   '/driver/subscription/create-checkout-session',
-  '/driver/subscription/pay',
   '/driver/subscription/subscribe',
-  '/driver/subscription/start',
-  '/driver/subscription/session',
-  '/driver/subscription',
+];
+const PORTAL_ENDPOINTS = [
+  '/driver/subscription/portal',
+  '/driver/subscription/manage',
+  '/driver/subscription/customer-portal',
+];
+const CANCEL_ENDPOINTS = [
+  '/driver/subscription/cancel',
 ];
 
 function readServerState(raw: any): DriverSubscriptionState {
@@ -166,43 +221,97 @@ export function DriverSubscriptionProvider({ children }: { children: React.React
   }, [isDriver, state, refresh]);
 
   const startCheckout = useCallback(async (): Promise<{ ok: boolean; error?: string }> => {
-    // Try each candidate endpoint until one returns a checkout URL.
+    const body = { origin_url: buildOriginUrl() };
     let lastErr = '';
-    for (const path of CHECKOUT_ENDPOINT_CANDIDATES) {
+    for (const path of CHECKOUT_ENDPOINTS) {
       try {
-        const { data } = await api.post(path, {});
-        const url: string | undefined =
-          data?.url || data?.checkout_url || data?.session_url || data?.stripe_url;
-        if (url && typeof url === 'string') {
+        const { data } = await api.post(path, body);
+        const url = pickUrl(data);
+        if (url) {
           try {
-            if (Platform.OS === 'web') {
-              // On web preview, open in a new tab so we don't lose the app.
-              window.open(url, '_blank');
-            } else {
-              await WebBrowser.openBrowserAsync(url);
-            }
+            await openUrl(url);
           } catch (e: any) {
             return { ok: false, error: e?.message || 'Impossible d\u2019ouvrir le navigateur' };
           }
-          // Refresh once the browser session is dismissed
+          // The browser is now on Stripe. When the user returns, AppState
+          // will re-focus and our foreground listener will call refresh().
           void refresh();
           return { ok: true };
         }
         lastErr = 'Réponse du backend sans URL de paiement';
       } catch (e: any) {
-        // 404/405/other — try the next candidate. Keep the last error for
-        // diagnostics if every candidate fails.
         const code = e?.response?.status;
-        lastErr = code ? `HTTP ${code}` : (e?.message || 'erreur réseau');
+        const detail = e?.response?.data?.detail;
+        lastErr = detail
+          ? (typeof detail === 'string' ? detail : JSON.stringify(detail))
+          : code ? `HTTP ${code}` : (e?.message || 'erreur réseau');
       }
     }
     return {
       ok: false,
-      error:
-        'Endpoint de paiement non disponible côté serveur. ' +
-        'Contactez votre opérateur (' + lastErr + ').',
+      error: 'Impossible de lancer le paiement (' + lastErr + ').',
     };
   }, [refresh]);
+
+  const openPortal = useCallback(async (): Promise<{ ok: boolean; error?: string }> => {
+    const body = { origin_url: buildOriginUrl() };
+    let lastErr = '';
+    for (const path of PORTAL_ENDPOINTS) {
+      try {
+        const { data } = await api.post(path, body);
+        const url = pickUrl(data);
+        if (url) {
+          try {
+            await openUrl(url);
+          } catch (e: any) {
+            return { ok: false, error: e?.message || 'Impossible d\u2019ouvrir le navigateur' };
+          }
+          void refresh();
+          return { ok: true };
+        }
+        lastErr = 'Réponse du backend sans URL de portail';
+      } catch (e: any) {
+        const code = e?.response?.status;
+        const detail = e?.response?.data?.detail;
+        lastErr = detail
+          ? (typeof detail === 'string' ? detail : JSON.stringify(detail))
+          : code ? `HTTP ${code}` : (e?.message || 'erreur réseau');
+      }
+    }
+    return { ok: false, error: lastErr || 'Portail Stripe indisponible' };
+  }, [refresh]);
+
+  const cancel = useCallback(async (): Promise<{ ok: boolean; error?: string }> => {
+    let lastErr = '';
+    for (const path of CANCEL_ENDPOINTS) {
+      try {
+        await api.post(path, {});
+        void refresh();
+        return { ok: true };
+      } catch (e: any) {
+        const code = e?.response?.status;
+        const detail = e?.response?.data?.detail;
+        lastErr = detail
+          ? (typeof detail === 'string' ? detail : JSON.stringify(detail))
+          : code ? `HTTP ${code}` : (e?.message || 'erreur réseau');
+      }
+    }
+    return { ok: false, error: lastErr || 'Résiliation indisponible' };
+  }, [refresh]);
+
+  // Deep-link handler: Stripe returns the driver to ridebooking://subscription
+  // after Checkout / Portal. When that fires we refresh so the new status is
+  // reflected instantly instead of waiting for the 60s polling tick.
+  useEffect(() => {
+    if (!isDriver) return;
+    const onUrl = (evt: { url: string }) => {
+      if (evt?.url && evt.url.toLowerCase().includes('subscription')) {
+        void refresh();
+      }
+    };
+    const sub = Linking.addEventListener('url', onUrl);
+    return () => { try { sub.remove(); } catch {} };
+  }, [isDriver, refresh]);
 
   const value: Ctx = {
     loading,
@@ -210,6 +319,8 @@ export function DriverSubscriptionProvider({ children }: { children: React.React
     needsPayment: subscriptionNeedsPayment(state),
     refresh,
     startCheckout,
+    openPortal,
+    cancel,
   };
 
   return (
@@ -231,5 +342,7 @@ export function useDriverSubscription(): Ctx {
     needsPayment: false,
     refresh: async () => {},
     startCheckout: async () => ({ ok: false, error: 'not_in_driver_context' }),
+    openPortal: async () => ({ ok: false, error: 'not_in_driver_context' }),
+    cancel: async () => ({ ok: false, error: 'not_in_driver_context' }),
   };
 }

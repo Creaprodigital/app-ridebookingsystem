@@ -50,25 +50,59 @@ function statusMeta(status: DriverSubscriptionStatus): { label: string; color: s
   }
 }
 
+function showError(title: string, msg: string) {
+  if (Platform.OS === 'web') alert(`${title}\n${msg}`);
+  else Alert.alert(title, msg);
+}
+
 export default function SubscriptionScreen() {
   const router = useRouter();
-  const { state, loading, needsPayment, refresh, startCheckout } = useDriverSubscription();
-  const [paying, setPaying] = useState(false);
+  const { state, loading, needsPayment, refresh, startCheckout, openPortal, cancel } = useDriverSubscription();
+  const [busy, setBusy] = useState<'checkout' | 'portal' | 'cancel' | null>(null);
 
   const onSubscribe = useCallback(async () => {
     haptic('medium');
-    setPaying(true);
+    setBusy('checkout');
     const res = await startCheckout();
-    setPaying(false);
-    if (!res.ok) {
-      haptic('error');
-      const msg = res.error || 'Impossible d’initier le paiement.';
-      if (Platform.OS === 'web') alert(msg);
-      else Alert.alert('Paiement indisponible', msg);
-    }
+    setBusy(null);
+    if (!res.ok) { haptic('error'); showError('Paiement indisponible', res.error || 'Impossible d’initier le paiement.'); }
   }, [startCheckout]);
 
+  const onManage = useCallback(async () => {
+    haptic('light');
+    setBusy('portal');
+    const res = await openPortal();
+    setBusy(null);
+    if (!res.ok) { haptic('error'); showError('Portail indisponible', res.error || 'Impossible d’ouvrir le portail Stripe.'); }
+  }, [openPortal]);
+
+  const doCancel = useCallback(async () => {
+    setBusy('cancel');
+    const res = await cancel();
+    setBusy(null);
+    if (!res.ok) { haptic('error'); showError('Résiliation impossible', res.error || 'Erreur inconnue.'); }
+    else { haptic('success'); showError('Abonnement résilié', 'Votre abonnement a été annulé. Aucun débit ne sera effectué.'); }
+  }, [cancel]);
+
+  const onCancelPress = useCallback(() => {
+    haptic('warning');
+    if (Platform.OS === 'web') {
+      // eslint-disable-next-line no-alert
+      if (window.confirm('Résilier votre abonnement ? Vous ne pourrez plus recevoir de courses.')) void doCancel();
+    } else {
+      Alert.alert(
+        'Résilier l’abonnement',
+        'Vous ne pourrez plus recevoir de courses et votre carte sera dissociée. Cette action est immédiate.',
+        [
+          { text: 'Annuler', style: 'cancel' },
+          { text: 'Résilier', style: 'destructive', onPress: () => void doCancel() },
+        ],
+      );
+    }
+  }, [doCancel]);
+
   const meta = statusMeta(state.status);
+  const isActive = state.status === 'active' || state.status === 'trialing';
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -95,10 +129,17 @@ export default function SubscriptionScreen() {
             <Text style={[styles.badgeText, { color: meta.color }]}>{meta.label}</Text>
           </View>
 
-          <Text style={styles.priceRow}>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
             <Text style={styles.priceValue}>{fmtEuro(state.monthlyAmountCents)}</Text>
             <Text style={styles.priceSuffix}>  / mois</Text>
-          </Text>
+          </View>
+
+          <View style={styles.autoBox}>
+            <Ionicons name="repeat" size={16} color={colors.primary} />
+            <Text style={styles.autoText}>
+              Prélèvement automatique — carte sauvegardée par Stripe
+            </Text>
+          </View>
 
           {!state.enabled ? (
             <Text style={styles.subtle}>
@@ -107,7 +148,9 @@ export default function SubscriptionScreen() {
           ) : (
             <>
               <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>Prochaine facturation</Text>
+                <Text style={styles.metaLabel}>
+                  {isActive ? 'Prochain prélèvement' : 'Prochaine facturation'}
+                </Text>
                 <Text style={styles.metaValue}>{fmtDate(state.nextBillingAt)}</Text>
               </View>
               <View style={styles.metaRow}>
@@ -124,7 +167,7 @@ export default function SubscriptionScreen() {
           )}
         </View>
 
-        {/* Explanation when blocked */}
+        {/* Contextual explanation */}
         {needsPayment ? (
           <View style={styles.warnCard} testID="sub-warn">
             <View style={styles.warnHeader}>
@@ -132,11 +175,12 @@ export default function SubscriptionScreen() {
               <Text style={styles.warnTitle}>Compte bloqué</Text>
             </View>
             <Text style={styles.warnBody}>
-              Pour recevoir des courses et passer en ligne, vous devez régler votre
-              abonnement. Le paiement est sécurisé via Stripe.
+              Pour recevoir des courses et passer en ligne, vous devez souscrire à
+              l’abonnement. Stripe enregistrera votre carte et débitera automatiquement
+              chaque mois — plus rien à faire de votre côté.
             </Text>
           </View>
-        ) : state.status === 'active' ? (
+        ) : isActive ? (
           <View style={styles.okCard}>
             <Ionicons name="shield-checkmark" size={20} color={colors.success} />
             <Text style={styles.okText}>
@@ -145,16 +189,16 @@ export default function SubscriptionScreen() {
           </View>
         ) : null}
 
-        {/* CTA */}
-        {state.enabled && state.status !== 'active' ? (
+        {/* Primary CTA */}
+        {state.enabled && !isActive ? (
           <TouchableOpacity
-            style={[styles.cta, paying && { opacity: 0.7 }]}
+            style={[styles.cta, busy === 'checkout' && { opacity: 0.7 }]}
             onPress={onSubscribe}
-            disabled={paying}
+            disabled={!!busy}
             activeOpacity={0.85}
             testID="sub-cta"
           >
-            {paying ? (
+            {busy === 'checkout' ? (
               <ActivityIndicator color={colors.bg} />
             ) : (
               <>
@@ -166,9 +210,49 @@ export default function SubscriptionScreen() {
           </TouchableOpacity>
         ) : null}
 
+        {/* Management row — only when actually subscribed at Stripe */}
+        {isActive ? (
+          <>
+            <TouchableOpacity
+              style={[styles.secondaryCta, busy === 'portal' && { opacity: 0.7 }]}
+              onPress={onManage}
+              disabled={!!busy}
+              activeOpacity={0.85}
+              testID="sub-manage"
+            >
+              {busy === 'portal' ? (
+                <ActivityIndicator color={colors.text} />
+              ) : (
+                <>
+                  <Ionicons name="cog" size={18} color={colors.text} />
+                  <Text style={styles.secondaryCtaText}>Gérer mon abonnement</Text>
+                  <Ionicons name="open-outline" size={16} color={colors.textMuted} />
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.dangerCta, busy === 'cancel' && { opacity: 0.7 }]}
+              onPress={onCancelPress}
+              disabled={!!busy}
+              activeOpacity={0.85}
+              testID="sub-cancel"
+            >
+              {busy === 'cancel' ? (
+                <ActivityIndicator color={colors.danger} />
+              ) : (
+                <>
+                  <Ionicons name="close-circle-outline" size={18} color={colors.danger} />
+                  <Text style={styles.dangerCtaText}>Résilier l’abonnement</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </>
+        ) : null}
+
         <Text style={styles.legal}>
-          Le paiement est traité par Stripe. Aucune donnée bancaire ne transite par
-          l’application.
+          Le paiement est traité par Stripe. Aucune donnée bancaire ne transite ni
+          n’est stockée par l’application. Vous pouvez résilier à tout moment.
         </Text>
       </ScrollView>
     </SafeAreaView>
@@ -192,9 +276,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.full,
   },
   badgeText: { fontSize: 12, fontWeight: '900', letterSpacing: 0.5 },
-  priceRow: { alignItems: 'baseline' },
   priceValue: { color: colors.text, fontSize: 34, fontWeight: '900', letterSpacing: -1 },
   priceSuffix: { color: colors.textSecondary, fontSize: 14, fontWeight: '700' },
+  autoBox: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.primary + '14', borderColor: colors.primary, borderWidth: 1,
+    borderRadius: radius.md, paddingHorizontal: spacing.md, paddingVertical: 10,
+  },
+  autoText: { color: colors.text, fontSize: 12, fontWeight: '700', flex: 1 },
   metaRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingVertical: 6,
@@ -225,5 +314,17 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: spacing.sm,
   },
   ctaText: { color: colors.bg, fontWeight: '900', fontSize: 15, letterSpacing: 1.2 },
+  secondaryCta: {
+    height: 52, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
+    borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center',
+    flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md,
+  },
+  secondaryCtaText: { color: colors.text, fontWeight: '800', fontSize: 14, flex: 1, textAlign: 'center' },
+  dangerCta: {
+    height: 48, backgroundColor: 'transparent', borderColor: colors.danger, borderWidth: 1,
+    borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center',
+    flexDirection: 'row', gap: spacing.sm,
+  },
+  dangerCtaText: { color: colors.danger, fontWeight: '800', fontSize: 13 },
   legal: { color: colors.textMuted, fontSize: 11, textAlign: 'center' },
 });
