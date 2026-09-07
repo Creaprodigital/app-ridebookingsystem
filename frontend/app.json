@@ -19,7 +19,8 @@
           "fetch",
           "remote-notification"
         ]
-      }
+      },
+      "bundleIdentifier": "app.emergent.rideshareapp1712dcad343"
     },
     "android": {
       "adaptiveIcon": {
