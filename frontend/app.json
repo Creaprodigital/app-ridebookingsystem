@@ -14,6 +14,10 @@
         "NSLocationWhenInUseUsageDescription": "Share your position to receive nearby rides",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Track your trips and receive nearby ride requests",
         "NSLocationAlwaysUsageDescription": "Share your position while driving in background",
+        "NSCameraUsageDescription": "Scan documents and attach ride photos",
+        "NSMicrophoneUsageDescription": "Record voice notes during a ride",
+        "NSContactsUsageDescription": "Call riders directly from your contact list",
+        "NSPhotoLibraryUsageDescription": "Attach photos from your gallery to a ride",
         "UIBackgroundModes": [
           "location",
           "fetch",

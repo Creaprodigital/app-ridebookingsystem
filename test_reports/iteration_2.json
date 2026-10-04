@@ -1,0 +1,53 @@
+{
+  "summary": "End-to-end verification of driver subscription flow after Stripe recurring migration + local proxy backend. Backend (9/9 pytest cases) and frontend (all 9 requested flows) PASS. Local FastAPI proxy correctly forwards /api/* to upstream SaaS; /health and /healthz return 200 with mongo=true. Driver login via proxy returns a JWT. GET /api/driver/subscription returns {enabled:true, status:active, monthly_amount_cents:5000, next_billing_at:2026-10-07, ...}. POST /api/driver/subscription/checkout returns a real Stripe Checkout URL (cs_live_...). The previous 'endpoint non disponible' error is NOT reproducible. Frontend: Welcome + Login screens render the dark wallpaper with overlay; after login the driver lands on the home map with exactly 4 tabs (Carte / Missions / Historique / Menu — Portefeuille hidden via href:null and HIDDEN_ROUTES set). Menu shows 'Portefeuille' (routes to /(tabs)/earnings) and 'Mon abonnement' with ACTIF badge. Subscription screen for the active driver shows: green 'Actif' badge, '50,00 € / mois', yellow 'Prélèvement automatique — carte sauvegardée par Stripe' box, 'Prochain prélèvement 07 octobre 2026', green 'Abonnement à jour — vous pouvez recevoir des courses' card, 'Gérer mon abonnement' + 'Résilier l’abonnement' buttons. When GET subscription is mocked to status=none, UI correctly flips: home button becomes red 'ABONNEMENT REQUIS' with red banner, menu shows red 'REQUIS' badge, subscription screen shows 'Compte bloqué' warn + yellow 'S’ABONNER' CTA. Clicking S’ABONNER POSTs to /api/driver/subscription/checkout with {origin_url:'http://localhost:3000'}; mocked Stripe response accepted, no error toast displayed. Deprecated packages detected: expo-av used by expo-notifications (indirect, not in app code — not a blocker).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "home map", "issues": ["Minor: 'Permission de localisation refusée' banner appears on web preview (expected — Chromium denies geolocation). No action required."]}
+    ],
+    "react_native_issues": [
+      {"component": "login/map styles", "issue": "React Native Web warnings — deprecated shadow* style props; recommend switching to boxShadow. References: app/(tabs)/index.tsx:403, 457, 462 (shiftBtn / liveCounter shadows)."},
+      {"component": "pointerEvents prop", "issue": "props.pointerEvents is deprecated — move to style.pointerEvents. Reference: app/(tabs)/index.tsx:240 (top bar View)."},
+      {"component": "Animated useNativeDriver on web", "issue": "'useNativeDriver' is not supported on web and falls back to JS-based animation. Cosmetic only; consider Platform.select to disable on web. Reference: app/(tabs)/index.tsx:50-52."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_proxy_subscription.py",
+    "/app/test_reports/pytest/pytest_results.xml",
+    "/app/test_reports/02_login.png",
+    "/app/test_reports/04_home.png",
+    "/app/test_reports/05_menu.png",
+    "/app/test_reports/06_subscription.png",
+    "/app/test_reports/10_home_needspay.png",
+    "/app/test_reports/11_menu_needspay.png",
+    "/app/test_reports/12_sub_needspay.png"
+  ],
+  "action_items": [
+    "Optional: migrate deprecated shadow* style props to boxShadow for RN Web parity.",
+    "Optional: move pointerEvents from prop to style on home map top bar View.",
+    "Optional: disable useNativeDriver animations on web (Platform.OS === 'web' ? false : true).",
+    "No functional fixes required — subscription flow is production-ready."
+  ],
+  "critical_code_review_comments": [
+    "Backend proxy correctly forwards hop-by-hop-filtered headers (Authorization preserved) and short-circuits /api/status + /health locally — good deploy-readiness pattern.",
+    "driverSubscription.tsx uses a resilient candidate-list approach for checkout/portal/cancel endpoints — survives future renames.",
+    "TabBar.tsx uses both HIDDEN_ROUTES explicit set AND descriptor href:null filtering — robust against expo-router version changes.",
+    "Subscription screen correctly gates CTA (S’ABONNER) vs management buttons (Gérer/Résilier) by isActive state.",
+    "No MongoDB _id leaks (local backend doesn't own data).",
+    "All interactive elements have testID (tab-*, menu-*, sub-*, toggle-shift-button, subscription-banner)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_proxy_subscription.py (NEW — 9 pytest cases)"
+  ],
+  "success_rate": {"backend": "100% (9/9)", "frontend": "100% (9/9 flows)"},
+  "seed_data_creation": "None — used provided driver credentials hoppla.me@gmail.com. Mocked GET /driver/subscription + POST /driver/subscription/checkout at the Playwright route level to exercise the needsPayment UI path without altering backend state.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Local proxy at http://localhost:8001 forwards to UPSTREAM_API_BASE (shared-ride-pool.emergent.host). Driver subscription flow is fully wired: GET state, POST checkout (Stripe URL), POST portal (400 for this test driver per credentials.md — expected), POST cancel. Live backend currently reports status=active for hoppla.me@gmail.com, so to retest needsPayment UI you must intercept GET /api/driver/subscription at the browser (route handler returning status=none) or ask main agent to flip the backend state. Portal/Cancel return 400 (no real Stripe sub behind the manual 'active' flag) — not a bug.",
+  "rca_of_issue": "Previously reported 'endpoint non disponible' is resolved: (1) frontend sends origin_url in POST body (buildOriginUrl in driverSubscription.tsx), (2) backend proxy forwards the request to upstream which returns a valid Stripe URL. Verified live with curl + Playwright. The checkout endpoint hits on the FIRST candidate (/driver/subscription/checkout), so the resilient candidate-list fallback is defensive-only."
+}

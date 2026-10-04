@@ -30,3 +30,16 @@ Dark Command Center theme based on `design_guidelines.json` (primary `#F5B72E` o
 ## Notes
 - Registration is not exposed in the driver app: drivers are provisioned by fleet operators via the existing pro web app.
 - MongoDB is not accessed directly from the mobile app — all operations go through the backend's REST API.
+
+## 2026-10-04 — Driver subscription + deployment hardening
+- Added Stripe recurring subscription for drivers (saved card, auto monthly debit) with:
+  - Full state screen `/subscription` (status badge, next-debit date, manage via Stripe Customer Portal, cancel)
+  - UI gate on home: driver cannot go on shift while unpaid (red "ABONNEMENT REQUIS" button + banner)
+  - Menu entry "Mon abonnement" with REQUIS / ACTIF status badge
+  - 60s background polling + AppState foreground refresh + deep-link listener for `sharedridedriver://subscription/*`
+- Moved "Portefeuille" from the bottom tab bar into the Menu
+- Replaced the backend stub with a transparent FastAPI → SaaS proxy (`UPSTREAM_API_BASE`), serving `/health` and `/healthz`
+- Frontend now reads `EXPO_PUBLIC_BACKEND_URL` first (deploy-rewritable), falls back to `EXPO_PUBLIC_API_BASE`, no hardcoded host
+- iOS infoPlist now declares Camera / Microphone / Contacts / Photo Library usage strings
+- Dark wallpaper applied to Welcome + Login with 25 % black overlay
+- Video splash (3.2 s total: fade-in 250 + visible 2500 + fade-out 450) using H.264 MP4 (native) + VP9 WebM (web)

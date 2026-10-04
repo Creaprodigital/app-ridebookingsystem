@@ -2,12 +2,17 @@ import axios, { AxiosError, AxiosInstance } from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-// External backend (shared-ride-pool). Env is baked at build time.
-// Fallback hard-coded ONLY because this app consumes an external third-party API
-// whose URL is intrinsic to the product (NOT our own backend).
+// Backend endpoint — read from build-time env.
+//   • `EXPO_PUBLIC_BACKEND_URL` is the Emergent-standard env var and is the
+//     one rewritten at `Publish` time to the production backend URL.
+//   • `EXPO_PUBLIC_API_BASE` is kept as a legacy fallback for existing dev
+//     environments that already define it.
+// We intentionally do NOT hard-code any fallback host: a missing env must
+// surface loudly at network time rather than silently ship a wrong backend.
 const API_BASE =
+  (process.env.EXPO_PUBLIC_BACKEND_URL as string | undefined) ||
   (process.env.EXPO_PUBLIC_API_BASE as string | undefined) ||
-  'https://shared-ride-pool.emergent.host';
+  '';
 const TOKEN_KEY = 'sr_driver_token';
 
 const webStorage = {
