@@ -197,9 +197,6 @@ export default function BookingDetailsSheet({ booking, driver, onClose, onAssign
                   strong
                 />
               ) : null}
-              {booking.duration_hours ? (
-                <KeyRow icon="hourglass-outline" label="Durée réservée" value={`${booking.duration_hours} h`} />
-              ) : null}
               <KeyRow
                 icon="bus-outline"
                 label="Type"

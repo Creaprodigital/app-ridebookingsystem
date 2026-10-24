@@ -1,0 +1,21 @@
+{
+  "summary": "Frontend-only retest of the removal of 'Durée réservée' from BookingDetailsSheet. I tested it in the Pro dispatcher app (contact@hoppla.fr) at a 390x844 viewport. PASS: I opened round-trip booking ee8c4a98 from Dispatch > Toutes. The sheet has no 'Durée réservée' / 'Durée' text, no '2 h' value and no hourglass row. The Trajet section shows Prise en charge, Destination, 'Départ (aller) sam. 24 octobre 2026 à 18:00', bold 'Retour ven. 30 octobre 2026 à 09:00', Type 'Aller-retour' and Planification 'Planifiée'. One-way booking d47fec18 shows 'Date & heure', no Retour row, Type 'Aller simple', Planification, and no duration row. No regressions: Client (Nom, Email, Téléphone, Passagers, Bagages, Appeler and Email buttons), Paiement (Montant total, Base, Remise, Méthode, Statut 'En attente'), Chauffeur & véhicule, and the 'Attribuer un chauffeur' CTA all render. A code grep confirms that duration_hours is no longer referenced in any UI file (only type definitions in src/proApi.ts).",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "BookingDetailsSheet - Chauffeur & véhicule", "issues": ["Already present before this fix, not caused by it: the 'Catégorie' row shows a raw UUID (e.g. 9b8beb61-6cfe-4576-9af7-6308764387fd) instead of a readable vehicle category name. booking.vehicle_type is a category ID and should be mapped to its label."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/.screenshots/dur_rt.png", "/app/.screenshots/dur_rt_2.png", "/app/.screenshots/dur_ow.png", "/app/.screenshots/dur_ow_2.png"],
+  "action_items": ["Optional and not related to this fix: in the BookingDetailsSheet 'Catégorie' row, map the vehicle_type UUID to a readable category name."],
+  "critical_code_review_comments": ["The duration_hours KeyRow is removed cleanly. The Trajet section in BookingDetailsSheet.tsx (lines 167-226) now has only addresses, date/Retour, Type, Planification and the optional Vol/Train/Suivi rows."],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A", "frontend": "100%"},
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Pro login: contact@hoppla.fr. Navigate to /dispatch, tap the 'Toutes' filter, then tap the booking-card-{id} cards. Round-trip booking: ee8c4a98-7e67-4ec5-9f8d-b04f0cc53fd4. One-way booking: d47fec18-7dcc-448e-a4c9-c696e7822543. Section titles are uppercase through textTransform, so inner_text returns 'TRAJET' and not 'Trajet'."
+}
