@@ -1,0 +1,35 @@
+{
+  "summary": "Frontend-only retest of BookingDetailsSheet round-trip fix (Pro dispatcher, 390x844 viewport). PASS: Round-trip booking ee8c4a98 opened from /dispatch ('Toutes' filter) AND from the dashboard 'Courses récentes' shows 'Départ (aller) sam. 24 octobre 2026 à 18:00' + bold 'Retour ven. 30 octobre 2026 à 09:00' (fontWeight 900, 15px), Type 'Aller-retour'. One-way booking d47fec18 shows 'Date & heure' with no Retour row. Simulated through intercepted /api/pro/* responses: return_at=null on a round trip shows 'Retour —' with no crash. flight_number='AF1234' shows a 'Vol' row. Empty train_number '' is hidden. tracking_url shows a truncated 'Suivi' row with a chevron that can be tapped (tabindex=0, cursor pointer). trip_type undefined shows 'Date & heure', no Retour, Type '—'. train_number 'TGV 6201' shows a 'Train' row. No regressions: Client section (Nom/Email/Téléphone + Appeler/Email buttons), Paiement breakdown + Statut 'En attente', 'Attribuer un chauffeur' CTA for pending bookings. Driver regressions also pass: the video splash shows at boot and is removed after about 4s, the driver home has 4 tabs (Carte/Missions/Historique/Menu), and the subscription screen shows Actif, 50,00 € / mois and Gérer + Résilier.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "BookingDetailsSheet Paiement > Méthode", "issue": "Backend returns payment_method='card_onboard' and the UI shows the raw key 'card_onboard' because paymentMethodLabel() has no case for it. Reference: /app/frontend/src/components/BookingDetailsSheet.tsx:58", "testID": "n/a", "priority": "LOW"},
+      {"component": "BookingDetailsSheet Chauffeur & véhicule > Catégorie", "issue": "vehicle_type holds a UUID (e.g. '9b8beb61-6cfe-4576-9af7-6308764387fd'), and that raw ID is shown to the dispatcher instead of a category name. Resolve it against /pro/vehicles or the vehicle categories. Reference: BookingDetailsSheet.tsx:282", "testID": "n/a", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "BookingDetailsSheet", "issues": [
+        "Tappable KeyRows (Email, Téléphone, Suivi) are about 30px tall, below the 44px minimum touch target. Add minHeight 44 or hitSlop.",
+        "Close X button is 32x32 (hitSlop 10 makes up for it)."
+      ]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": ["/app/.screenshots/rt_sheet.png", "/app/.screenshots/rt_null.png", "/app/.screenshots/oneway.png", "/app/.screenshots/undef_bottom.png"],
+  "action_items": [
+    "Add 'card_onboard' (e.g. 'Carte à bord') and other backend payment_method keys to paymentMethodLabel()",
+    "Map vehicle_type UUID to a human-readable category name in the Chauffeur & véhicule section",
+    "Optional: add testIDs to the sheet (e.g. booking-details-sheet, booking-details-return-row, booking-details-close) and give tappable KeyRows a 44px minimum height"
+  ],
+  "critical_code_review_comments": [
+    "Round-trip logic is correct: isRoundTrip is computed before the early return, no hooks are called conditionally, and fmtDate(null) returns '—'.",
+    "Sheet elements have no testIDs, so the tests had to rely on text selectors."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (not requested)", "frontend": "100% of requested flows"},
+  "seed_data_creation": "None. Null return_at, optional travel fields and undefined trip_type were simulated with Playwright route interception of GET /api/pro/* only.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Pro dashboard uses GET /api/pro/dashboard (recent_bookings). Dispatch uses /api/pro/bookings + /api/pro/drivers. Card testIDs: booking-card-{id} (dispatch) and dashboard-booking-{id} (dashboard). Round-trip booking ee8c4a98-7e67-4ec5-9f8d-b04f0cc53fd4, one-way booking d47fec18-7dcc-448e-a4c9-c696e7822543. To test edge cases, intercept **/api/pro/** and mutate the JSON.",
+  "rca_of_issue": "Original bug: the sheet only rendered pickup_at and never read return_at. Fixed by the conditional Retour KeyRow for trip_type 'round_trip'; verified."
+}

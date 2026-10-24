@@ -58,7 +58,9 @@ function priorityMeta(p?: string): { label: string; color: string } {
 function paymentMethodLabel(k?: string): string {
   switch ((k || '').toLowerCase()) {
     case 'card':         return 'Carte bancaire';
+    case 'card_onboard': return 'Carte à bord';
     case 'cash':         return 'Espèces';
+    case 'cash_onboard': return 'Espèces à bord';
     case 'invoice':      return 'Facture entreprise';
     case 'client_app':   return 'App client';
     case 'bank_transfer':return 'Virement';
@@ -99,6 +101,10 @@ export default function BookingDetailsSheet({ booking, driver, onClose, onAssign
   const sMeta = useMemo(() => statusMeta(booking?.status), [booking?.status]);
   const pMeta = useMemo(() => priorityMeta(booking?.priority), [booking?.priority]);
   const payS  = useMemo(() => paymentStatusMeta(booking?.payment_status), [booking?.payment_status]);
+  // Round-trip bookings carry a second ISO date in `return_at`. We keep this
+  // check at the top so every section below can decide whether to show
+  // return-only information (date, extra label wording).
+  const isRoundTrip = (booking?.trip_type || '').toLowerCase() === 'round_trip';
 
   if (!booking) return null;
 
@@ -176,7 +182,21 @@ export default function BookingDetailsSheet({ booking, driver, onClose, onAssign
                   </View>
                 </View>
               </View>
-              <KeyRow icon="time-outline" label="Date & heure" value={fmtDate(booking.pickup_at)} />
+              <KeyRow
+                icon="time-outline"
+                label={isRoundTrip ? 'Départ (aller)' : 'Date & heure'}
+                value={fmtDate(booking.pickup_at)}
+              />
+              {/* Return leg — only for round-trip bookings. Highlight with a
+                  distinct icon so dispatchers immediately see it's the return. */}
+              {isRoundTrip ? (
+                <KeyRow
+                  icon="arrow-undo-outline"
+                  label="Retour"
+                  value={fmtDate(booking.return_at)}
+                  strong
+                />
+              ) : null}
               {booking.duration_hours ? (
                 <KeyRow icon="hourglass-outline" label="Durée réservée" value={`${booking.duration_hours} h`} />
               ) : null}
@@ -190,6 +210,22 @@ export default function BookingDetailsSheet({ booking, driver, onClose, onAssign
                 label="Planification"
                 value={booking.is_immediate || booking.schedule_mode === 'now' ? 'Immédiate' : 'Planifiée'}
               />
+              {/* Optional travel-tracking fields — only shown when present. */}
+              {booking.flight_number ? (
+                <KeyRow icon="airplane-outline" label="Vol" value={booking.flight_number} />
+              ) : null}
+              {booking.train_number ? (
+                <KeyRow icon="train-outline" label="Train" value={booking.train_number} />
+              ) : null}
+              {booking.tracking_url ? (
+                <KeyRow
+                  icon="link-outline"
+                  label="Suivi"
+                  value={booking.tracking_url.length > 36 ? booking.tracking_url.slice(0, 33) + '…' : booking.tracking_url}
+                  onPress={() => Linking.openURL(booking.tracking_url as string).catch(() => {})}
+                  chevron
+                />
+              ) : null}
             </Section>
 
             {/* ─── Client ──────────────────────────────────────── */}
@@ -458,7 +494,7 @@ const styles = StyleSheet.create({
   subLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 2 },
   addr: { color: colors.text, fontSize: 14, fontWeight: '600' },
 
-  kv: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm },
+  kv: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, minHeight: 44, paddingVertical: 2 },
   kvLabel: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   kvLabelTxt: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
   kvValue: { color: colors.text, fontSize: 13, fontWeight: '700', maxWidth: 220, textAlign: 'right' },

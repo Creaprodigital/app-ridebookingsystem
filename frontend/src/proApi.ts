@@ -41,6 +41,8 @@ export type ProBooking = {
   dropoff_lat?: number | null;
   dropoff_lng?: number | null;
   pickup_at: string;
+  /** For `trip_type === 'round_trip'` — ISO string of the return leg. */
+  return_at?: string | null;
   schedule_mode?: 'now' | 'later';
   is_immediate?: boolean;
   duration_hours?: number;
@@ -54,6 +56,11 @@ export type ProBooking = {
   notes?: string;
   priority?: 'low' | 'normal' | 'high' | 'urgent';
   internal_notes?: string; // dispatcher-only
+  /** Optional travel-tracking helpers surfaced in the details sheet. */
+  flight_number?: string | null;
+  train_number?: string | null;
+  tracking_url?: string | null;
+  other_info?: string | null;
   created_at?: string;
 };
 
