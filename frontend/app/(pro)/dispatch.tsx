@@ -7,6 +7,7 @@ import { colors, radius, spacing } from '../../src/theme';
 import ProHeader from '../../src/components/ProHeader';
 import { getProDispatch, assignBookingToDriver, ProBooking, ProDriver } from '../../src/proApi';
 import { haptic } from '../../src/feedback';
+import BookingDetailsSheet from '../../src/components/BookingDetailsSheet';
 
 function fmt(d?: string) {
   if (!d) return '—';
@@ -51,6 +52,8 @@ export default function DispatchScreen() {
   const [filter, setFilter] = useState<Filter>('pending');
   const [assignTarget, setAssignTarget] = useState<ProBooking | null>(null);
   const [assigning, setAssigning] = useState(false);
+  /** The booking currently displayed inside the details bottom sheet. */
+  const [detailsTarget, setDetailsTarget] = useState<ProBooking | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -143,7 +146,12 @@ export default function DispatchScreen() {
           renderItem={({ item }) => {
             const assigned = item.driver_id ? driverById.get(item.driver_id) : null;
             return (
-              <View style={styles.card}>
+              <TouchableOpacity
+                activeOpacity={0.9}
+                onPress={() => { haptic('light'); setDetailsTarget(item); }}
+                style={styles.card}
+                testID={`booking-card-${item.id}`}
+              >
                 <View style={styles.cardHeader}>
                   <View style={[styles.statusPill, { backgroundColor: statusColor(item.status) + '22', borderColor: statusColor(item.status) }]}>
                     <View style={[styles.statusDot, { backgroundColor: statusColor(item.status) }]} />
@@ -194,11 +202,19 @@ export default function DispatchScreen() {
                     <Text style={styles.assignBtnTxt}>Attribuer un chauffeur</Text>
                   </TouchableOpacity>
                 ) : null}
-              </View>
+              </TouchableOpacity>
             );
           }}
         />
       )}
+
+      {/* Rich details sheet — opens on card tap */}
+      <BookingDetailsSheet
+        booking={detailsTarget}
+        driver={detailsTarget?.driver_id ? driverById.get(detailsTarget.driver_id) ?? null : null}
+        onClose={() => setDetailsTarget(null)}
+        onAssign={(b) => { setDetailsTarget(null); setAssignTarget(b); }}
+      />
 
       {/* Assignment modal */}
       <Modal visible={!!assignTarget} transparent animationType="slide" onRequestClose={() => setAssignTarget(null)}>

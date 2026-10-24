@@ -7,6 +7,8 @@ import { colors, radius, spacing } from '../../src/theme';
 import ProHeader from '../../src/components/ProHeader';
 import { getProDashboard, ProBooking, ProDashboardStats } from '../../src/proApi';
 import { useAuth } from '../../src/auth';
+import BookingDetailsSheet from '../../src/components/BookingDetailsSheet';
+import { haptic } from '../../src/feedback';
 
 function fmt(d?: string): string {
   if (!d) return '—';
@@ -37,6 +39,8 @@ export default function ProDashboard() {
   const [recent, setRecent] = useState<ProBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  /** Booking shown in the full-details bottom sheet. */
+  const [detailsTarget, setDetailsTarget] = useState<ProBooking | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -123,7 +127,13 @@ export default function ProDashboard() {
               </View>
             ) : (
               recent.slice(0, 5).map((b) => (
-                <View key={b.id} style={styles.bookingRow}>
+                <TouchableOpacity
+                  key={b.id}
+                  style={styles.bookingRow}
+                  activeOpacity={0.75}
+                  onPress={() => { haptic('light'); setDetailsTarget(b); }}
+                  testID={`dashboard-booking-${b.id}`}
+                >
                   <View style={[styles.statusDot, { backgroundColor: statusColor(b.status) }]} />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.bookingFrom} numberOfLines={1}>{b.pickup_address || '—'}</Text>
@@ -131,12 +141,26 @@ export default function ProDashboard() {
                     <Text style={styles.bookingMeta}>{fmt(b.pickup_at)} • {statusLabel(b.status)}</Text>
                   </View>
                   <Text style={styles.bookingPrice}>{(b?.pricing?.final ?? b?.pricing?.total ?? 0).toFixed(2)} €</Text>
-                </View>
+                  <Ionicons name="chevron-forward" size={14} color={colors.textMuted} style={{ marginLeft: 4 }} />
+                </TouchableOpacity>
               ))
             )}
           </View>
         </ScrollView>
       )}
+
+      {/* Full-details sheet opened when a recent booking row is tapped */}
+      <BookingDetailsSheet
+        booking={detailsTarget}
+        onClose={() => setDetailsTarget(null)}
+        onAssign={() => {
+          // From the dashboard the dispatcher only sees recent bookings;
+          // route them to the full dispatch screen where the assignment
+          // modal lives.
+          setDetailsTarget(null);
+          router.push('/(pro)/dispatch' as any);
+        }}
+      />
     </SafeAreaView>
   );
 }
