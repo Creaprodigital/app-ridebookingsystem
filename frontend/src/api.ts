@@ -84,8 +84,8 @@ export async function checkEmail(email: string) {
 
 export async function getMe() {
   const { data } = await api.get('/auth/me');
-  // Backend returns { user: {...}, tenant: {...} }
-  return (data?.user ?? data) as any;
+  // Backend returns { user: {...}, tenant: {...} } — keep both (auth.tsx reads them).
+  return data as any;
 }
 
 // ---------- Driver ----------

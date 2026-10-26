@@ -43,3 +43,8 @@ Dark Command Center theme based on `design_guidelines.json` (primary `#F5B72E` o
 - iOS infoPlist now declares Camera / Microphone / Contacts / Photo Library usage strings
 - Dark wallpaper applied to Welcome + Login with 25 % black overlay
 - Video splash (3.2 s total: fade-in 250 + visible 2500 + fade-out 450) using H.264 MP4 (native) + VP9 WebM (web)
+
+## Update (Jun 2026) — Pricing uses backend only
+- No night/weekend/holiday surcharges: removed surcharge lines from BookingDetailsSheet.
+- Pro create booking: removed client-side category multiplier; one backend /public/quote per vehicle category (vehicle_type sent), price shown = backend `final`.
+- Fixed getMe() in src/api.ts dropping `tenant` (after app reload tenant was null → no quotes, no tenant Maps key).

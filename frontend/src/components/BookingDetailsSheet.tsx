@@ -397,11 +397,9 @@ function KeyRow({
 
 function PricingBreakdown({ pricing }: { pricing: any }) {
   if (!pricing || typeof pricing !== 'object') return null;
-  // Show a short breakdown when available (base, surcharges, discount…).
+  // Short breakdown as returned by the backend (base, waiting, options, discount).
   const items: Array<{ label: string; value: number }> = [];
   if (Number.isFinite(Number(pricing.base))) items.push({ label: 'Base', value: Number(pricing.base) });
-  if (Number.isFinite(Number(pricing.night_surcharge))) items.push({ label: 'Supplément nuit', value: Number(pricing.night_surcharge) });
-  if (Number.isFinite(Number(pricing.weekend_surcharge))) items.push({ label: 'Supplément week-end', value: Number(pricing.weekend_surcharge) });
   if (Number.isFinite(Number(pricing.waiting_time))) items.push({ label: 'Attente', value: Number(pricing.waiting_time) });
   if (Number.isFinite(Number(pricing.extras))) items.push({ label: 'Options', value: Number(pricing.extras) });
   if (Number.isFinite(Number(pricing.discount))) items.push({ label: 'Remise', value: -Math.abs(Number(pricing.discount)) });

@@ -51,11 +51,11 @@ function buildIso(date: Date, h: number, m: number) {
 function clientName(c: ProClient) {
   return `${c.first_name || ''} ${c.last_name || ''}`.trim() || c.email || '—';
 }
-function categoryPrice(baseTotal: number | null, baseMultiplier: number, c: ProCategory): number | null {
-  if (baseTotal == null) return null;
-  const m = Number(c.multiplier ?? 1) || 1;
-  const base = baseMultiplier > 0 ? baseTotal / baseMultiplier : baseTotal;
-  return Number((base * m).toFixed(2));
+// Price exactly as computed by the backend quote (no client-side adjustment).
+function quotePrice(q: any): number | null {
+  if (!q) return null;
+  const v = Number(q.final ?? q.total ?? q.subtotal);
+  return Number.isFinite(v) ? v : null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -144,7 +144,8 @@ export default function CreateBookingScreen() {
     }
   }, [PAY_OPTIONS, payment]);
   const [drivers, setDrivers] = useState<ProDriver[]>([]); // used only for marketplace flow
-  const [quote, setQuote] = useState<any>(null);
+  // One backend quote per vehicle category (key '' = no category).
+  const [quotes, setQuotes] = useState<Record<string, any>>({});
   const [quoting, setQuoting] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [mapsKey, setMapsKey] = useState<string | undefined>(undefined);
@@ -183,36 +184,37 @@ export default function CreateBookingScreen() {
   const triggerQuote = useCallback(async () => {
     if (!canQuote || !tenantId) return;
     setQuoting(true);
-    try {
-      const q = await quoteBooking({
-        tenant_id: tenantId,
-        pickup_address: pickup.trim(),
-        dropoff_address: dropoff.trim() || undefined,
-        pickup_at: isoPickup,
-        trip_type: tripType,
-        pax,
-        bags,
-      });
-      setQuote(q);
-    } catch {
-      setQuote(null);
-    } finally {
-      setQuoting(false);
-    }
-  }, [canQuote, tenantId, pickup, dropoff, isoPickup, tripType, pax, bags]);
+    const ids = categories.length ? categories.map((c) => c.id) : [''];
+    const results = await Promise.all(ids.map(async (id) => {
+      try {
+        const q = await quoteBooking({
+          tenant_id: tenantId,
+          pickup_address: pickup.trim(),
+          dropoff_address: dropoff.trim() || undefined,
+          pickup_at: isoPickup,
+          trip_type: tripType,
+          vehicle_type: id || undefined,
+          pax,
+          bags,
+        });
+        return [id, q] as const;
+      } catch {
+        return [id, null] as const;
+      }
+    }));
+    const next: Record<string, any> = {};
+    results.forEach(([id, q]) => { if (q) next[id] = q; });
+    setQuotes(next);
+    setQuoting(false);
+  }, [canQuote, tenantId, pickup, dropoff, isoPickup, tripType, pax, bags, categories]);
 
   useEffect(() => {
     const id = setTimeout(() => { triggerQuote(); }, 700);
     return () => clearTimeout(id);
   }, [pickup, dropoff, isoPickup, tripType, triggerQuote]);
 
-  const selectedCategory = useMemo(
-    () => categories.find((c) => c.id === vehicleType) || null,
-    [categories, vehicleType],
-  );
-  const baseTotal: number | null = quote ? Number(quote.final ?? quote.total ?? quote.subtotal) : null;
-  const baseMultiplier = quote?.multiplier ? Number(quote.multiplier) : 1;
-  const selectedPrice = selectedCategory ? categoryPrice(baseTotal, baseMultiplier, selectedCategory) : baseTotal;
+  const quote = quotes[vehicleType || ''] ?? Object.values(quotes)[0] ?? null;
+  const selectedPrice = quotePrice(quote);
 
   // When user fills manualPrice, use that for submission. Otherwise use computed.
   const finalPrice = useMemo(() => {
@@ -425,7 +427,7 @@ export default function CreateBookingScreen() {
             <Text style={styles.kicker}>CHOISISSEZ VOTRE VÉHICULE</Text>
             {categories.map((c) => {
               const active = vehicleType === c.id;
-              const price = categoryPrice(baseTotal, baseMultiplier, c);
+              const price = quotePrice(quotes[c.id]);
               return (
                 <TouchableOpacity
                   key={c.id}
