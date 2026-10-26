@@ -194,6 +194,7 @@ export default function CreateBookingScreen() {
           pickup_at: isoPickup,
           trip_type: tripType,
           vehicle_type: id || undefined,
+          vehicle_category_id: id || undefined,
           pax,
           bags,
         });
@@ -255,6 +256,7 @@ export default function CreateBookingScreen() {
         pickup_at: isoPickup,
         trip_type: tripType,
         vehicle_type: vehicleType || undefined,
+        vehicle_category_id: vehicleType || undefined,
         pax,
         bags,
         payment_method: payment,

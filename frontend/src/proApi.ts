@@ -229,6 +229,7 @@ export type QuoteRequest = {
   pickup_at: string;
   dropoff_address?: string;
   vehicle_type?: string;
+  vehicle_category_id?: string; // field the backend uses to price per category
   trip_type?: string;
   pax?: number;
   bags?: number;
@@ -250,6 +251,7 @@ export type CreateBookingRequest = {
   pickup_at: string;
   dropoff_address?: string;
   vehicle_type?: string;
+  vehicle_category_id?: string;
   trip_type?: string;
   pax?: number;
   bags?: number;

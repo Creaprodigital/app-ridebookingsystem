@@ -48,3 +48,4 @@ Dark Command Center theme based on `design_guidelines.json` (primary `#F5B72E` o
 - No night/weekend/holiday surcharges: removed surcharge lines from BookingDetailsSheet.
 - Pro create booking: removed client-side category multiplier; one backend /public/quote per vehicle category (vehicle_type sent), price shown = backend `final`.
 - Fixed getMe() in src/api.ts dropping `tenant` (after app reload tenant was null → no quotes, no tenant Maps key).
+- Fix: backend prices per category via `vehicle_category_id` (not `vehicle_type`). Quote + create booking now send vehicle_category_id (vehicle_type kept). STANDARD/VAN now priced with their own rates (e.g. Strasbourg Gare→Airport: 120 € / 209 €).
