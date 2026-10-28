@@ -50,3 +50,4 @@ Dark Command Center theme based on `design_guidelines.json` (primary `#F5B72E` o
 - Fixed getMe() in src/api.ts dropping `tenant` (after app reload tenant was null → no quotes, no tenant Maps key).
 - Fix: backend prices per category via `vehicle_category_id` (not `vehicle_type`). Quote + create booking now send vehicle_category_id (vehicle_type kept). STANDARD/VAN now priced with their own rates (e.g. Strasbourg Gare→Airport: 120 € / 209 €).
 - Branding: replaced Emergent template icons with RBS logo (icon.png, adaptive-icon.png on white bg, favicon.png) + monochrome notification-icon.png for Android notifications.
+- Payment-safety at end of ride (green/orange/red screens): BLOCKED on external backend. Prompt for backend team at /app/memory/backend_payment_prompt.md (GET/POST driver payment endpoints, payment_events, payment_issues, pro resolve). card_onboard => orange "Encaissez XX € par carte". Frontend screens to build once endpoints exist.
