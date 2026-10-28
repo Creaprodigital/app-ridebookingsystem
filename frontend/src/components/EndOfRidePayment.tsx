@@ -47,11 +47,11 @@ const REASONS = [
 ];
 
 const THEME: Record<Variant, { bg: string; fg: string; accent: string }> = {
-  collected: { bg: colors.paidBg, fg: colors.paidFg, accent: colors.paidAccent },
-  paid: { bg: colors.paidBg, fg: colors.paidFg, accent: colors.paidAccent },
-  cash: { bg: colors.cashBg, fg: colors.cashFg, accent: colors.cashAccent },
-  card: { bg: colors.cashBg, fg: colors.cashFg, accent: colors.cashAccent },
-  unconfirmed: { bg: colors.alertBg, fg: colors.alertFg, accent: colors.alertAccent },
+  collected: { bg: colors.bg, fg: colors.text, accent: colors.paidAccent },
+  paid: { bg: colors.bg, fg: colors.text, accent: colors.paidAccent },
+  cash: { bg: colors.bg, fg: colors.text, accent: colors.cashAccent },
+  card: { bg: colors.bg, fg: colors.text, accent: colors.cashAccent },
+  unconfirmed: { bg: colors.bg, fg: colors.text, accent: colors.alertAccent },
 };
 
 export default function EndOfRidePayment({ visible, missionId, onCompleteRide, onDone, onCancel }: Props) {
@@ -213,18 +213,18 @@ export default function EndOfRidePayment({ visible, missionId, onCompleteRide, o
 
   const reportButton = (p: MissionPayment) => (
     p.payment_issue_open ? (
-      <View style={[styles.issueSent, { borderColor: t.fg + '44' }]} testID="payment-issue-sent">
-        <Ionicons name="checkmark-done" size={18} color={t.fg} />
-        <Text style={[styles.issueSentTxt, { color: t.fg }]}>Problème signalé au dispatcheur. Il va vérifier le paiement.</Text>
+      <View style={[styles.issueSent, { borderColor: t.accent }]} testID="payment-issue-sent">
+        <Ionicons name="checkmark-done" size={18} color={t.accent} />
+        <Text style={[styles.issueSentTxt, { color: t.accent }]}>Problème signalé au dispatcheur. Il va vérifier le paiement.</Text>
       </View>
     ) : reportOpen ? renderReport() : (
       <TouchableOpacity
-        style={[styles.reportBtn, { borderColor: t.fg }]}
+        style={[styles.reportBtn, { borderColor: t.accent }]}
         onPress={() => setReportOpen(true)}
         testID="payment-report-btn"
       >
-        <Ionicons name="flag" size={18} color={t.fg} />
-        <Text style={[styles.reportBtnTxt, { color: t.fg }]}>Signaler un problème de paiement</Text>
+        <Ionicons name="flag" size={18} color={t.accent} />
+        <Text style={[styles.reportBtnTxt, { color: t.accent }]}>Signaler un problème de paiement</Text>
       </TouchableOpacity>
     )
   );
@@ -262,7 +262,7 @@ export default function EndOfRidePayment({ visible, missionId, onCompleteRide, o
       return (
         <>
           <Ionicons name="checkmark-circle" size={64} color={t.accent} style={styles.bigIcon} />
-          <Text style={[styles.title, { color: t.fg }]} testID="payment-title">
+          <Text style={[styles.title, { color: t.accent }]} testID="payment-title">
             {variant === 'paid' ? '✅ COURSE DÉJÀ PAYÉE' : '✅ ENCAISSEMENT ENREGISTRÉ'}
           </Text>
           <View style={[styles.banner, { backgroundColor: t.accent }]}>
@@ -294,7 +294,7 @@ export default function EndOfRidePayment({ visible, missionId, onCompleteRide, o
       return (
         <>
           <Ionicons name={isCard ? 'card' : 'cash'} size={64} color={t.accent} style={styles.bigIcon} />
-          <Text style={[styles.title, { color: t.fg }]} testID="payment-title">
+          <Text style={[styles.title, { color: t.accent }]} testID="payment-title">
             {isCard ? '💳 PAIEMENT PAR CARTE À BORD' : '💶 PAIEMENT EN ESPÈCES'}
           </Text>
           <View style={[styles.banner, { backgroundColor: t.accent }]}>
@@ -308,8 +308,8 @@ export default function EndOfRidePayment({ visible, missionId, onCompleteRide, o
             {isCard ? ' avec votre terminal de paiement.' : '.'}
           </Text>
           <View style={[styles.amountBox, { borderColor: t.accent }]}>
-            <Text style={[styles.amountLbl, { color: t.fg }]}>MONTANT À ENCAISSER</Text>
-            <Text style={[styles.amountVal, { color: t.fg }]} testID="payment-amount-due">{eur(p.amount_due)}</Text>
+            <Text style={[styles.amountLbl, { color: colors.textSecondary }]}>MONTANT À ENCAISSER</Text>
+            <Text style={[styles.amountVal, { color: t.accent }]} testID="payment-amount-due">{eur(p.amount_due)}</Text>
             <View style={styles.lockRow}>
               <Ionicons name="lock-closed" size={12} color={t.fg} />
               <Text style={[styles.lockTxt, { color: t.fg }]}>Montant fixé par le serveur</Text>
@@ -329,7 +329,7 @@ export default function EndOfRidePayment({ visible, missionId, onCompleteRide, o
     return (
       <>
         <Ionicons name="alert-circle" size={64} color={t.accent} style={styles.bigIcon} />
-        <Text style={[styles.title, { color: t.fg }]} testID="payment-title">⚠️ PAIEMENT NON CONFIRMÉ</Text>
+        <Text style={[styles.title, { color: t.accent }]} testID="payment-title">⚠️ PAIEMENT NON CONFIRMÉ</Text>
         <View style={[styles.banner, { backgroundColor: t.accent }]}>
           <Ionicons name="call" size={20} color={colors.text} />
           <Text style={styles.bannerTxt}>CONTACTEZ LE DISPATCHEUR</Text>
@@ -414,7 +414,7 @@ export default function EndOfRidePayment({ visible, missionId, onCompleteRide, o
           {renderBody()}
           {actionError ? (
             <View style={styles.errBox} testID="payment-action-error">
-              <Ionicons name="close-circle" size={18} color={colors.alertFg} />
+              <Ionicons name="close-circle" size={18} color={colors.alertAccent} />
               <Text style={styles.errTxt}>{actionError}</Text>
             </View>
           ) : null}
@@ -493,9 +493,9 @@ const styles = StyleSheet.create({
   },
   issueSentTxt: { fontWeight: '700', fontSize: 14, flexShrink: 1 },
   errBox: {
-    marginTop: spacing.md, backgroundColor: colors.alertBg, borderColor: colors.alertAccent, borderWidth: 1,
+    marginTop: spacing.md, backgroundColor: colors.alertAccent + '22', borderColor: colors.alertAccent, borderWidth: 1,
     borderRadius: radius.md, padding: 12, flexDirection: 'row', gap: 8, alignItems: 'center',
   },
-  errTxt: { color: colors.alertFg, fontWeight: '700', flexShrink: 1, fontSize: 13 },
+  errTxt: { color: colors.text, fontWeight: '700', flexShrink: 1, fontSize: 13 },
   footer: { paddingHorizontal: spacing.md, paddingTop: spacing.sm },
 });
