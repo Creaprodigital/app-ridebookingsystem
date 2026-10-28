@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { tokenStore, login as apiLogin, getMe } from './api';
+import { tokenStore, login as apiLogin, getMe, getMapsClientKey } from './api';
 import { stopBackgroundLocation } from './backgroundLocation';
 import { setActiveMapsKey } from './mapsKey';
 
@@ -23,18 +23,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [tenant, setTenant] = useState<Tenant>(null);
   const [loading, setLoading] = useState(true);
 
+  // Use the professional's own Google Maps key (pro + its linked drivers).
+  // Awaited before the user is set so maps are created with the right key.
+  const loadTenantMapsKey = useCallback(async (res: any) => {
+    const key = (await getMapsClientKey()) || res?.tenant?.config?.google_maps_api_key;
+    setActiveMapsKey(key);
+  }, []);
+
   const applyMeResponse = useCallback((res: any) => {
     // /auth/me returns { user, tenant } — login also returns the same shape.
     if (res && (res.user || res.tenant)) {
       setUser(res.user ?? null);
       setTenant(res.tenant ?? null);
-      // Apply the tenant's own Google Maps API key (Directions, Maps SDK,
-      // Places) so every map call goes through the customer's billing.
-      setActiveMapsKey(res.tenant?.config?.google_maps_api_key);
+      // Maps key is applied by loadTenantMapsKey() before this runs.
     } else {
       // Fallback: response is the user object directly
       setUser(res ?? null);
-      setActiveMapsKey(null);
     }
   }, []);
 
@@ -47,13 +51,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       const me = await getMe();
+      await loadTenantMapsKey(me);
       applyMeResponse(me);
     } catch {
       await tokenStore.clear();
       setUser(null);
       setTenant(null);
     }
-  }, [applyMeResponse]);
+  }, [applyMeResponse, loadTenantMapsKey]);
 
   useEffect(() => {
     (async () => {
@@ -68,14 +73,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await tokenStore.set(res.token);
     // login response shape: { token, user, tenant }
     if (res.user || res.tenant) {
+      await loadTenantMapsKey(res);
       setUser(res.user ?? null);
       setTenant(res.tenant ?? null);
-      setActiveMapsKey(res.tenant?.config?.google_maps_api_key);
     } else {
       const me = await getMe();
+      await loadTenantMapsKey(me);
       applyMeResponse(me);
     }
-  }, [applyMeResponse]);
+  }, [applyMeResponse, loadTenantMapsKey]);
 
   const signOut = useCallback(async () => {
     // Stop the foreground-service-backed location tracker first so the

@@ -88,6 +88,22 @@ export async function getMe() {
   return data as any;
 }
 
+/**
+ * Tenant (professional) Google Maps key for the logged-in pro or a driver
+ * linked to that pro. Returns null if the backend route is not deployed yet
+ * or the tenant has no key — the app then keeps the bundled fallback key.
+ */
+export async function getMapsClientKey(): Promise<string | null> {
+  try {
+    const { data } = await api.get('/maps/client-key', { timeout: 8000 });
+    const k = data?.google_maps_api_key;
+    return typeof k === 'string' && k.trim() ? k.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+
 // ---------- Driver ----------
 export async function getDriverProfile() {
   const { data } = await api.get('/driver/profile');
