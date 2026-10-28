@@ -17,6 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import MapView from '../../src/components/MapView';
 import SlideButton from '../../src/components/SlideButton';
+import EndOfRidePayment from '../../src/components/EndOfRidePayment';
 import { colors, radius, spacing } from '../../src/theme';
 import { fontScale, getPad, getGap } from '../../src/responsive';
 import { getDriverMissions, updateMissionStatus, apiError, getMarketplaceConfig } from '../../src/api';
@@ -127,50 +128,6 @@ function pickDriverNetEur(m: any, configPct?: number): number | null {
   return null;
 }
 
-type PaymentInfo = {
-  method: string;
-  isOnline: boolean;
-  label: string;
-};
-
-function pickPaymentInfo(m: any): PaymentInfo {
-  const raw = String(
-    m?.payment_method ||
-      m?.payment?.method ||
-      m?.booking?.payment_method ||
-      m?.booking?.payment?.method ||
-      ''
-  ).toLowerCase();
-  const status = String(
-    m?.payment_status ||
-      m?.payment?.status ||
-      m?.booking?.payment_status ||
-      ''
-  ).toLowerCase();
-  const paidOnline =
-    Boolean(m?.paid_online) ||
-    Boolean(m?.booking?.paid_online) ||
-    Boolean(m?.payment?.paid_online) ||
-    status === 'paid' ||
-    status === 'captured' ||
-    status === 'completed';
-
-  // Treat any of these as ONLINE/PRE-PAID
-  const onlineKeywords = ['card', 'online', 'stripe', 'app', 'apple_pay', 'google_pay', 'paypal', 'prepaid', 'wallet', 'en_ligne', 'ligne'];
-  const cashKeywords = ['cash', 'onboard', 'on_board', 'bord', 'a_bord', 'à_bord', 'espece', 'espèces', 'especes'];
-
-  let isOnline: boolean;
-  if (onlineKeywords.some((k) => raw.includes(k))) isOnline = true;
-  else if (cashKeywords.some((k) => raw.includes(k))) isOnline = false;
-  else isOnline = paidOnline;
-
-  let label: string;
-  if (isOnline) label = 'PAIEMENT EN LIGNE';
-  else label = 'PAIEMENT À BORD';
-
-  return { method: raw || 'unknown', isOnline, label };
-}
-
 export default function MissionDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -183,11 +140,8 @@ export default function MissionDetail() {
   const { onShift, clearActiveMission } = useRides();
   const [mission, setMission] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [completion, setCompletion] = useState<{
-    visible: boolean;
-    price: number | null;
-    payment: PaymentInfo | null;
-  }>({ visible: false, price: null, payment: null });
+  // Payment gate shown when the driver slides "TERMINER LA COURSE".
+  const [paymentGate, setPaymentGate] = useState(false);
 
   // Live driver position (from background+foreground location store) so the
   // leg-1 polyline (driver→pickup) refreshes naturally.
@@ -434,25 +388,15 @@ export default function MissionDetail() {
     }
     const t = NEXT[mission.status];
     if (!t) return;
+    // Ending the ride always goes through the payment gate: the ride is only
+    // set to "completed" from there, and never marks the payment as paid.
+    if (t.next === 'completed') {
+      haptic('medium');
+      setPaymentGate(true);
+      return;
+    }
     try {
       await updateMissionStatus(String(mission.id ?? mission._id), t.next);
-      // For "completed", show payment summary modal BEFORE refreshing
-      if (t.next === 'completed') {
-        haptic('success');
-        const price = Number(pickPrice(mission) ?? 0);
-        const payment = pickPaymentInfo(mission);
-        // Immediately mark the mission as completed locally so the screen
-        // unlocks and the global active-mission flag clears (prevents the
-        // _layout auto-redirect from sending the driver back here).
-        setMission((prev: any) => prev ? { ...prev, status: 'completed' } : prev);
-        clearActiveMission();
-        setCompletion({
-          visible: true,
-          price: Number.isFinite(price) ? price : null,
-          payment,
-        });
-        return;
-      }
       haptic('medium');
       await load();
     } catch (e) {
@@ -462,8 +406,15 @@ export default function MissionDetail() {
     }
   };
 
-  const closeCompletion = () => {
-    setCompletion({ visible: false, price: null, payment: null });
+  const completeRide = async () => {
+    if (!mission) return;
+    await updateMissionStatus(String(mission.id ?? mission._id), 'completed');
+    setMission((prev: any) => (prev ? { ...prev, status: 'completed' } : prev));
+    clearActiveMission();
+  };
+
+  const afterRideCompleted = () => {
+    setPaymentGate(false);
     // Use replace to avoid coming back to the now-completed mission screen
     try { router.replace('/(tabs)/missions' as any); }
     catch { router.back(); }
@@ -904,77 +855,16 @@ export default function MissionDetail() {
         </View>
       )}
 
-      {/* End-of-ride completion modal */}
-      <Modal
-        visible={completion.visible}
-        animationType="fade"
-        transparent
-        onRequestClose={closeCompletion}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard} testID="completion-modal">
-            <View style={[styles.modalIconWrap, { backgroundColor: colors.success + '22' }]}>
-              <Ionicons name="checkmark-circle" size={42} color={colors.success} />
-            </View>
-            <Text style={styles.modalTitle}>Course terminée</Text>
-            <Text style={styles.modalSub}>Bravo ! Voici le récapitulatif :</Text>
-
-            <View style={styles.amountBox}>
-              <Text style={styles.amountLbl}>MONTANT DE LA COURSE</Text>
-              <Text style={styles.amountVal}>
-                {completion.price != null ? `${completion.price.toFixed(2)} €` : '—'}
-              </Text>
-            </View>
-
-            {completion.payment ? (
-              <View
-                style={[
-                  styles.paymentBox,
-                  completion.payment.isOnline ? styles.paymentBoxOnline : styles.paymentBoxCash,
-                ]}
-                testID="payment-info-box"
-              >
-                <View style={styles.paymentHeader}>
-                  <Ionicons
-                    name={completion.payment.isOnline ? 'card' : 'cash'}
-                    size={22}
-                    color={completion.payment.isOnline ? colors.primary : colors.warning}
-                  />
-                  <Text style={[styles.paymentLbl, { color: completion.payment.isOnline ? colors.primary : colors.warning }]}>
-                    {completion.payment.label}
-                  </Text>
-                </View>
-                {completion.payment.isOnline ? (
-                  <View style={styles.paymentInstr}>
-                    <Ionicons name="information-circle" size={16} color={colors.primary} />
-                    <Text style={styles.paymentInstrText}>
-                      <Text style={{ fontWeight: '900' }}>N’encaissez pas le client.</Text>{'\n'}
-                      Le paiement a été effectué en ligne.
-                    </Text>
-                  </View>
-                ) : (
-                  <View style={styles.paymentInstr}>
-                    <Ionicons name="alert-circle" size={16} color={colors.warning} />
-                    <Text style={styles.paymentInstrText}>
-                      <Text style={{ fontWeight: '900' }}>Encaissez le client à bord.</Text>{'\n'}
-                      Le paiement doit être effectué directement auprès de vous.
-                    </Text>
-                  </View>
-                )}
-              </View>
-            ) : null}
-
-            <TouchableOpacity
-              style={styles.modalPrimaryBtn}
-              onPress={closeCompletion}
-              testID="completion-ok-btn"
-            >
-              <Ionicons name="checkmark" size={18} color={colors.bg} />
-              <Text style={styles.modalPrimaryText}>J’AI COMPRIS</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      {/* End-of-ride payment gate (server-verified green / orange / red) */}
+      {paymentGate ? (
+        <EndOfRidePayment
+          visible={paymentGate}
+          missionId={String(mission.id ?? mission._id)}
+          onCompleteRide={completeRide}
+          onDone={afterRideCompleted}
+          onCancel={() => setPaymentGate(false)}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -1387,42 +1277,4 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
   },
   lockBtnText: { color: '#000', fontWeight: '900', fontSize: 11, letterSpacing: 0.8 },
-  // Completion modal
-  modalBackdrop: {
-    flex: 1, justifyContent: 'center', alignItems: 'center',
-    backgroundColor: '#000000CC', padding: spacing.lg,
-  },
-  modalCard: {
-    width: '100%', maxWidth: 420, backgroundColor: colors.surface,
-    borderRadius: radius.xl, padding: spacing.lg, gap: spacing.md, alignItems: 'center',
-    borderColor: colors.border, borderWidth: 1,
-  },
-  modalIconWrap: {
-    width: 80, height: 80, borderRadius: 40,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  modalTitle: { color: colors.text, fontSize: 22, fontWeight: '900', textAlign: 'center' },
-  modalSub: { color: colors.textSecondary, fontSize: 13, textAlign: 'center' },
-  amountBox: {
-    alignSelf: 'stretch', backgroundColor: colors.bg, borderRadius: radius.lg,
-    paddingVertical: 16, paddingHorizontal: 14, alignItems: 'center',
-    borderWidth: 1, borderColor: colors.border,
-  },
-  amountLbl: { color: colors.textMuted, fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
-  amountVal: { color: colors.primary, fontSize: 36, fontWeight: '900', letterSpacing: -1, marginTop: 4 },
-  paymentBox: {
-    alignSelf: 'stretch', borderRadius: radius.lg, padding: 14, gap: 10, borderWidth: 1,
-  },
-  paymentBoxOnline: { backgroundColor: colors.primary + '15', borderColor: colors.primary },
-  paymentBoxCash: { backgroundColor: colors.warning + '15', borderColor: colors.warning },
-  paymentHeader: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  paymentLbl: { fontSize: 12, fontWeight: '900', letterSpacing: 1.3 },
-  paymentInstr: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
-  paymentInstrText: { color: colors.text, fontSize: 13, lineHeight: 18, flex: 1 },
-  modalPrimaryBtn: {
-    alignSelf: 'stretch', height: 56, borderRadius: radius.full, backgroundColor: colors.primary,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    shadowColor: colors.primary, shadowOpacity: 0.4, shadowRadius: 16, shadowOffset: { width: 0, height: 0 },
-  },
-  modalPrimaryText: { color: colors.bg, fontWeight: '900', fontSize: 14, letterSpacing: 1 },
 });

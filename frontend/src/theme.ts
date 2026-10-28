@@ -12,6 +12,16 @@ export const colors = {
   danger: '#EF4444',
   warning: '#EAB308',
   info: '#3B82F6',
+  // End-of-ride payment screens (light backgrounds + dark text for max contrast)
+  paidBg: '#DCFCE7',
+  paidFg: '#14532D',
+  paidAccent: '#16A34A',
+  cashBg: '#FFEDD5',
+  cashFg: '#7C2D12',
+  cashAccent: '#EA580C',
+  alertBg: '#FEE2E2',
+  alertFg: '#7F1D1D',
+  alertAccent: '#DC2626',
 };
 
 export const radius = {

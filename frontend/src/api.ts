@@ -152,6 +152,51 @@ export async function updateMissionStatus(missionId: string, status: string) {
   return data;
 }
 
+// ---------- End-of-ride payment (server is the single source of truth) ----------
+export type DisplayCase = 'paid_online' | 'collect_cash' | 'collect_card' | 'unconfirmed';
+export type MissionPayment = {
+  booking_id: string;
+  payment_method: string;
+  payment_status: string;
+  amount_total: number;
+  amount_paid: number;
+  amount_due: number;
+  currency: string;
+  display_case: DisplayCase;
+  can_collect: boolean;
+  collection: null | {
+    driver_id?: string;
+    driver_name?: string;
+    amount: number;
+    method: 'cash' | 'card';
+    confirmation_mode?: string;
+    collected_at?: string;
+  };
+  payment_issue_open: boolean;
+  checked_at?: string;
+};
+
+export async function getMissionPayment(missionId: string): Promise<MissionPayment> {
+  const { data } = await api.get(`/driver/missions/${missionId}/payment`);
+  return data;
+}
+
+export async function collectMissionPayment(
+  missionId: string,
+  body: { method: 'cash' | 'card'; amount: number; idempotency_key: string },
+): Promise<MissionPayment> {
+  const { data } = await api.post(`/driver/missions/${missionId}/payment/collect`, {
+    ...body,
+    confirmation_mode: 'slide',
+  });
+  return data;
+}
+
+export async function reportPaymentIssue(missionId: string, reason: string, comment?: string) {
+  const { data } = await api.post(`/driver/missions/${missionId}/payment/issue`, { reason, comment });
+  return data;
+}
+
 export async function getDriverWallet() {
   const { data } = await api.get('/driver/wallet');
   return data;
