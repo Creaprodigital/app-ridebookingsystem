@@ -1,0 +1,29 @@
+{
+  "cli": {
+    "version": ">= 16.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "base": {
+      "env": {
+        "EXPO_PUBLIC_BACKEND_URL": "https://shared-ride-pool.emergent.host",
+        "EXPO_PUBLIC_API_BASE": "https://shared-ride-pool.emergent.host",
+        "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyDVwowfZPXY4JW1UD1bdEZAqZQiCZzSdEY"
+      }
+    },
+    "preview": {
+      "extends": "base",
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "extends": "base",
+      "autoIncrement": true
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}
