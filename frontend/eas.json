@@ -6,8 +6,8 @@
   "build": {
     "base": {
       "env": {
-        "EXPO_PUBLIC_BACKEND_URL": "https://shared-ride-pool.emergent.host",
-        "EXPO_PUBLIC_API_BASE": "https://shared-ride-pool.emergent.host",
+        "EXPO_PUBLIC_BACKEND_URL": "https://lecoqcourtage.fr",
+        "EXPO_PUBLIC_API_BASE": "https://lecoqcourtage.fr",
         "EXPO_PUBLIC_GOOGLE_MAPS_API_KEY": "AIzaSyDVwowfZPXY4JW1UD1bdEZAqZQiCZzSdEY"
       }
     },
