@@ -99,7 +99,7 @@ export async function startBackgroundLocation(): Promise<boolean> {
         pausesUpdatesAutomatically: false,
         // Android: foreground service notification (mandatory on API 26+)
         foregroundService: Platform.OS === 'android' ? {
-          notificationTitle: 'SharedRide en service',
+          notificationTitle: 'RideBookingSystem en service',
           notificationBody: 'Position partagée pendant votre shift',
           notificationColor: '#F5B72E',
         } : undefined,

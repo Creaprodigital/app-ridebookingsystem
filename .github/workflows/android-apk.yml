@@ -58,7 +58,7 @@ jobs:
         id: apk
         run: |
           VERSION=$(node -p "require('./app.json').expo.version")
-          NAME="sharedride-driver-${VERSION}-${GITHUB_SHA::7}.apk"
+          NAME="ridebookingsystem-${VERSION}-${GITHUB_SHA::7}.apk"
           mv android/app/build/outputs/apk/release/app-release.apk "$NAME"
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
 

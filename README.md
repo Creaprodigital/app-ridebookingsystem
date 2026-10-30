@@ -1,4 +1,4 @@
-# SharedRide Driver
+# RideBookingSystem
 
 Application mobile chauffeur (Expo / React Native) dans `frontend/`.
 
