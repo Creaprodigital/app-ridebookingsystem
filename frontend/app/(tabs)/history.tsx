@@ -368,7 +368,7 @@ export default function HistoryScreen() {
                   <Ionicons name="car" size={18} color={colors.success} />
                 </View>
                 <View style={{ alignItems: 'center' }}>
-                  <Text style={styles.statLabel}>COURSES</Text>
+                  <Text style={styles.statLabel}>Courses</Text>
                   <Text style={styles.statValue} testID="stat-count">{stats.count}</Text>
                   <Text style={styles.statSub}>course{stats.count > 1 ? 's' : ''}</Text>
                 </View>
@@ -379,7 +379,7 @@ export default function HistoryScreen() {
                   <Ionicons name="wallet" size={18} color={colors.primary} />
                 </View>
                 <View style={{ alignItems: 'center' }}>
-                  <Text style={styles.statLabel}>CHIFFRE D'AFFAIRES</Text>
+                  <Text style={styles.statLabel}>Chiffre d'affaires</Text>
                   <Text style={styles.statValue} testID="stat-revenue">{stats.revenue.toFixed(2)} €</Text>
                 </View>
               </View>
@@ -389,7 +389,7 @@ export default function HistoryScreen() {
                   <Ionicons name="cash" size={18} color={colors.success} />
                 </View>
                 <View style={{ alignItems: 'center' }}>
-                  <Text style={styles.statLabel}>NET CHAUFFEUR</Text>
+                  <Text style={styles.statLabel}>Net chauffeur</Text>
                   <Text style={[styles.statValue, { color: colors.success }]} testID="stat-net">
                     {stats.net.toFixed(2)} €
                   </Text>
@@ -531,7 +531,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center',
     paddingHorizontal: spacing.md, paddingVertical: spacing.sm, gap: spacing.sm,
   },
-  title: { color: colors.text, fontSize: 30, fontWeight: '900', letterSpacing: -1 },
+  title: { color: colors.text, fontSize: 30, fontWeight: '800', letterSpacing: -1 },
   subtitle: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
   iconBtn: {
     width: 44, height: 44, borderRadius: 22,
@@ -572,13 +572,13 @@ const styles = StyleSheet.create({
     width: 36, height: 36, borderRadius: 18,
     alignItems: 'center', justifyContent: 'center',
   },
-  statLabel: { color: colors.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 1 },
-  statValue: { color: colors.text, fontSize: 16, fontWeight: '900', letterSpacing: -0.4, marginTop: 2 },
+  statLabel: { color: colors.textMuted, fontSize: 9, fontWeight: '800', letterSpacing: 0.2 },
+  statValue: { color: colors.text, fontSize: 16, fontWeight: '800', letterSpacing: -0.4, marginTop: 2 },
   statSub: { color: colors.textSecondary, fontSize: 10, fontWeight: '700' },
   statSep: { width: 1, height: 56, backgroundColor: colors.border, marginHorizontal: 4 },
 
   listHeadRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  listHeadTitle: { color: colors.text, fontSize: 18, fontWeight: '900' },
+  listHeadTitle: { color: colors.text, fontSize: 18, fontWeight: '800' },
   sortChip: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 12, paddingVertical: 6,
@@ -608,12 +608,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 2,
     borderRadius: 999, borderWidth: 1,
   },
-  statusPillTxt: { fontSize: 10, fontWeight: '900', letterSpacing: 0.4 },
+  statusPillTxt: { fontSize: 10, fontWeight: '800', letterSpacing: 0.4 },
   rowPickup: { color: colors.text, fontSize: 14, fontWeight: '800' },
   rowDropoff: { color: colors.textSecondary, fontSize: 12 },
 
   rowRight: { alignItems: 'flex-end', gap: 4 },
-  rowAmount: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  rowAmount: { color: colors.text, fontSize: 16, fontWeight: '800' },
   rowNet: { color: colors.success, fontSize: 11, fontWeight: '800' },
   payChip: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
@@ -627,7 +627,7 @@ const styles = StyleSheet.create({
   emptyTitle: { color: colors.text, fontSize: 15, fontWeight: '800', textAlign: 'center' },
   emptySub: { color: colors.textSecondary, fontSize: 12, textAlign: 'center' },
 
-  modalBackdrop: { flex: 1, backgroundColor: '#000000C0', justifyContent: 'flex-end' },
+  modalBackdrop: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
   modalSheet: {
     backgroundColor: colors.surface,
     borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl,
@@ -638,9 +638,9 @@ const styles = StyleSheet.create({
     width: 40, height: 4, borderRadius: 2,
     backgroundColor: colors.border, alignSelf: 'center', marginBottom: 8,
   },
-  modalTitle: { color: colors.text, fontSize: 18, fontWeight: '900', textAlign: 'center' },
+  modalTitle: { color: colors.text, fontSize: 18, fontWeight: '800', textAlign: 'center' },
   modalSub: { color: colors.textSecondary, fontSize: 12, textAlign: 'center', marginBottom: 4 },
-  modalSection: { color: colors.textMuted, fontSize: 11, fontWeight: '900', letterSpacing: 1.2, marginTop: 6 },
+  modalSection: { color: colors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 0.2, marginTop: 6 },
   periodRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   periodChip: {
     paddingHorizontal: 14, paddingVertical: 8,
@@ -655,5 +655,5 @@ const styles = StyleSheet.create({
     backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1,
     marginTop: 8,
   },
-  closeBtnTxt: { color: colors.textSecondary, fontWeight: '800', letterSpacing: 0.6 },
+  closeBtnTxt: { color: colors.textSecondary, fontWeight: '800', letterSpacing: 0.2 },
 });

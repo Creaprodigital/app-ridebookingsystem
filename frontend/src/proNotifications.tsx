@@ -63,8 +63,8 @@ function kindLabel(k: NotifKind): { title: string; emoji: string } {
     case 'booking_in_progress': return { title: 'Course démarrée', emoji: '🚗' };
     case 'booking_completed': return { title: 'Course terminée', emoji: '🏁' };
     case 'booking_cancelled': return { title: 'Course annulée', emoji: '❌' };
-    case 'driver_online': return { title: 'Chauffeur en ligne', emoji: '🟢' };
-    case 'driver_offline': return { title: 'Chauffeur hors ligne', emoji: '⚪' };
+    case 'driver_online': return { title: 'Chauffeur en service', emoji: '🟢' };
+    case 'driver_offline': return { title: 'Chauffeur hors service', emoji: '⚪' };
   }
 }
 

@@ -373,7 +373,7 @@ function KeyRow({
         <Text
           style={[
             styles.kvValue,
-            strong && { fontWeight: '900', fontSize: 15 },
+            strong && { fontWeight: '800', fontSize: 15 },
             valueColor ? { color: valueColor } : null,
           ]}
           numberOfLines={2}
@@ -431,7 +431,7 @@ function tripTypeLabel(t?: string): string {
 
 const styles = StyleSheet.create({
   backdrop: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end',
+    flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end',
   },
   sheet: {
     backgroundColor: colors.bg, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl,
@@ -450,8 +450,8 @@ const styles = StyleSheet.create({
 
   topRow: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, marginBottom: spacing.lg },
   rowCenter: { flexDirection: 'row', alignItems: 'center' },
-  ref: { color: colors.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 1 },
-  priceBig: { color: colors.text, fontSize: 24, fontWeight: '900', letterSpacing: -0.5 },
+  ref: { color: colors.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 0.2 },
+  priceBig: { color: colors.text, fontSize: 24, fontWeight: '800', letterSpacing: -0.5 },
   closeX: {
     width: 32, height: 32, borderRadius: 16, backgroundColor: colors.surface,
     borderColor: colors.border, borderWidth: 1,
@@ -462,12 +462,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 4,
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, borderWidth: 1,
   },
-  pillTxt: { fontSize: 10, fontWeight: '900', letterSpacing: 0.5 },
+  pillTxt: { fontSize: 10, fontWeight: '800', letterSpacing: 0.2 },
   dot: { width: 6, height: 6, borderRadius: 3 },
 
   section: { marginBottom: spacing.lg },
   sectionHdr: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  sectionTitle: { color: colors.textSecondary, fontSize: 11, fontWeight: '900', letterSpacing: 1.2 },
+  sectionTitle: { color: colors.textSecondary, fontSize: 11, fontWeight: '800', letterSpacing: 0.2 },
   sectionBody: {
     backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
     borderRadius: radius.lg, padding: spacing.md, gap: 10,
@@ -477,7 +477,7 @@ const styles = StyleSheet.create({
   routeCol: { alignItems: 'center', paddingTop: 4 },
   routeDot: { width: 10, height: 10, borderRadius: 5 },
   routeLine: { width: 2, flex: 1, backgroundColor: colors.border, marginVertical: 4 },
-  subLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '800', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 2 },
+  subLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '800', letterSpacing: 0.2, marginBottom: 2 },
   addr: { color: colors.text, fontSize: 14, fontWeight: '600' },
 
   kv: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, minHeight: 44, paddingVertical: 2 },
@@ -506,5 +506,5 @@ const styles = StyleSheet.create({
     height: 52, borderRadius: radius.full, backgroundColor: colors.primary,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
   },
-  primaryBtnTxt: { color: colors.onPrimary, fontWeight: '900', fontSize: 14, letterSpacing: 0.8 },
+  primaryBtnTxt: { color: colors.onPrimary, fontWeight: '800', fontSize: 14, letterSpacing: 0.2 },
 });

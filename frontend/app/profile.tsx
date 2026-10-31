@@ -53,7 +53,7 @@ export default function Profile() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.topBar}>
-        <View style={styles.iconBtn} />
+        <View style={[styles.iconBtn, { backgroundColor: 'transparent', borderWidth: 0 }]} />
         <Text style={styles.topTitle}>Mon profil</Text>
         <TouchableOpacity
           onPress={() => {
@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     shadowColor: colors.primary, shadowOpacity: 0.4, shadowRadius: 20, shadowOffset: { width: 0, height: 0 },
   },
-  avatarTxt: { color: colors.onPrimary, fontSize: 30, fontWeight: '900' },
+  avatarTxt: { color: colors.onPrimary, fontSize: 30, fontWeight: '800' },
   name: { color: colors.text, fontSize: 22, fontWeight: '800', marginTop: 4 },
   email: { color: colors.textSecondary, fontSize: 13 },
   ratingRow: {
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.full, marginTop: 6, borderWidth: 1, borderColor: colors.border,
   },
   ratingTxt: { color: colors.text, fontSize: 12, fontWeight: '800' },
-  sectionTitle: { color: colors.textSecondary, fontSize: 11, fontWeight: '800', letterSpacing: 1.5 },
+  sectionTitle: { color: colors.textSecondary, fontSize: 11, fontWeight: '800', letterSpacing: 0.2 },
   card: {
     backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
     borderRadius: radius.lg, overflow: 'hidden',
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     width: 34, height: 34, borderRadius: 17,
     backgroundColor: colors.primary + '22', alignItems: 'center', justifyContent: 'center',
   },
-  rowLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 1 },
+  rowLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '700', letterSpacing: 0.2 },
   rowValue: { color: colors.text, fontSize: 14, fontWeight: '600', marginTop: 2 },
   footer: { color: colors.textMuted, fontSize: 11, textAlign: 'center', marginTop: spacing.md },
 });

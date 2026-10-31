@@ -96,7 +96,7 @@ export default function NotificationsSettings() {
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.topTitle}>Notifications</Text>
-        <View style={styles.iconBtn} />
+        <View style={[styles.iconBtn, { backgroundColor: 'transparent', borderWidth: 0 }]} />
       </View>
 
       <ScrollView contentContainerStyle={{ padding: spacing.md, gap: spacing.md }}>

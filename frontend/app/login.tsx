@@ -1,16 +1,21 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView, Alert, ImageBackground } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView, Alert, Image } from 'react-native';
 import { Text, TextInput } from '../src/ui/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from '../src/auth';
-import { colors, radius, spacing } from '../src/theme';
+import { colors, radius, spacing, isDark } from '../src/theme';
 import { apiError, forgotPassword } from '../src/api';
 
-const LOGIN_BG = require('../assets/images/login-bg.png');
+const LOGO = isDark
+  ? require('../assets/images/logo-horizontal-dark.png')
+  : require('../assets/images/logo-horizontal.png');
 
 export default function Login() {
   const { signIn } = useAuth();
+  const router = useRouter();
+  const { role } = useLocalSearchParams<{ role?: string }>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
@@ -59,170 +64,160 @@ export default function Login() {
   };
 
   return (
-    <ImageBackground source={LOGIN_BG} resizeMode="cover" style={styles.bg}>
-      <View style={styles.overlay} />
-      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-        <KeyboardAvoidingView
-          style={{ flex: 1 }}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          contentContainerStyle={styles.container}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <ScrollView
-            contentContainerStyle={styles.container}
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-          <View style={styles.brandWrap}>
-            <Text style={styles.brandTitle}>Ride Booking</Text>
-            <Text style={styles.brandKicker}>System</Text>
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.title}>Connexion</Text>
-            <Text style={styles.subtitle}>Bon retour. Prenez la route.</Text>
-
-            <View style={styles.field}>
-              <Ionicons name="mail-outline" size={18} color={colors.textSecondary} />
-              <TextInput
-                testID="login-email-input"
-                style={styles.input}
-                placeholder="email@exemple.com"
-                placeholderTextColor={colors.textMuted}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-                value={email}
-                onChangeText={setEmail}
-              />
-            </View>
-
-            <View style={styles.field}>
-              <Ionicons name="lock-closed-outline" size={18} color={colors.textSecondary} />
-              <TextInput
-                testID="login-password-input"
-                style={styles.input}
-                placeholder="Mot de passe"
-                placeholderTextColor={colors.textMuted}
-                secureTextEntry={!showPwd}
-                value={password}
-                onChangeText={setPassword}
-              />
-              <TouchableOpacity onPress={() => setShowPwd((v) => !v)} testID="login-toggle-pwd">
-                <Ionicons
-                  name={showPwd ? 'eye-off-outline' : 'eye-outline'}
-                  size={18}
-                  color={colors.textSecondary}
-                />
+          <View style={styles.topRow}>
+            {router.canGoBack() ? (
+              <TouchableOpacity style={styles.backBtn} onPress={() => router.back()} testID="login-back">
+                <Ionicons name="chevron-back" size={22} color={colors.text} />
               </TouchableOpacity>
-            </View>
-
-            {error ? (
-              <View style={styles.errorBox} testID="login-error">
-                <Ionicons name="alert-circle" size={16} color={colors.danger} />
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
             ) : null}
-
-            {info ? (
-              <View style={styles.infoBox} testID="login-info">
-                <Ionicons name="mail" size={16} color={colors.success} />
-                <Text style={styles.infoText}>{info}</Text>
-              </View>
-            ) : null}
-
-            <TouchableOpacity
-              testID="login-submit-button"
-              style={[styles.submit, loading && { opacity: 0.7 }]}
-              onPress={onSubmit}
-              disabled={loading}
-              activeOpacity={0.85}
-            >
-              {loading ? (
-                <ActivityIndicator color={colors.onPrimary} />
-              ) : (
-                <>
-                  <Text style={styles.submitText}>SE CONNECTER</Text>
-                  <Ionicons name="arrow-forward" size={18} color={colors.onPrimary} />
-                </>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={onForgot}
-              disabled={forgotLoading}
-              style={styles.forgotBtn}
-              testID="login-forgot-button"
-            >
-              {forgotLoading ? (
-                <ActivityIndicator color={colors.primary} size="small" />
-              ) : (
-                <Text style={styles.forgotText}>Mot de passe oublié ?</Text>
-              )}
-            </TouchableOpacity>
-
-            <Text style={styles.hint}>
-              Votre compte est créé par votre flotte. Contactez votre opérateur si besoin.
-            </Text>
           </View>
 
-          <Text style={styles.footer}>© {new Date().getFullYear()} Ride Booking System</Text>
+          <Image source={LOGO} style={styles.logo} resizeMode="contain" />
+
+          <Text style={styles.title}>Connexion</Text>
+          <Text style={styles.subtitle}>
+            {role === 'pro'
+              ? 'Accédez à votre espace professionnel.'
+              : role === 'driver'
+              ? 'Accédez à votre espace chauffeur.'
+              : 'Accédez à votre espace RideBookingSystem.'}
+          </Text>
+
+          <Text style={styles.label}>Adresse e-mail</Text>
+          <View style={styles.field}>
+            <Ionicons name="mail-outline" size={19} color={colors.textMuted} />
+            <TextInput
+              testID="login-email-input"
+              style={styles.input}
+              placeholder="email@exemple.com"
+              placeholderTextColor={colors.textMuted}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              autoComplete="email"
+              textContentType="emailAddress"
+              value={email}
+              onChangeText={setEmail}
+            />
+          </View>
+
+          <Text style={styles.label}>Mot de passe</Text>
+          <View style={styles.field}>
+            <Ionicons name="lock-closed-outline" size={19} color={colors.textMuted} />
+            <TextInput
+              testID="login-password-input"
+              style={styles.input}
+              placeholder="Votre mot de passe"
+              placeholderTextColor={colors.textMuted}
+              secureTextEntry={!showPwd}
+              autoComplete="password"
+              textContentType="password"
+              value={password}
+              onChangeText={setPassword}
+              onSubmitEditing={onSubmit}
+            />
+            <TouchableOpacity
+              onPress={() => setShowPwd((v) => !v)}
+              testID="login-toggle-pwd"
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityLabel={showPwd ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+            >
+              <Ionicons name={showPwd ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+
+          <TouchableOpacity
+            onPress={onForgot}
+            disabled={forgotLoading}
+            style={styles.forgotBtn}
+            testID="login-forgot-button"
+          >
+            {forgotLoading ? (
+              <ActivityIndicator color={colors.primary} size="small" />
+            ) : (
+              <Text style={styles.forgotText}>Mot de passe oublié ?</Text>
+            )}
+          </TouchableOpacity>
+
+          {error ? (
+            <View style={styles.errorBox} testID="login-error">
+              <Ionicons name="alert-circle" size={18} color={colors.danger} />
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          ) : null}
+
+          {info ? (
+            <View style={styles.infoBox} testID="login-info">
+              <Ionicons name="mail" size={18} color={colors.success} />
+              <Text style={styles.infoText}>{info}</Text>
+            </View>
+          ) : null}
+
+          <TouchableOpacity
+            testID="login-submit-button"
+            style={[styles.submit, loading && { opacity: 0.7 }]}
+            onPress={onSubmit}
+            disabled={loading}
+            activeOpacity={0.85}
+          >
+            {loading ? (
+              <ActivityIndicator color={colors.onPrimary} />
+            ) : (
+              <Text style={styles.submitText}>Se connecter</Text>
+            )}
+          </TouchableOpacity>
+
+          <View style={{ flex: 1 }} />
+          <Text style={styles.hint}>
+            Votre compte est créé par votre flotte.{'\n'}Besoin d’aide ? Contactez votre opérateur.
+          </Text>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
-    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  bg: { flex: 1, width: '100%', height: '100%', backgroundColor: colors.bg },
-  // Dark overlay at 25% opacity on top of the wallpaper to keep contrast for
-  // the inputs and texts (the image itself is already very dark).
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.25)' },
-  safe: { flex: 1, backgroundColor: 'transparent' },
-  container: { flexGrow: 1, padding: spacing.lg, justifyContent: 'center' },
-  brandWrap: { alignItems: 'center', marginBottom: spacing.xl },
-  logoDot: {
-    width: 72, height: 72, borderRadius: 36, backgroundColor: colors.primary,
-    alignItems: 'center', justifyContent: 'center',
-    shadowColor: colors.primary, shadowOpacity: 0.4, shadowRadius: 24, shadowOffset: { width: 0, height: 0 },
-    marginBottom: spacing.md,
+  safe: { flex: 1, backgroundColor: colors.bg },
+  container: { flexGrow: 1, paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
+  topRow: { height: 52, justifyContent: 'center' },
+  backBtn: {
+    width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center',
   },
-  brandTitle: { color: colors.text, fontSize: 32, fontWeight: '900', letterSpacing: -1 },
-  brandKicker: {
-    color: colors.primary, fontSize: 12, fontWeight: '800',
-    letterSpacing: 4, textTransform: 'uppercase', marginTop: 2,
-  },
-  card: {
-    backgroundColor: 'rgba(20, 20, 20, 0.78)', borderColor: colors.border, borderWidth: 1,
-    borderRadius: radius.xl, padding: spacing.lg, gap: spacing.md,
-  },
-  title: { color: colors.text, fontSize: 22, fontWeight: '800' },
-  subtitle: { color: colors.textSecondary, fontSize: 14, marginTop: -8 },
+  logo: { width: 240, height: 32, marginTop: spacing.lg, marginBottom: spacing.xl },
+  title: { color: colors.text, fontSize: 30, fontWeight: '800', letterSpacing: -0.5 },
+  subtitle: { color: colors.textSecondary, fontSize: 16, marginTop: 6, marginBottom: spacing.lg },
+  label: { color: colors.textSecondary, fontSize: 13.5, fontWeight: '600', marginBottom: 8, marginTop: 8 },
   field: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1,
-    borderRadius: radius.lg, paddingHorizontal: spacing.md, height: 52,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
+    borderRadius: radius.lg, paddingHorizontal: spacing.md, height: 56, marginBottom: 8,
   },
-  input: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '500' },
+  input: { flex: 1, color: colors.text, fontSize: 16, fontWeight: '500', height: '100%' },
   errorBox: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    backgroundColor: '#EF444420', borderColor: colors.danger, borderWidth: 1,
-    borderRadius: radius.md, padding: spacing.sm,
+    backgroundColor: colors.dangerSoft, borderRadius: radius.md, padding: 12, marginBottom: 12,
   },
-  errorText: { color: colors.danger, flex: 1, fontSize: 13, fontWeight: '600' },
+  errorText: { color: colors.danger, flex: 1, fontSize: 14, fontWeight: '600' },
   infoBox: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-    backgroundColor: '#22C55E20', borderColor: colors.success, borderWidth: 1,
-    borderRadius: radius.md, padding: spacing.sm,
+    backgroundColor: colors.successSoft, borderRadius: radius.md, padding: 12, marginBottom: 12,
   },
-  infoText: { color: colors.success, flex: 1, fontSize: 13, fontWeight: '600' },
-  forgotBtn: { alignItems: 'center', paddingVertical: 8 },
-  forgotText: { color: colors.primary, fontSize: 13, fontWeight: '700' },
+  infoText: { color: colors.success, flex: 1, fontSize: 14, fontWeight: '600' },
+  forgotBtn: { alignSelf: 'flex-end', paddingVertical: 8, marginBottom: 16 },
+  forgotText: { color: colors.primary, fontSize: 14, fontWeight: '700' },
   submit: {
-    height: 56, backgroundColor: colors.primary, borderRadius: radius.full,
-    alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: spacing.sm,
-    marginTop: spacing.sm,
+    height: 56, backgroundColor: colors.primary, borderRadius: radius.lg,
+    alignItems: 'center', justifyContent: 'center',
   },
-  submitText: { color: colors.onPrimary, fontWeight: '900', fontSize: 15, letterSpacing: 1.2 },
-  hint: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
-  footer: { color: colors.textMuted, fontSize: 11, textAlign: 'center', marginTop: spacing.xl },
+  submitText: { color: colors.onPrimary, fontWeight: '700', fontSize: 16.5 },
+  hint: { color: colors.textMuted, fontSize: 13, textAlign: 'center', lineHeight: 19, marginTop: spacing.xl },
 });

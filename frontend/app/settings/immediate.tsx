@@ -63,7 +63,7 @@ export default function ImmediateRideSettings() {
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.topTitle}>Course immédiate</Text>
-        <View style={styles.iconBtn} />
+        <View style={[styles.iconBtn, { backgroundColor: 'transparent', borderWidth: 0 }]} />
       </View>
 
       <ScrollView contentContainerStyle={{ padding: spacing.md, gap: spacing.md, paddingBottom: 80 }}>
@@ -83,7 +83,7 @@ export default function ImmediateRideSettings() {
               <Text style={styles.rowSub}>
                 {enabled
                   ? 'Activé · Une carte plein écran s’affichera dès qu’une course immédiate arrive'
-                  : 'Désactivé · Vous recevrez uniquement les réservations planifiées dans l’onglet Missions'}
+                  : 'Désactivé · Vous recevrez uniquement les réservations planifiées dans l’onglet Courses'}
               </Text>
             </View>
             <Switch
@@ -147,7 +147,7 @@ export default function ImmediateRideSettings() {
             <View style={{ flex: 1 }}>
               <Text style={styles.rowLabel}>Réservations planifiées</Text>
               <Text style={styles.rowSub}>
-                Toujours visibles dans l’onglet « Missions → Planifiées ».
+                Toujours visibles dans l’onglet « Courses → Planifiées ».
                 Vous les acceptez manuellement.
               </Text>
             </View>
@@ -159,7 +159,7 @@ export default function ImmediateRideSettings() {
             <View style={{ flex: 1 }}>
               <Text style={styles.rowLabel}>Bon à savoir</Text>
               <Text style={styles.rowSub}>
-                Vous devez toujours <Text style={{ fontWeight: '900' }}>accepter ou refuser</Text> chaque
+                Vous devez toujours <Text style={{ fontWeight: '800' }}>accepter ou refuser</Text> chaque
                 course manuellement. Aucune assignation automatique n’est faite à votre place.
               </Text>
             </View>
@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   chipText: { color: colors.textSecondary, fontWeight: '700', fontSize: 13 },
-  chipTextActive: { color: colors.onPrimary, fontWeight: '900' },
+  chipTextActive: { color: colors.onPrimary, fontWeight: '800' },
   hintRow: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 6,
     paddingHorizontal: spacing.md, paddingBottom: 12,

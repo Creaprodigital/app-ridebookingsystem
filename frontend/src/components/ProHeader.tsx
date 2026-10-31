@@ -69,8 +69,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center', justifyContent: 'center',
   },
-  logoTxt: { color: colors.onPrimary, fontWeight: '900', fontSize: 14, letterSpacing: 0.5 },
-  title: { color: colors.text, fontSize: 18, fontWeight: '900', letterSpacing: -0.3 },
+  logoTxt: { color: colors.onPrimary, fontWeight: '800', fontSize: 14, letterSpacing: 0.2 },
+  title: { color: colors.text, fontSize: 18, fontWeight: '800', letterSpacing: -0.3 },
   subtitle: { color: colors.textSecondary, fontSize: 12, marginTop: 1 },
   iconBtn: {
     width: 40, height: 40, borderRadius: 20,
@@ -87,5 +87,5 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
     borderColor: colors.bg, borderWidth: 1.5,
   },
-  badgeTxt: { color: '#fff', fontSize: 10, fontWeight: '900', letterSpacing: 0.2 },
+  badgeTxt: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.2 },
 });

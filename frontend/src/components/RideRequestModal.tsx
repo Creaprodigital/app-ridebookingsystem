@@ -7,6 +7,7 @@ import Svg, { Circle } from 'react-native-svg';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useRides } from '../ridesContext';
 import { colors, radius, spacing } from '../theme';
+import { fmtPrice } from '../rideFormat';
 import { haptic } from '../feedback';
 import { getLastCoords } from '../locationStore';
 import { pickPickupCoords, haversineKm, estimateEtaMin } from '../rideTypes';
@@ -438,8 +439,8 @@ export default function RideRequestModal() {
             {/* URGENT ribbon — makes it crystal-clear this is an immediate ride */}
             <View style={styles.urgentRibbon} testID="urgent-ribbon">
               <View style={styles.urgentDot} />
-              <Ionicons name="flash" size={12} color="#fff" />
-              <Text style={styles.urgentTxt}>COURSE IMMÉDIATE · DÉPART MAINTENANT</Text>
+              <Ionicons name="flash" size={13} color={colors.danger} />
+              <Text style={styles.urgentTxt}>Course immédiate · départ maintenant</Text>
             </View>
             {/* Header: timer ring (green) · GAIN NET · PRIX CLIENT */}
             <View style={styles.header}>
@@ -482,7 +483,7 @@ export default function RideRequestModal() {
 
               {/* Gain net (green) */}
               <View style={styles.headerCol}>
-                <Text style={styles.gainLabel} numberOfLines={1}>GAIN NET</Text>
+                <Text style={styles.gainLabel} numberOfLines={1}>Votre gain net</Text>
                 <Text
                   style={styles.gainAmount}
                   numberOfLines={1}
@@ -490,11 +491,8 @@ export default function RideRequestModal() {
                   minimumFontScale={0.6}
                   testID="modal-driver-net"
                 >
-                  {driverNet != null ? `${driverNet.toFixed(2)} €` : '—'}
+                  {driverNet != null ? fmtPrice(driverNet) : '—'}
                 </Text>
-                <View style={styles.gainPill}>
-                  <Text style={styles.gainPillTxt}>Votre gain</Text>
-                </View>
               </View>
 
               {/* Vertical separator */}
@@ -502,7 +500,7 @@ export default function RideRequestModal() {
 
               {/* Prix client (yellow) */}
               <View style={styles.headerCol}>
-                <Text style={styles.priceClientLabel} numberOfLines={1}>PRIX CLIENT</Text>
+                <Text style={styles.priceClientLabel} numberOfLines={1}>Prix client</Text>
                 <Text
                   style={styles.priceClientAmount}
                   numberOfLines={1}
@@ -510,7 +508,7 @@ export default function RideRequestModal() {
                   minimumFontScale={0.6}
                   testID="modal-price"
                 >
-                  {amount != null ? `${amount.toFixed(2)} €` : '—'}
+                  {amount != null ? fmtPrice(amount) : '—'}
                 </Text>
                 <View style={styles.payPill}>
                   <Ionicons
@@ -528,26 +526,26 @@ export default function RideRequestModal() {
             {/* Route */}
             <View style={styles.route}>
               <View style={styles.routeColumn}>
-                <View style={[styles.routeDot, { backgroundColor: colors.success }]} />
+                <View style={[styles.routeDot, { backgroundColor: colors.primary }]} />
                 <View style={styles.routeLine} />
-                <View style={[styles.routeDot, { backgroundColor: colors.danger }]} />
+                <View style={[styles.routeDot, { backgroundColor: colors.text, borderRadius: 3 }]} />
               </View>
               <View style={{ flex: 1, gap: 14 }}>
                 {/* DÉPART */}
                 <View style={styles.routeRow}>
                   <View style={{ flex: 1, paddingRight: 8 }}>
-                    <Text style={[styles.routeLabel, { color: colors.success }]}>DÉPART</Text>
+                    <Text style={styles.routeLabel}>Prise en charge</Text>
                     <Text style={styles.routeAddr} numberOfLines={2}>{pickPickup(item)}</Text>
                   </View>
                   {pickupKm != null && pickupEta != null ? (
                     <View style={{ alignItems: 'flex-end' }}>
                       <View style={[styles.legPill, styles.legPillGreen]} testID="pickup-eta">
-                        <Ionicons name="navigate" size={10} color={colors.success} />
-                        <Text style={[styles.legPillTxt, { color: colors.success }]}>
-                          {pickupKm < 10 ? pickupKm.toFixed(1) : Math.round(pickupKm)} km · {pickupEta} min
+                        <Ionicons name="navigate" size={11} color={colors.primary} />
+                        <Text style={[styles.legPillTxt, { color: colors.primary }]}>
+                          {pickupKm < 10 ? pickupKm.toFixed(1).replace('.', ',') : Math.round(pickupKm)} km · {pickupEta} min
                         </Text>
                       </View>
-                      <Text style={styles.legSubLabel}>VERS LE DÉPART</Text>
+                      <Text style={styles.legSubLabel}>Approche</Text>
                     </View>
                   ) : null}
                 </View>
@@ -555,18 +553,18 @@ export default function RideRequestModal() {
                 {/* DESTINATION */}
                 <View style={styles.routeRow}>
                   <View style={{ flex: 1, paddingRight: 8 }}>
-                    <Text style={[styles.routeLabel, { color: colors.danger }]}>DESTINATION</Text>
+                    <Text style={styles.routeLabel}>Destination</Text>
                     <Text style={styles.routeAddr} numberOfLines={2}>{pickDropoff(item)}</Text>
                   </View>
                   {tripDistanceKm != null && tripEta != null ? (
                     <View style={{ alignItems: 'flex-end' }}>
                       <View style={[styles.legPill, styles.legPillNeutral]} testID="trip-eta">
-                        <Ionicons name="car" size={10} color={colors.textSecondary} />
+                        <Ionicons name="car" size={11} color={colors.textSecondary} />
                         <Text style={[styles.legPillTxt, { color: colors.textSecondary }]}>
-                          {tripDistanceKm < 10 ? tripDistanceKm.toFixed(1) : Math.round(tripDistanceKm)} km · {tripEta} min
+                          {tripDistanceKm < 10 ? tripDistanceKm.toFixed(1).replace('.', ',') : Math.round(tripDistanceKm)} km · {tripEta} min
                         </Text>
                       </View>
-                      <Text style={styles.legSubLabel}>TRAJET CLIENT</Text>
+                      <Text style={styles.legSubLabel}>Trajet client</Text>
                     </View>
                   ) : null}
                 </View>
@@ -577,7 +575,7 @@ export default function RideRequestModal() {
             <View style={styles.statsRow} testID="ride-stats-row">
               <View style={styles.statCol}>
                 <Ionicons name="time-outline" size={16} color={colors.textSecondary} />
-                <Text style={styles.statLabel}>TEMPS TOTAL</Text>
+                <Text style={styles.statLabel}>Durée totale</Text>
                 <Text style={styles.statValue}>
                   {totalEtaMin != null ? `${totalEtaMin} min` : '—'}
                 </Text>
@@ -586,16 +584,16 @@ export default function RideRequestModal() {
               <View style={styles.statSep} />
               <View style={styles.statCol}>
                 <Ionicons name="map-outline" size={16} color={colors.textSecondary} />
-                <Text style={styles.statLabel}>DISTANCE TOTALE</Text>
+                <Text style={styles.statLabel}>Distance totale</Text>
                 <Text style={styles.statValue}>
-                  {totalDistanceKm != null ? `${totalDistanceKm} km` : '—'}
+                  {totalDistanceKm != null ? `${String(totalDistanceKm).replace('.', ',')} km` : '—'}
                 </Text>
                 <Text style={styles.statHint}>Estimation</Text>
               </View>
               <View style={styles.statSep} />
               <View style={styles.statCol}>
                 <Ionicons name="person-outline" size={16} color={colors.textSecondary} />
-                <Text style={styles.statLabel}>PASSAGERS</Text>
+                <Text style={styles.statLabel}>Passagers</Text>
                 <Text style={styles.statValue}>
                   {paxCount} passager{paxCount > 1 ? 's' : ''}
                 </Text>
@@ -605,7 +603,7 @@ export default function RideRequestModal() {
 
             {/* Engagement warning */}
             <View style={styles.warnCard} testID="ride-engagement-warning">
-              <Ionicons name="warning" size={16} color={colors.warning} />
+              <Ionicons name="information-circle-outline" size={17} color={colors.textSecondary} />
               <Text style={styles.warnTxt}>
                 En acceptant cette course, vous vous engagez à vous y rendre.
                 Les annulations répétées peuvent limiter l’accès aux courses.
@@ -629,12 +627,12 @@ export default function RideRequestModal() {
                 activeOpacity={0.8}
               >
                 <Ionicons name="close" size={20} color={colors.danger} />
-                <Text style={styles.refuseTxt}>REFUSER</Text>
+                <Text style={styles.refuseTxt}>Refuser</Text>
               </TouchableOpacity>
 
               <View style={{ flex: 2 }}>
                 <SlideButton
-                  label="ACCEPTER"
+                  label="Accepter"
                   color={colors.success}
                   onConfirm={handleAccept}
                   disabled={accepting}
@@ -653,7 +651,7 @@ export default function RideRequestModal() {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: '#000000DD',
+    backgroundColor: colors.overlay,
     justifyContent: 'flex-start',
     paddingTop: Platform.OS === 'ios' ? 60 : 40,
     paddingHorizontal: 12,
@@ -665,157 +663,91 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999,
     marginBottom: 8,
-    shadowColor: colors.primary, shadowOpacity: 0.4, shadowRadius: 8, shadowOffset: { width: 0, height: 0 },
   },
-  queueDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#000' },
-  queueText: { color: '#000', fontWeight: '900', fontSize: 11, letterSpacing: 0.6 },
+  queueDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
+  queueText: { color: '#fff', fontWeight: '700', fontSize: 12.5 },
 
   card: {
     backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    padding: spacing.lg,
-    gap: spacing.md,
+    borderRadius: 28,
+    padding: spacing.lg - 4,
+    gap: 14,
     borderWidth: 1, borderColor: colors.border,
-    shadowColor: '#000', shadowOpacity: 0.6, shadowRadius: 24, shadowOffset: { width: 0, height: 12 },
+    shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 24, shadowOffset: { width: 0, height: 12 },
     elevation: 30,
   },
   urgentRibbon: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: colors.danger, borderRadius: 999,
+    backgroundColor: colors.dangerSoft, borderRadius: 999,
     paddingHorizontal: 12, paddingVertical: 6,
-    alignSelf: 'flex-start',
-    shadowColor: colors.danger, shadowOpacity: 0.55,
-    shadowRadius: 10, shadowOffset: { width: 0, height: 2 },
-    elevation: 4,
+    alignSelf: 'center',
   },
-  urgentDot: {
-    width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff',
-    opacity: 0.9,
-  },
-  urgentTxt: { color: '#fff', fontWeight: '900', fontSize: 10, letterSpacing: 0.8 },
+  urgentDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.danger },
+  urgentTxt: { color: colors.danger, fontWeight: '700', fontSize: 12.5 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   timerWrap: { width: RING_SIZE, height: RING_SIZE, alignItems: 'center', justifyContent: 'center' },
   timerCenter: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
-  timerText: { color: colors.success, fontSize: 26, fontWeight: '900', letterSpacing: -0.5 },
-  timerSub: { color: colors.textMuted, fontSize: 9, fontWeight: '800', letterSpacing: 1.2 },
-  headerCol: { flex: 1, minWidth: 0, alignItems: 'center', gap: 4 },
-  headerSep: { width: 1, height: 70, backgroundColor: colors.border, marginHorizontal: 2 },
+  timerText: { color: colors.success, fontSize: 26, fontWeight: '800' },
+  timerSub: { color: colors.textMuted, fontSize: 11, fontWeight: '600' },
+  headerCol: { flex: 1, minWidth: 0, alignItems: 'center', gap: 2 },
+  headerSep: { width: 1, height: 56, backgroundColor: colors.border, marginHorizontal: 2 },
 
-  gainLabel: { color: colors.success, fontSize: 10, fontWeight: '900', letterSpacing: 1, textAlign: 'center' },
-  gainAmount: { color: colors.success, fontSize: 22, fontWeight: '900', letterSpacing: -0.6, textAlign: 'center' },
-  gainPill: {
-    paddingHorizontal: 10, paddingVertical: 3,
-    borderRadius: 999, borderWidth: 1,
-    borderColor: colors.success + '88',
-    backgroundColor: colors.success + '1A',
-  },
-  gainPillTxt: { color: colors.success, fontSize: 10, fontWeight: '900', letterSpacing: 0.4 },
-
-  priceClientLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '900', letterSpacing: 1, textAlign: 'center' },
-  priceClientAmount: { color: colors.primary, fontSize: 22, fontWeight: '900', letterSpacing: -0.6, textAlign: 'center' },
-
-  amountLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },
-  amount: { color: colors.primary, fontSize: 32, fontWeight: '900', letterSpacing: -1 },
-  amountCommission: { color: colors.danger, fontSize: 11, fontWeight: '700', marginTop: 4 },
-  amountNet: { color: colors.success, fontSize: 11, fontWeight: '900', marginTop: 2 },
+  gainLabel: { color: colors.textSecondary, fontSize: 12.5, fontWeight: '600', textAlign: 'center' },
+  gainAmount: { color: colors.success, fontSize: 26, fontWeight: '800', textAlign: 'center' },
+  priceClientLabel: { color: colors.textSecondary, fontSize: 12.5, fontWeight: '600', textAlign: 'center' },
+  priceClientAmount: { color: colors.text, fontSize: 26, fontWeight: '800', textAlign: 'center' },
   payPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1,
-    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 999, marginTop: 4,
-    maxWidth: 130,
+    backgroundColor: colors.surface2,
+    paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999, marginTop: 4,
+    maxWidth: 140,
   },
-  payText: { color: colors.textSecondary, fontSize: 10, fontWeight: '700' },
+  payText: { color: colors.textSecondary, fontSize: 11.5, fontWeight: '600' },
 
-  client: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingTop: 4 },
-  avatar: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center',
+  route: {
+    flexDirection: 'row', gap: 12, padding: 14,
+    backgroundColor: colors.surface2, borderRadius: radius.lg,
   },
-  clientName: { color: colors.text, fontSize: 16, fontWeight: '800' },
-  clientMeta: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
-
-  route: { flexDirection: 'row', gap: 12, paddingVertical: 4 },
-  routeColumn: { alignItems: 'center', paddingTop: 4, paddingBottom: 4, width: 14 },
-  routeDot: { width: 12, height: 12, borderRadius: 6 },
+  routeColumn: { alignItems: 'center', paddingTop: 22, paddingBottom: 22, width: 12 },
+  routeDot: { width: 10, height: 10, borderRadius: 5 },
   routeLine: { flex: 1, width: 2, backgroundColor: colors.border, marginVertical: 4 },
-  routeLabel: { color: colors.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 1.2 },
-  routeAddr: { color: colors.text, fontSize: 14, fontWeight: '600', marginTop: 2 },
+  routeLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
+  routeAddr: { color: colors.text, fontSize: 15, fontWeight: '700', marginTop: 2, lineHeight: 20 },
   routeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6 },
-  routeHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
-  etaBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: colors.success + '22',
-    borderWidth: 1, borderColor: colors.success + '55',
-    paddingHorizontal: 6, paddingVertical: 2,
-    borderRadius: 999,
-  },
-  etaText: { color: colors.success, fontSize: 10, fontWeight: '900', letterSpacing: 0.4 },
   legPill: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 8, paddingVertical: 4,
-    borderRadius: 999, borderWidth: 1,
+    paddingHorizontal: 9, paddingVertical: 4, borderRadius: 999,
   },
-  legPillGreen: {
-    backgroundColor: colors.success + '1F',
-    borderColor: colors.success + '66',
-  },
-  legPillNeutral: {
-    backgroundColor: colors.bg,
-    borderColor: colors.border,
-  },
-  legPillTxt: { fontSize: 10, fontWeight: '900', letterSpacing: 0.3 },
-  legSubLabel: { color: colors.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 1.2, marginTop: 2 },
+  legPillGreen: { backgroundColor: colors.primarySoft },
+  legPillNeutral: { backgroundColor: colors.surface },
+  legPillTxt: { fontSize: 12, fontWeight: '700' },
+  legSubLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '600', marginTop: 3 },
 
-  // Stats row
   statsRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: colors.bg,
     borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg,
     paddingVertical: 12, paddingHorizontal: 6,
   },
   statCol: { flex: 1, alignItems: 'center', gap: 2 },
-  statLabel: { color: colors.textMuted, fontSize: 9, fontWeight: '900', letterSpacing: 0.8, marginTop: 2 },
-  statValue: { color: colors.text, fontSize: 14, fontWeight: '900', marginTop: 2 },
-  statHint: { color: colors.textSecondary, fontSize: 10, fontWeight: '700' },
+  statLabel: { color: colors.textMuted, fontSize: 11.5, fontWeight: '600', marginTop: 2 },
+  statValue: { color: colors.text, fontSize: 15, fontWeight: '800', marginTop: 1 },
+  statHint: { color: colors.textMuted, fontSize: 11, fontWeight: '500' },
   statSep: { width: 1, height: 36, backgroundColor: colors.border, marginHorizontal: 2 },
 
-  // Warning card
-  warnCard: {
-    flexDirection: 'row', alignItems: 'flex-start', gap: 8,
-    backgroundColor: colors.warning + '14',
-    borderColor: colors.warning + '66', borderWidth: 1,
-    borderRadius: radius.lg, padding: 10,
-  },
-  warnTxt: { color: colors.text, fontSize: 11, fontWeight: '600', flex: 1, lineHeight: 16 },
+  warnCard: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 2 },
+  warnTxt: { color: colors.textSecondary, fontSize: 12, fontWeight: '500', flex: 1, lineHeight: 17 },
 
   errorBox: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: colors.danger + '22', borderColor: colors.danger, borderWidth: 1,
-    borderRadius: radius.md, padding: 8,
+    backgroundColor: colors.dangerSoft, borderRadius: radius.md, padding: 10,
   },
-  errorText: { color: colors.danger, fontSize: 12, fontWeight: '700', flex: 1 },
+  errorText: { color: colors.danger, fontSize: 13, fontWeight: '600', flex: 1 },
 
-  actions: { flexDirection: 'row', gap: 10, marginTop: 4, alignItems: 'center' },
+  actions: { flexDirection: 'row', gap: 10, marginTop: 2, alignItems: 'center' },
   refuseBtn: {
-    width: 92, height: 56, borderRadius: 28,
-    backgroundColor: colors.danger + '14', borderColor: colors.danger, borderWidth: 1,
+    width: 104, height: 64, borderRadius: radius.lg + 4,
+    backgroundColor: colors.surface2, borderColor: colors.border, borderWidth: 1,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
   },
-  refuseTxt: { color: colors.danger, fontWeight: '900', letterSpacing: 0.8, fontSize: 11 },
-  refuseText: { color: colors.text, fontWeight: '900', letterSpacing: 0.8, fontSize: 12 },
-  acceptBtn: {
-    flex: 1, height: 60, borderRadius: 30, backgroundColor: colors.success,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    shadowColor: colors.success, shadowOpacity: 0.5, shadowRadius: 16, shadowOffset: { width: 0, height: 0 },
-  },
-  acceptText: { color: '#fff', fontWeight: '900', letterSpacing: 1.2, fontSize: 15 },
-
-  detailsLink: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4,
-    paddingVertical: 4,
-  },
-  detailsLinkText: { color: colors.primary, fontSize: 12, fontWeight: '700' },
-  swipeHint: {
-    color: colors.textMuted, fontSize: 10, textAlign: 'center', letterSpacing: 0.5,
-  },
+  refuseTxt: { color: colors.danger, fontWeight: '700', fontSize: 15 },
 });

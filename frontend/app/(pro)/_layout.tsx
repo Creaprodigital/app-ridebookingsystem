@@ -62,7 +62,7 @@ export default function ProLayout() {
         options={{
           title: 'Créer',
           tabBarIcon: () => <FabIcon />,
-          tabBarLabelStyle: { fontSize: 10, fontWeight: '900', letterSpacing: 0.3, color: colors.primary },
+          tabBarLabelStyle: { fontSize: 10, fontWeight: '800', letterSpacing: 0.3, color: colors.primary },
         }}
       />
       <Tabs.Screen

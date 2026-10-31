@@ -105,7 +105,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg + 4,
     backgroundColor: 'rgba(255,255,255,0.16)',
   },
-  labelWrap: { alignItems: 'center', justifyContent: 'center' },
+  // Centre the text in the free space between the knob and the hint chevrons.
+  labelWrap: { alignItems: 'center', justifyContent: 'center', paddingLeft: KNOB + 8, paddingRight: 40 },
   label: {
     color: '#fff',
     textAlign: 'center',

@@ -122,7 +122,7 @@ export default function DebugScreen() {
           {loading ? <ActivityIndicator color={colors.onPrimary} /> : (
             <>
               <Ionicons name="refresh" size={18} color={colors.onPrimary} />
-              <Text style={styles.refreshText}>RAFRAÎCHIR</Text>
+              <Text style={styles.refreshText}>Rafraîchir</Text>
             </>
           )}
         </TouchableOpacity>
@@ -140,14 +140,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
     borderRadius: radius.lg, padding: spacing.md, gap: 6,
   },
-  h: { color: colors.text, fontSize: 13, fontWeight: '900', letterSpacing: 1, marginBottom: 4 },
+  h: { color: colors.text, fontSize: 13, fontWeight: '800', letterSpacing: 0.2, marginBottom: 4 },
   kv: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
   v: { color: colors.text, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' },
   warn: { color: colors.warning, fontSize: 13 },
   rideCard: { borderRadius: radius.md, padding: 10, borderWidth: 1, marginTop: 4 },
   rideImm: { backgroundColor: colors.primary + '15', borderColor: colors.primary },
   rideSched: { backgroundColor: colors.bg, borderColor: colors.border },
-  rideLbl: { fontSize: 11, fontWeight: '900', letterSpacing: 1 },
+  rideLbl: { fontSize: 11, fontWeight: '800', letterSpacing: 0.2 },
   rideId: { color: colors.textMuted, fontSize: 10, marginTop: 2 },
   rideJson: {
     fontSize: 10, color: colors.text, marginTop: 6,
@@ -157,5 +157,5 @@ const styles = StyleSheet.create({
     height: 48, borderRadius: radius.full, backgroundColor: colors.primary,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
-  refreshText: { color: colors.onPrimary, fontWeight: '900', letterSpacing: 1 },
+  refreshText: { color: colors.onPrimary, fontWeight: '800', letterSpacing: 0.2 },
 });

@@ -203,7 +203,7 @@ export default function EndOfRidePayment({ visible, missionId, onCompleteRide, o
         {reporting ? <ActivityIndicator color={colors.text} /> : (
           <>
             <Ionicons name="send" size={16} color={colors.text} />
-            <Text style={styles.reportSendTxt}>ENVOYER AU DISPATCHEUR</Text>
+            <Text style={styles.reportSendTxt}>Envoyer au dispatcheur</Text>
           </>
         )}
       </TouchableOpacity>
@@ -249,7 +249,7 @@ export default function EndOfRidePayment({ visible, missionId, onCompleteRide, o
           </Text>
           <TouchableOpacity style={styles.retryBtn} onPress={() => load()} testID="payment-retry-btn">
             <Ionicons name="refresh" size={18} color={colors.onPrimary} />
-            <Text style={styles.retryTxt}>RÉESSAYER</Text>
+            <Text style={styles.retryTxt}>Réessayer</Text>
           </TouchableOpacity>
         </View>
       );
@@ -307,7 +307,7 @@ export default function EndOfRidePayment({ visible, missionId, onCompleteRide, o
             {isCard ? ' avec votre terminal de paiement.' : '.'}
           </Text>
           <View style={[styles.amountBox, { borderColor: t.accent }]}>
-            <Text style={[styles.amountLbl, { color: colors.textSecondary }]}>MONTANT À ENCAISSER</Text>
+            <Text style={[styles.amountLbl, { color: colors.textSecondary }]}>Montant à encaisser</Text>
             <Text style={[styles.amountVal, { color: t.accent }]} testID="payment-amount-due">{eur(p.amount_due)}</Text>
             <View style={styles.lockRow}>
               <Ionicons name="lock-closed" size={12} color={t.fg} />
@@ -328,10 +328,10 @@ export default function EndOfRidePayment({ visible, missionId, onCompleteRide, o
     return (
       <>
         <Ionicons name="alert-circle" size={64} color={t.accent} style={styles.bigIcon} />
-        <Text style={[styles.title, { color: t.accent }]} testID="payment-title">⚠️ PAIEMENT NON CONFIRMÉ</Text>
+        <Text style={[styles.title, { color: t.accent }]} testID="payment-title">Paiement non confirmé</Text>
         <View style={[styles.banner, { backgroundColor: t.accent }]}>
           <Ionicons name="call" size={20} color={colors.text} />
-          <Text style={styles.bannerTxt}>CONTACTEZ LE DISPATCHEUR</Text>
+          <Text style={styles.bannerTxt}>Contactez le dispatcheur</Text>
         </View>
         <Text style={[styles.message, { color: t.fg }]}>
           Le paiement en ligne n&apos;a pas été confirmé. Ne considérez pas cette course comme payée.
@@ -352,7 +352,7 @@ export default function EndOfRidePayment({ visible, missionId, onCompleteRide, o
     if (variant === 'paid' || variant === 'collected') {
       return (
         <SlideButton
-          label={variant === 'paid' ? "J'AI COMPRIS – TERMINER" : 'TERMINER LA COURSE'}
+          label={variant === 'paid' ? "J'AI COMPRIS – TERMINER" : 'Terminer la course'}
           subLabel="Glissez jusqu'au bout pour terminer la course"
           color={t.accent}
           onConfirm={finishRide}
@@ -438,26 +438,26 @@ const styles = StyleSheet.create({
   scroll: { padding: spacing.md, paddingBottom: spacing.xl, alignItems: 'stretch' },
   center: { alignItems: 'center', justifyContent: 'center', gap: 12, paddingTop: 80, paddingHorizontal: spacing.md },
   centerTxt: { color: colors.textSecondary, textAlign: 'center', fontSize: 14, lineHeight: 20 },
-  errTitle: { color: colors.text, fontWeight: '900', fontSize: 18, textAlign: 'center' },
+  errTitle: { color: colors.text, fontWeight: '800', fontSize: 18, textAlign: 'center' },
   retryBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8,
     backgroundColor: colors.primary, height: 48, paddingHorizontal: 24, borderRadius: radius.full,
   },
-  retryTxt: { color: colors.onPrimary, fontWeight: '900', letterSpacing: 1 },
+  retryTxt: { color: colors.onPrimary, fontWeight: '800', letterSpacing: 0.2 },
   bigIcon: { alignSelf: 'center', marginTop: spacing.sm },
-  title: { fontSize: 24, fontWeight: '900', textAlign: 'center', marginTop: spacing.sm, letterSpacing: 0.5 },
+  title: { fontSize: 24, fontWeight: '800', textAlign: 'center', marginTop: spacing.sm, letterSpacing: 0.2 },
   banner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     borderRadius: radius.lg, paddingVertical: 14, paddingHorizontal: spacing.md, marginTop: spacing.md,
   },
-  bannerTxt: { color: colors.text, fontWeight: '900', fontSize: 16, textAlign: 'center', flexShrink: 1 },
+  bannerTxt: { color: colors.text, fontWeight: '800', fontSize: 16, textAlign: 'center', flexShrink: 1 },
   message: { fontSize: 15, lineHeight: 22, textAlign: 'center', marginTop: spacing.md, fontWeight: '600' },
   amountBox: {
     marginTop: spacing.md, borderWidth: 3, borderRadius: radius.xl,
     paddingVertical: spacing.md, alignItems: 'center',
   },
-  amountLbl: { fontSize: 12, fontWeight: '800', letterSpacing: 1.5 },
-  amountVal: { fontSize: 52, fontWeight: '900', marginTop: 4 },
+  amountLbl: { fontSize: 12, fontWeight: '800', letterSpacing: 0.2 },
+  amountVal: { fontSize: 52, fontWeight: '800', marginTop: 4 },
   lockRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4, opacity: 0.8 },
   lockTxt: { fontSize: 11, fontWeight: '700' },
   rows: { marginTop: spacing.md },
@@ -466,15 +466,15 @@ const styles = StyleSheet.create({
     paddingVertical: 12, borderBottomWidth: 1, gap: 12,
   },
   rowLbl: { fontSize: 14, fontWeight: '600', flexShrink: 1 },
-  rowVal: { fontSize: 15, fontWeight: '900', textAlign: 'right', flexShrink: 1 },
-  rowValBig: { fontSize: 20, fontWeight: '900' },
+  rowVal: { fontSize: 15, fontWeight: '800', textAlign: 'right', flexShrink: 1 },
+  rowValBig: { fontSize: 20, fontWeight: '800' },
   reportBtn: {
     marginTop: spacing.lg, borderWidth: 2, borderRadius: radius.full, height: 52,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
-  reportBtnTxt: { fontWeight: '900', fontSize: 15 },
+  reportBtnTxt: { fontWeight: '800', fontSize: 15 },
   reportBox: { marginTop: spacing.lg, borderWidth: 1, borderRadius: radius.lg, padding: spacing.md, gap: 8 },
-  reportTitle: { fontWeight: '900', fontSize: 15, marginBottom: 4 },
+  reportTitle: { fontWeight: '800', fontSize: 15, marginBottom: 4 },
   reason: {
     flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48,
     paddingHorizontal: 12, borderRadius: radius.md, borderWidth: 1,
@@ -485,7 +485,7 @@ const styles = StyleSheet.create({
     height: 50, borderRadius: radius.full, flexDirection: 'row',
     alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4,
   },
-  reportSendTxt: { color: colors.text, fontWeight: '900', letterSpacing: 0.5 },
+  reportSendTxt: { color: colors.text, fontWeight: '800', letterSpacing: 0.2 },
   issueSent: {
     marginTop: spacing.lg, borderWidth: 1, borderRadius: radius.lg, padding: spacing.md,
     flexDirection: 'row', alignItems: 'center', gap: 8,

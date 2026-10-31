@@ -298,7 +298,7 @@ export default function MissionsScreen() {
   const requireOnShift = useCallback(() => {
     if (onShift === false) {
       haptic('warning');
-      const msg = 'Vous êtes hors ligne. Veuillez passer en ligne depuis l’onglet Carte pour accéder aux courses.';
+      const msg = 'Vous êtes hors service. Passez en service depuis l’Accueil pour accéder aux courses.';
       if (Platform.OS !== 'web') Alert.alert('Hors ligne', msg);
       else if (typeof window !== 'undefined') window.alert(msg);
       return false;

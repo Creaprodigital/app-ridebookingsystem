@@ -309,7 +309,7 @@ export default function CreateBookingScreen() {
         >
           {/* ─── TYPE DE COURSE ─── */}
           <View style={styles.block}>
-            <Text style={styles.kicker}>TYPE DE COURSE</Text>
+            <Text style={styles.kicker}>Type de course</Text>
             <View style={styles.tripGrid}>
               {TRIP_TYPES.map((t) => {
                 const active = tripType === t.k;
@@ -354,7 +354,7 @@ export default function CreateBookingScreen() {
 
           {/* ─── QUAND ─── */}
           <View style={styles.block}>
-            <Text style={styles.kicker}>QUAND ?</Text>
+            <Text style={styles.kicker}>Quand ?</Text>
             <TouchableOpacity
               style={[
                 styles.whenCard,
@@ -424,7 +424,7 @@ export default function CreateBookingScreen() {
 
           {/* ─── VÉHICULES ─── */}
           <View style={styles.block}>
-            <Text style={styles.kicker}>CHOISISSEZ VOTRE VÉHICULE</Text>
+            <Text style={styles.kicker}>Choisissez le véhicule</Text>
             {categories.map((c) => {
               const active = vehicleType === c.id;
               const price = quotePrice(quotes[c.id]);
@@ -476,7 +476,7 @@ export default function CreateBookingScreen() {
                 </Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
-                <Text style={styles.summaryKicker}>TARIF ESTIMÉ</Text>
+                <Text style={styles.summaryKicker}>Tarif estimé</Text>
                 <Text style={styles.summaryValue}>{selectedPrice != null ? `${selectedPrice.toFixed(2)} €` : '—'}</Text>
               </View>
             </View>
@@ -503,7 +503,7 @@ export default function CreateBookingScreen() {
 
           {/* ─── PASSAGER & CONTACT ─── */}
           <View style={styles.block}>
-            <Text style={styles.kicker}>PASSAGER & CONTACT</Text>
+            <Text style={styles.kicker}>Passager et contact</Text>
 
             <TouchableOpacity style={styles.clientSelect} onPress={() => setClientPickerOpen(true)}>
               <Ionicons name="person-circle-outline" size={18} color={colors.textSecondary} />
@@ -554,7 +554,7 @@ export default function CreateBookingScreen() {
 
           {/* ─── PAIEMENT ─── */}
           <View style={styles.block}>
-            <Text style={styles.kicker}>OPTIONS DE PAIEMENT</Text>
+            <Text style={styles.kicker}>Paiement</Text>
             <View style={styles.payCol}>
               {PAY_OPTIONS.map((p) => {
                 const active = payment === p.k;
@@ -710,7 +710,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
     borderRadius: radius.lg, padding: spacing.md, gap: spacing.sm,
   },
-  kicker: { color: colors.textMuted, fontSize: 10, fontWeight: '900', letterSpacing: 1.5 },
+  kicker: { color: colors.textMuted, fontSize: 10, fontWeight: '800', letterSpacing: 0.2 },
   label: { color: colors.textSecondary, fontSize: 11, fontWeight: '800', letterSpacing: 0.4, marginTop: 4 },
 
   // Type de course (2x2)
@@ -772,13 +772,13 @@ const styles = StyleSheet.create({
   },
   vehicleCardActive: { backgroundColor: colors.primary + '12', borderColor: colors.primary, borderWidth: 1.5 },
   vehicleImg: { width: 64, height: 50, borderRadius: 8, backgroundColor: colors.surface },
-  vehicleName: { color: colors.text, fontSize: 14, fontWeight: '900' },
+  vehicleName: { color: colors.text, fontSize: 14, fontWeight: '800' },
   vehicleMeta: { flexDirection: 'row', gap: 10 },
   vehicleMetaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   vehicleMetaTxt: { color: colors.textSecondary, fontSize: 11, fontWeight: '700' },
   vehicleDesc: { color: colors.textMuted, fontSize: 11, marginTop: 1 },
   vehicleRight: { alignItems: 'flex-end', gap: 6 },
-  vehiclePrice: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  vehiclePrice: { color: colors.text, fontSize: 13, fontWeight: '800' },
   radio: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
   radioActive: { backgroundColor: colors.primary, borderColor: colors.primary },
 
@@ -789,8 +789,8 @@ const styles = StyleSheet.create({
   },
   summaryLeft: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   summaryLeftTxt: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
-  summaryKicker: { color: colors.textMuted, fontSize: 10, fontWeight: '900', letterSpacing: 1 },
-  summaryValue: { color: colors.text, fontSize: 20, fontWeight: '900' },
+  summaryKicker: { color: colors.textMuted, fontSize: 10, fontWeight: '800', letterSpacing: 0.2 },
+  summaryValue: { color: colors.text, fontSize: 20, fontWeight: '800' },
 
   // Manual price
   manualRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
@@ -819,15 +819,15 @@ const styles = StyleSheet.create({
 
   // Submit
   submit: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: colors.primary, borderRadius: radius.full, paddingVertical: 16, marginTop: 4 },
-  submitTxt: { color: colors.onPrimary, fontSize: 15, fontWeight: '900', letterSpacing: 0.5 },
+  submitTxt: { color: colors.onPrimary, fontSize: 15, fontWeight: '800', letterSpacing: 0.2 },
 
   // Modal
-  backdrop: { flex: 1, backgroundColor: '#000C', justifyContent: 'flex-end' },
+  backdrop: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
   sheet: { backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.md, paddingBottom: spacing.xl, gap: 8 },
   handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 8 },
-  sheetTitle: { color: colors.text, fontSize: 16, fontWeight: '900', textAlign: 'center', marginBottom: 6 },
+  sheetTitle: { color: colors.text, fontSize: 16, fontWeight: '800', textAlign: 'center', marginBottom: 6 },
   newClientRow: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: spacing.sm, backgroundColor: colors.primary + '15', borderRadius: radius.md, borderColor: colors.primary, borderWidth: 1 },
-  newClientTxt: { color: colors.primary, fontSize: 13, fontWeight: '900' },
+  newClientTxt: { color: colors.primary, fontSize: 13, fontWeight: '800' },
   clientRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: spacing.md, borderBottomColor: colors.border, borderBottomWidth: 1 },
   clientName: { color: colors.text, fontSize: 14, fontWeight: '800' },
   clientSub: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },

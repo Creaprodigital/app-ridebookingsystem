@@ -530,7 +530,7 @@ const styles = StyleSheet.create({
   txTitle: { color: colors.text, fontSize: 14.5, fontWeight: '700' },
   txDate: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
   pendingTag: {
-    color: colors.warning, fontSize: 10, fontWeight: '900', letterSpacing: 1,
+    color: colors.warning, fontSize: 10, fontWeight: '800', letterSpacing: 0.2,
     marginTop: 4,
   },
   txAmt: { fontSize: 15.5, fontWeight: '800' },

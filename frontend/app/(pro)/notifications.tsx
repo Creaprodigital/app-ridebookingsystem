@@ -98,7 +98,7 @@ export default function NotificationsScreen() {
             </View>
             <View style={{ flex: 1, gap: 2 }}>
               <View style={styles.titleRow}>
-                <Text style={[styles.title, !item.read && { fontWeight: '900' }]}>{item.title}</Text>
+                <Text style={[styles.title, !item.read && { fontWeight: '800' }]}>{item.title}</Text>
                 {!item.read ? <View style={styles.unreadDot} /> : null}
               </View>
               {item.body ? <Text style={styles.body} numberOfLines={2}>{item.body}</Text> : null}

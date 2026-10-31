@@ -1,100 +1,91 @@
 import React from 'react';
-import { View, StyleSheet, TouchableOpacity, ImageBackground } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Image } from 'react-native';
 import { Text } from '../src/ui/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { colors, radius, spacing } from '../src/theme';
+import { colors, radius, spacing, shadow, isDark } from '../src/theme';
 
-const WELCOME_BG = require('../assets/images/login-bg.png');
+const LOGO = isDark
+  ? require('../assets/images/logo-horizontal-dark.png')
+  : require('../assets/images/logo-horizontal.png');
+const MARK = require('../assets/images/logo-mark.png');
 
 export default function Welcome() {
   const router = useRouter();
   return (
-    <ImageBackground source={WELCOME_BG} resizeMode="cover" style={styles.bg}>
-      <View style={styles.overlay} />
-      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-        <View style={styles.container}>
-        <View style={styles.brandWrap}>
-          <View style={styles.logo}>
-            <Ionicons name="car-sport" size={42} color={colors.onPrimary} />
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <View style={styles.container}>
+        <Image source={LOGO} style={styles.logo} resizeMode="contain" />
+
+        <View style={styles.hero}>
+          <View style={styles.markWrap}>
+            <Image source={MARK} style={styles.mark} resizeMode="contain" />
           </View>
-          <Text style={styles.title}>Ride Booking</Text>
-          <Text style={styles.kicker}>SYSTEM</Text>
-          <Text style={styles.subtitle}>Choisissez votre type de compte pour vous connecter</Text>
+          <Text style={styles.title}>Bienvenue</Text>
+          <Text style={styles.subtitle}>Choisissez votre espace pour vous connecter.</Text>
         </View>
 
         <View style={styles.actions}>
           <TouchableOpacity
-            style={styles.cardPrimary}
-            onPress={() => router.push('/login?role=pro' as any)}
-            activeOpacity={0.85}
-            testID="welcome-pro"
-          >
-            <View style={styles.cardIconWrap}>
-              <Ionicons name="git-network-outline" size={26} color={colors.onPrimary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.cardTitlePrimary}>Connexion Dispatcheur</Text>
-              <Text style={styles.cardSubPrimary}>Espace professionnel — gestion des courses</Text>
-            </View>
-            <Ionicons name="arrow-forward" size={22} color={colors.onPrimary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.cardSecondary}
+            style={styles.card}
             onPress={() => router.push('/login?role=driver' as any)}
             activeOpacity={0.85}
             testID="welcome-driver"
           >
-            <View style={[styles.cardIconWrap, { backgroundColor: colors.primary + '22' }]}>
-              <Ionicons name="car-outline" size={26} color={colors.primary} />
+            <View style={[styles.iconWrap, { backgroundColor: colors.primary }]}>
+              <Ionicons name="car" size={24} color={colors.onPrimary} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.cardTitleSecondary}>Connexion Chauffeur</Text>
-              <Text style={styles.cardSubSecondary}>Application chauffeur — réceptionner des courses</Text>
+              <Text style={styles.cardTitle}>Je suis chauffeur</Text>
+              <Text style={styles.cardSub}>Recevez et réalisez vos courses</Text>
             </View>
-            <Ionicons name="arrow-forward" size={22} color={colors.text} />
+            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.card}
+            onPress={() => router.push('/login?role=pro' as any)}
+            activeOpacity={0.85}
+            testID="welcome-pro"
+          >
+            <View style={[styles.iconWrap, { backgroundColor: colors.primarySoft }]}>
+              <Ionicons name="git-network-outline" size={24} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.cardTitle}>Je suis dispatcheur</Text>
+              <Text style={styles.cardSub}>Gérez vos réservations et vos chauffeurs</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.footer}>© {new Date().getFullYear()} Ride Booking System</Text>
+        <Text style={styles.footer}>© {new Date().getFullYear()} RideBookingSystem</Text>
       </View>
     </SafeAreaView>
-    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  bg: { flex: 1, width: '100%', height: '100%', backgroundColor: colors.bg },
-  overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.25)' },
-  safe: { flex: 1, backgroundColor: 'transparent' },
-  container: { flex: 1, padding: spacing.lg, justifyContent: 'space-between' },
-  brandWrap: { alignItems: 'center', marginTop: spacing.xl, gap: 6 },
-  logo: {
-    width: 86, height: 86, borderRadius: 43, backgroundColor: colors.primary,
-    alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md,
+  safe: { flex: 1, backgroundColor: colors.bg },
+  container: { flex: 1, paddingHorizontal: spacing.lg, paddingBottom: spacing.md },
+  logo: { width: 220, height: 30, marginTop: spacing.lg },
+  hero: { flex: 1, justifyContent: 'center' },
+  markWrap: {
+    width: 76, height: 76, borderRadius: 22, backgroundColor: '#071731',
+    alignItems: 'center', justifyContent: 'center', marginBottom: spacing.lg,
   },
-  title: { color: colors.text, fontSize: 36, fontWeight: '900', letterSpacing: -1 },
-  kicker: { color: colors.primary, fontSize: 13, fontWeight: '900', letterSpacing: 5 },
-  subtitle: { color: colors.textSecondary, fontSize: 14, textAlign: 'center', marginTop: spacing.sm, paddingHorizontal: spacing.lg },
-  actions: { gap: spacing.md, marginBottom: spacing.lg },
-  cardPrimary: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-    backgroundColor: colors.primary, borderRadius: radius.xl, padding: spacing.lg,
+  mark: { width: 46, height: 34 },
+  title: { color: colors.text, fontSize: 34, fontWeight: '800', letterSpacing: -0.5 },
+  subtitle: { color: colors.textSecondary, fontSize: 16, marginTop: 6, lineHeight: 22 },
+  actions: { gap: 12, marginBottom: spacing.lg },
+  card: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    backgroundColor: colors.surface, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.border,
+    padding: spacing.md, ...shadow,
   },
-  cardIconWrap: {
-    width: 50, height: 50, borderRadius: 16,
-    backgroundColor: '#00000020', alignItems: 'center', justifyContent: 'center',
-  },
-  cardTitlePrimary: { color: colors.onPrimary, fontSize: 16, fontWeight: '900' },
-  cardSubPrimary: { color: colors.onPrimary, fontSize: 12, fontWeight: '600', opacity: 0.8, marginTop: 2 },
-  cardSecondary: {
-    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-    backgroundColor: 'rgba(20, 20, 20, 0.78)', borderColor: colors.border, borderWidth: 1,
-    borderRadius: radius.xl, padding: spacing.lg,
-  },
-  cardTitleSecondary: { color: colors.text, fontSize: 16, fontWeight: '900' },
-  cardSubSecondary: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
-  footer: { color: colors.textMuted, fontSize: 11, textAlign: 'center' },
+  iconWrap: { width: 48, height: 48, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  cardTitle: { color: colors.text, fontSize: 16.5, fontWeight: '700' },
+  cardSub: { color: colors.textSecondary, fontSize: 13.5, marginTop: 2 },
+  footer: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
 });

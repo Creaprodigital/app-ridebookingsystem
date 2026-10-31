@@ -83,7 +83,7 @@ export default function ProDashboard() {
         >
           {/* Revenue card */}
           <View style={styles.revenueCard}>
-            <Text style={styles.revenueLabel}>REVENUS</Text>
+            <Text style={styles.revenueLabel}>Revenus</Text>
             <Text style={styles.revenueValue}>{(stats?.revenue ?? 0).toFixed(2)} €</Text>
             <Text style={styles.revenueSub}>{stats?.completed ?? 0} course{(stats?.completed ?? 0) > 1 ? 's' : ''} terminée{(stats?.completed ?? 0) > 1 ? 's' : ''}</Text>
           </View>
@@ -172,8 +172,8 @@ const styles = StyleSheet.create({
   revenueCard: {
     backgroundColor: colors.primary, borderRadius: radius.xl, padding: spacing.lg,
   },
-  revenueLabel: { color: colors.onPrimary, fontSize: 11, fontWeight: '900', letterSpacing: 1.5, opacity: 0.85 },
-  revenueValue: { color: colors.onPrimary, fontSize: 36, fontWeight: '900', letterSpacing: -1, marginTop: 4 },
+  revenueLabel: { color: colors.onPrimary, fontSize: 11, fontWeight: '800', letterSpacing: 0.2, opacity: 0.85 },
+  revenueValue: { color: colors.onPrimary, fontSize: 36, fontWeight: '800', letterSpacing: -1, marginTop: 4 },
   revenueSub: { color: colors.onPrimary, fontSize: 12, fontWeight: '700', opacity: 0.85, marginTop: 4 },
   tilesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   tile: {
@@ -182,14 +182,14 @@ const styles = StyleSheet.create({
     padding: spacing.md, gap: 6, alignItems: 'flex-start',
   },
   tileIcon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  tileValue: { color: colors.text, fontSize: 22, fontWeight: '900' },
+  tileValue: { color: colors.text, fontSize: 22, fontWeight: '800' },
   tileLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
   quickRow: { flexDirection: 'row', gap: spacing.sm },
   quickPrimary: {
     flex: 1.4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: colors.primary, borderRadius: radius.full, paddingVertical: 14,
   },
-  quickPrimaryTxt: { color: colors.onPrimary, fontWeight: '900', fontSize: 14, letterSpacing: 0.5 },
+  quickPrimaryTxt: { color: colors.onPrimary, fontWeight: '800', fontSize: 14, letterSpacing: 0.2 },
   quickSecondary: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     backgroundColor: colors.surface, borderRadius: radius.full, paddingVertical: 14,
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   },
   quickSecondaryTxt: { color: colors.text, fontWeight: '800', fontSize: 13 },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
-  sectionTitle: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  sectionTitle: { color: colors.text, fontSize: 16, fontWeight: '800' },
   sectionLink: { color: colors.primary, fontSize: 12, fontWeight: '800' },
   empty: { alignItems: 'center', padding: spacing.lg, gap: 6 },
   emptyTxt: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
@@ -210,5 +210,5 @@ const styles = StyleSheet.create({
   bookingFrom: { color: colors.text, fontSize: 13, fontWeight: '800' },
   bookingTo: { color: colors.textSecondary, fontSize: 12, marginTop: 1 },
   bookingMeta: { color: colors.textMuted, fontSize: 11, fontWeight: '600', marginTop: 3 },
-  bookingPrice: { color: colors.text, fontSize: 14, fontWeight: '900' },
+  bookingPrice: { color: colors.text, fontSize: 14, fontWeight: '800' },
 });

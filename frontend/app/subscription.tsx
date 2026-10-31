@@ -166,7 +166,7 @@ export default function SubscriptionScreen() {
               <Text style={styles.warnTitle}>Compte bloqué</Text>
             </View>
             <Text style={styles.warnBody}>
-              Pour recevoir des courses et passer en ligne, vous devez souscrire à
+              Pour recevoir des courses et passer en service, vous devez souscrire à
               l’abonnement. Stripe enregistrera votre carte et débitera automatiquement
               chaque mois — plus rien à faire de votre côté.
             </Text>
@@ -194,7 +194,7 @@ export default function SubscriptionScreen() {
             ) : (
               <>
                 <Ionicons name="card" size={20} color={colors.onPrimary} />
-                <Text style={styles.ctaText}>S’ABONNER</Text>
+                <Text style={styles.ctaText}>S’abonner</Text>
                 <Ionicons name="arrow-forward" size={20} color={colors.onPrimary} />
               </>
             )}
@@ -257,7 +257,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     marginBottom: spacing.sm,
   },
-  headerTitle: { color: colors.text, fontSize: 18, fontWeight: '900' },
+  headerTitle: { color: colors.text, fontSize: 18, fontWeight: '800' },
   card: {
     backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
     borderRadius: radius.xl, padding: spacing.lg, gap: spacing.md,
@@ -266,8 +266,8 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 10, paddingVertical: 6, borderRadius: radius.full,
   },
-  badgeText: { fontSize: 12, fontWeight: '900', letterSpacing: 0.5 },
-  priceValue: { color: colors.text, fontSize: 34, fontWeight: '900', letterSpacing: -1 },
+  badgeText: { fontSize: 12, fontWeight: '800', letterSpacing: 0.2 },
+  priceValue: { color: colors.text, fontSize: 34, fontWeight: '800', letterSpacing: -1 },
   priceSuffix: { color: colors.textSecondary, fontSize: 14, fontWeight: '700' },
   autoBox: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -292,7 +292,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl, padding: spacing.lg, gap: spacing.sm,
   },
   warnHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  warnTitle: { color: colors.danger, fontSize: 15, fontWeight: '900' },
+  warnTitle: { color: colors.danger, fontSize: 15, fontWeight: '800' },
   warnBody: { color: colors.text, fontSize: 13, lineHeight: 19 },
   okCard: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
     height: 56, backgroundColor: colors.primary, borderRadius: radius.full,
     alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: spacing.sm,
   },
-  ctaText: { color: colors.onPrimary, fontWeight: '900', fontSize: 15, letterSpacing: 1.2 },
+  ctaText: { color: colors.onPrimary, fontWeight: '800', fontSize: 15, letterSpacing: 0.2 },
   secondaryCta: {
     height: 52, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
     borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center',

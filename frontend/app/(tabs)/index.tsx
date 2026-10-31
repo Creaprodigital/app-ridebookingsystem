@@ -199,7 +199,7 @@ export default function HomeMap() {
     if (subNeedsPayment && !onShift) {
       haptic('error');
       const msg =
-        'Votre abonnement doit être réglé avant de passer en ligne.';
+        'Votre abonnement doit être réglé avant de passer en service.';
       if (Platform.OS === 'web') alert(msg);
       else Alert.alert('Abonnement requis', msg, [
         { text: 'Plus tard', style: 'cancel' },

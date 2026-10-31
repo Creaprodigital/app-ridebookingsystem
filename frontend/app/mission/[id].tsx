@@ -372,7 +372,7 @@ export default function MissionDetail() {
     if (!mission) return;
     if (!onShift) {
       haptic('warning');
-      const msg = 'Vous êtes hors ligne. Veuillez passer en ligne depuis l’onglet Carte pour démarrer ou poursuivre la course.';
+      const msg = 'Vous êtes hors service. Passez en service depuis l’Accueil pour démarrer ou poursuivre la course.';
       if (Platform.OS !== 'web') Alert.alert('Hors ligne', msg);
       else if (typeof window !== 'undefined') window.alert(msg);
       return;
@@ -427,7 +427,7 @@ export default function MissionDetail() {
           <Text style={styles.missingTxt}>Synchronisation en cours…</Text>
           <Text style={styles.missingSub}>
             Votre course vient d’être acceptée. Elle devrait apparaître d’ici quelques
-            secondes dans l’onglet « Mes missions ».
+            secondes dans l’onglet « Courses ».
           </Text>
           <TouchableOpacity
             style={styles.backBtn}
@@ -510,7 +510,7 @@ export default function MissionDetail() {
           </TouchableOpacity>
         )}
         <Text style={styles.topTitle}>Détail de la course</Text>
-        <View style={styles.iconBtn} />
+        <View style={[styles.iconBtn, { backgroundColor: 'transparent', borderWidth: 0 }]} />
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: 200 + footerBottomPad, gap: 12, paddingHorizontal: spacing.md }}>

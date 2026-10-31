@@ -251,13 +251,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, borderWidth: 1, marginTop: 6,
   },
   badgeDot: { width: 6, height: 6, borderRadius: 3 },
-  badgeText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
+  badgeText: { fontSize: 11, fontWeight: '800', letterSpacing: 0.2 },
   actionBtn: {
     backgroundColor: colors.primary, height: 36, paddingHorizontal: 14,
     borderRadius: 18, alignItems: 'center', justifyContent: 'center',
   },
   actionBtnDone: { backgroundColor: colors.elevated, borderWidth: 1, borderColor: colors.border },
-  actionText: { color: colors.onPrimary, fontWeight: '800', fontSize: 12, letterSpacing: 0.8 },
+  actionText: { color: colors.onPrimary, fontWeight: '800', fontSize: 12, letterSpacing: 0.2 },
   sysBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
