@@ -9,7 +9,7 @@ import { ProNotificationsProvider } from '../../src/proNotifications';
 function FabIcon() {
   return (
     <View style={styles.fabIcon}>
-      <Ionicons name="add" size={26} color={colors.bg} />
+      <Ionicons name="add" size={26} color={colors.onPrimary} />
     </View>
   );
 }

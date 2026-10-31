@@ -1,15 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-  Alert,
-  Platform,
-  RefreshControl,
-} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Platform, RefreshControl } from 'react-native';
+import { Text } from '../src/ui/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -199,12 +190,12 @@ export default function SubscriptionScreen() {
             testID="sub-cta"
           >
             {busy === 'checkout' ? (
-              <ActivityIndicator color={colors.bg} />
+              <ActivityIndicator color={colors.onPrimary} />
             ) : (
               <>
-                <Ionicons name="card" size={20} color={colors.bg} />
+                <Ionicons name="card" size={20} color={colors.onPrimary} />
                 <Text style={styles.ctaText}>S’ABONNER</Text>
-                <Ionicons name="arrow-forward" size={20} color={colors.bg} />
+                <Ionicons name="arrow-forward" size={20} color={colors.onPrimary} />
               </>
             )}
           </TouchableOpacity>
@@ -313,7 +304,7 @@ const styles = StyleSheet.create({
     height: 56, backgroundColor: colors.primary, borderRadius: radius.full,
     alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: spacing.sm,
   },
-  ctaText: { color: colors.bg, fontWeight: '900', fontSize: 15, letterSpacing: 1.2 },
+  ctaText: { color: colors.onPrimary, fontWeight: '900', fontSize: 15, letterSpacing: 1.2 },
   secondaryCta: {
     height: 52, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
     borderRadius: radius.lg, alignItems: 'center', justifyContent: 'center',

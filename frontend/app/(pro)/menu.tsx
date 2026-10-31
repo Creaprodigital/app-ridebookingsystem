@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { Text } from '../../src/ui/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -77,7 +78,7 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
   profile: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.md },
   avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' },
-  avatarTxt: { color: colors.bg, fontSize: 18, fontWeight: '900' },
+  avatarTxt: { color: colors.onPrimary, fontSize: 18, fontWeight: '900' },
   name: { color: colors.text, fontSize: 16, fontWeight: '900' },
   email: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
   rolePill: { alignSelf: 'flex-start', backgroundColor: colors.primary + '22', borderColor: colors.primary, borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 999, marginTop: 6 },

@@ -1,14 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  RefreshControl,
-  Platform,
-  Alert,
-} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, RefreshControl, Platform, Alert } from 'react-native';
+import { Text } from '../src/ui/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -161,7 +153,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
     shadowColor: colors.primary, shadowOpacity: 0.4, shadowRadius: 20, shadowOffset: { width: 0, height: 0 },
   },
-  avatarTxt: { color: colors.bg, fontSize: 30, fontWeight: '900' },
+  avatarTxt: { color: colors.onPrimary, fontSize: 30, fontWeight: '900' },
   name: { color: colors.text, fontSize: 22, fontWeight: '800', marginTop: 4 },
   email: { color: colors.textSecondary, fontSize: 13 },
   ratingRow: {

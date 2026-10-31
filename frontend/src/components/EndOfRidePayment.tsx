@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Modal, View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, TextInput,
-} from 'react-native';
+import { Modal, View, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { Text, TextInput } from '../ui/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
@@ -249,7 +248,7 @@ export default function EndOfRidePayment({ visible, missionId, onCompleteRide, o
             {loadError ? `\n(${loadError})` : ''}
           </Text>
           <TouchableOpacity style={styles.retryBtn} onPress={() => load()} testID="payment-retry-btn">
-            <Ionicons name="refresh" size={18} color={colors.bg} />
+            <Ionicons name="refresh" size={18} color={colors.onPrimary} />
             <Text style={styles.retryTxt}>RÉESSAYER</Text>
           </TouchableOpacity>
         </View>
@@ -444,7 +443,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8,
     backgroundColor: colors.primary, height: 48, paddingHorizontal: 24, borderRadius: radius.full,
   },
-  retryTxt: { color: colors.bg, fontWeight: '900', letterSpacing: 1 },
+  retryTxt: { color: colors.onPrimary, fontWeight: '900', letterSpacing: 1 },
   bigIcon: { alignSelf: 'center', marginTop: spacing.sm },
   title: { fontSize: 24, fontWeight: '900', textAlign: 'center', marginTop: spacing.sm, letterSpacing: 0.5 },
   banner: {

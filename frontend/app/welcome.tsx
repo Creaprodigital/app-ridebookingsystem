@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ImageBackground } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ImageBackground } from 'react-native';
+import { Text } from '../src/ui/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -16,7 +17,7 @@ export default function Welcome() {
         <View style={styles.container}>
         <View style={styles.brandWrap}>
           <View style={styles.logo}>
-            <Ionicons name="car-sport" size={42} color={colors.bg} />
+            <Ionicons name="car-sport" size={42} color={colors.onPrimary} />
           </View>
           <Text style={styles.title}>Ride Booking</Text>
           <Text style={styles.kicker}>SYSTEM</Text>
@@ -31,13 +32,13 @@ export default function Welcome() {
             testID="welcome-pro"
           >
             <View style={styles.cardIconWrap}>
-              <Ionicons name="git-network-outline" size={26} color={colors.bg} />
+              <Ionicons name="git-network-outline" size={26} color={colors.onPrimary} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.cardTitlePrimary}>Connexion Dispatcheur</Text>
               <Text style={styles.cardSubPrimary}>Espace professionnel — gestion des courses</Text>
             </View>
-            <Ionicons name="arrow-forward" size={22} color={colors.bg} />
+            <Ionicons name="arrow-forward" size={22} color={colors.onPrimary} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -86,8 +87,8 @@ const styles = StyleSheet.create({
     width: 50, height: 50, borderRadius: 16,
     backgroundColor: '#00000020', alignItems: 'center', justifyContent: 'center',
   },
-  cardTitlePrimary: { color: colors.bg, fontSize: 16, fontWeight: '900' },
-  cardSubPrimary: { color: colors.bg, fontSize: 12, fontWeight: '600', opacity: 0.8, marginTop: 2 },
+  cardTitlePrimary: { color: colors.onPrimary, fontSize: 16, fontWeight: '900' },
+  cardSubPrimary: { color: colors.onPrimary, fontSize: 12, fontWeight: '600', opacity: 0.8, marginTop: 2 },
   cardSecondary: {
     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
     backgroundColor: 'rgba(20, 20, 20, 0.78)', borderColor: colors.border, borderWidth: 1,

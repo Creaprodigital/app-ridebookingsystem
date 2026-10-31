@@ -1,14 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-  RefreshControl,
-  Platform,
-} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl, Platform } from 'react-native';
+import { Text } from '../../src/ui/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -127,9 +119,9 @@ export default function DebugScreen() {
         </View>
 
         <TouchableOpacity style={styles.refreshBtn} onPress={fetchAll} disabled={loading} testID="refresh-btn">
-          {loading ? <ActivityIndicator color={colors.bg} /> : (
+          {loading ? <ActivityIndicator color={colors.onPrimary} /> : (
             <>
-              <Ionicons name="refresh" size={18} color={colors.bg} />
+              <Ionicons name="refresh" size={18} color={colors.onPrimary} />
               <Text style={styles.refreshText}>RAFRAÎCHIR</Text>
             </>
           )}
@@ -165,5 +157,5 @@ const styles = StyleSheet.create({
     height: 48, borderRadius: radius.full, backgroundColor: colors.primary,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
   },
-  refreshText: { color: colors.bg, fontWeight: '900', letterSpacing: 1 },
+  refreshText: { color: colors.onPrimary, fontWeight: '900', letterSpacing: 1 },
 });

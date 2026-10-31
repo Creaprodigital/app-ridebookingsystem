@@ -5,11 +5,24 @@ import { StatusBar } from 'expo-status-bar';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { AuthProvider, useAuth } from '../src/auth';
 import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
-import { colors } from '../src/theme';
+import { colors, isDark } from '../src/theme';
+import {
+  useFonts,
+  Manrope_400Regular,
+  Manrope_500Medium,
+  Manrope_600SemiBold,
+  Manrope_700Bold,
+  Manrope_800ExtraBold,
+} from '@expo-google-fonts/manrope';
+import {
+  PlusJakartaSans_600SemiBold,
+  PlusJakartaSans_700Bold,
+  PlusJakartaSans_800ExtraBold,
+} from '@expo-google-fonts/plus-jakarta-sans';
 import { setupPushNotifications } from '../src/pushService';
 import { RidesProvider, useRides } from '../src/ridesContext';
 import RideRequestModal from '../src/components/RideRequestModal';
-import VideoSplash from '../src/components/VideoSplash';
+import BrandSplash from '../src/components/BrandSplash';
 import { DriverSubscriptionProvider } from '../src/driverSubscription';
 import { haptic } from '../src/feedback';
 import { hydrateLastCoords } from '../src/locationStore';
@@ -124,6 +137,18 @@ function RouteGuard({ children }: { children: React.ReactNode }) {
 
 export default function RootLayout() {
   const [splashDone, setSplashDone] = React.useState(false);
+  // Brand fonts (same as the website). The intro splash covers the short
+  // loading time; on failure the system font is used instead.
+  const [fontsLoaded, fontsError] = useFonts({
+    Manrope_400Regular,
+    Manrope_500Medium,
+    Manrope_600SemiBold,
+    Manrope_700Bold,
+    Manrope_800ExtraBold,
+    PlusJakartaSans_600SemiBold,
+    PlusJakartaSans_700Bold,
+    PlusJakartaSans_800ExtraBold,
+  });
 
   // As soon as JS is up, hide the native (image) splash so the video can
   // immediately take over. Native splash is irrelevant on web.
@@ -135,11 +160,12 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
       <SafeAreaProvider>
+        {(fontsLoaded || fontsError) && (
         <AuthProvider>
           <RidesProvider>
             <DriverSubscriptionProvider>
               <RouteGuard>
-              <StatusBar style="light" />
+              <StatusBar style={isDark ? 'light' : 'dark'} />
               <Stack
                 screenOptions={{
                   headerShown: false,
@@ -170,9 +196,10 @@ export default function RootLayout() {
             </DriverSubscriptionProvider>
           </RidesProvider>
         </AuthProvider>
-        {/* Video splash plays on every cold start: 250ms fade-in + 2500ms visible + 450ms fade-out. */}
+        )}
+        {/* Branded intro on every cold start (logo fade-in, then fade-out). */}
         {!splashDone && (
-          <VideoSplash durationMs={3200} onDone={() => setSplashDone(true)} />
+          <BrandSplash onDone={() => setSplashDone(true)} />
         )}
       </SafeAreaProvider>
     </GestureHandlerRootView>

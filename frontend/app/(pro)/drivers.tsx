@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, FlatList, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native';
+import { Text } from '../../src/ui/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
@@ -111,7 +112,7 @@ const styles = StyleSheet.create({
   tab: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.full, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 },
   tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   tabTxt: { color: colors.textSecondary, fontSize: 12, fontWeight: '800' },
-  tabTxtActive: { color: colors.bg },
+  tabTxtActive: { color: colors.onPrimary },
   empty: { alignItems: 'center', paddingTop: 60, gap: 8 },
   emptyTxt: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
   card: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.lg, padding: spacing.md },

@@ -1,5 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { StyleSheet, Text, View, LayoutChangeEvent, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, LayoutChangeEvent, ActivityIndicator } from 'react-native';
+import { Text } from '../ui/Text';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -61,31 +62,28 @@ export default function SlideButton({ label, subLabel, onConfirm, color = colors
   const fillStyle = useAnimatedStyle(() => ({ width: offsetX.value + KNOB + 8 }));
 
   return (
-    <View style={[styles.track, { borderColor: color + '88' }, disabled && { opacity: 0.5 }]} onLayout={handleLayout} testID={testID}>
-      <Animated.View style={[styles.fill, { backgroundColor: color + '40' }, fillStyle]} />
+    <View style={[styles.track, { backgroundColor: color }, disabled && { opacity: 0.5 }]} onLayout={handleLayout} testID={testID}>
+      <Animated.View style={[styles.fill, fillStyle]} />
       <View style={styles.labelWrap} pointerEvents="none">
-        <Text style={[styles.label, { color }]} numberOfLines={1}>{label}</Text>
+        <Text style={styles.label} numberOfLines={1}>{label}</Text>
         {subLabel ? (
           <Text style={styles.subLabel} numberOfLines={1}>{subLabel}</Text>
         ) : null}
       </View>
       <GestureDetector gesture={pan}>
-        <Animated.View style={[styles.knob, { backgroundColor: color }, knobStyle]}>
+        <Animated.View style={[styles.knob, knobStyle]}>
           {loading ? (
-            <ActivityIndicator color={colors.bg} />
+            <ActivityIndicator color={color} />
           ) : (
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <Ionicons name="chevron-forward" size={22} color={colors.bg} />
-              <Ionicons name="chevron-forward" size={22} color={colors.bg} style={{ marginLeft: -14 }} />
-            </View>
+            <Ionicons name="arrow-forward" size={24} color={color} />
           )}
         </Animated.View>
       </GestureDetector>
       {/* trailing chevrons hint */}
       <View style={styles.hintWrap} pointerEvents="none">
-        <Ionicons name="chevron-forward" size={18} color={color + '55'} />
-        <Ionicons name="chevron-forward" size={18} color={color + '55'} style={{ marginLeft: -10 }} />
-        <Ionicons name="chevron-forward" size={18} color={color + '55'} style={{ marginLeft: -10 }} />
+        <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.35)" />
+        <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.55)" style={{ marginLeft: -10 }} />
+        <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.8)" style={{ marginLeft: -10 }} />
       </View>
     </View>
   );
@@ -94,10 +92,7 @@ export default function SlideButton({ label, subLabel, onConfirm, color = colors
 const styles = StyleSheet.create({
   track: {
     height: 64,
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.full,
+    borderRadius: radius.lg + 4,
     justifyContent: 'center',
     paddingHorizontal: 4,
     overflow: 'hidden',
@@ -107,18 +102,18 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    borderRadius: radius.full,
+    borderRadius: radius.lg + 4,
+    backgroundColor: 'rgba(255,255,255,0.16)',
   },
   labelWrap: { alignItems: 'center', justifyContent: 'center' },
   label: {
+    color: '#fff',
     textAlign: 'center',
-    fontWeight: '900',
-    letterSpacing: 1.2,
-    fontSize: 14,
-    textTransform: 'uppercase',
+    fontWeight: '700',
+    fontSize: 16,
   },
   subLabel: {
-    color: colors.textSecondary,
+    color: 'rgba(255,255,255,0.8)',
     textAlign: 'center',
     fontWeight: '600',
     fontSize: 11,
@@ -136,7 +131,8 @@ const styles = StyleSheet.create({
     left: 4,
     width: KNOB,
     height: KNOB,
-    borderRadius: KNOB / 2,
+    borderRadius: 16,
+    backgroundColor: '#fff',
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -1,13 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-  Platform,
-} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Platform } from 'react-native';
+import { Text } from '../../src/ui/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -133,7 +126,7 @@ export default function SoundsScreen() {
                     isSelected && { backgroundColor: colors.primary, borderColor: colors.primary },
                   ]}
                 >
-                  {isSelected ? <Ionicons name="checkmark" size={14} color={colors.bg} /> : null}
+                  {isSelected ? <Ionicons name="checkmark" size={14} color={colors.onPrimary} /> : null}
                 </View>
               </View>
             );

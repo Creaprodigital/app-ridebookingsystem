@@ -1,17 +1,6 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-  ScrollView,
-  Alert,
-  ImageBackground,
-} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, KeyboardAvoidingView, Platform, ActivityIndicator, ScrollView, Alert, ImageBackground } from 'react-native';
+import { Text, TextInput } from '../src/ui/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../src/auth';
@@ -148,11 +137,11 @@ export default function Login() {
               activeOpacity={0.85}
             >
               {loading ? (
-                <ActivityIndicator color={colors.bg} />
+                <ActivityIndicator color={colors.onPrimary} />
               ) : (
                 <>
                   <Text style={styles.submitText}>SE CONNECTER</Text>
-                  <Ionicons name="arrow-forward" size={18} color={colors.bg} />
+                  <Ionicons name="arrow-forward" size={18} color={colors.onPrimary} />
                 </>
               )}
             </TouchableOpacity>
@@ -233,7 +222,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: spacing.sm,
     marginTop: spacing.sm,
   },
-  submitText: { color: colors.bg, fontWeight: '900', fontSize: 15, letterSpacing: 1.2 },
+  submitText: { color: colors.onPrimary, fontWeight: '900', fontSize: 15, letterSpacing: 1.2 },
   hint: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
   footer: { color: colors.textMuted, fontSize: 11, textAlign: 'center', marginTop: spacing.xl },
 });

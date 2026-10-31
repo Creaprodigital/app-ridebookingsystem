@@ -1,24 +1,12 @@
 import React, { useCallback, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  RefreshControl,
-  ActivityIndicator,
-  TouchableOpacity,
-  Modal,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform,
-  Linking,
-  Alert,
-} from 'react-native';
+import { View, StyleSheet, FlatList, RefreshControl, ActivityIndicator, TouchableOpacity, Modal, KeyboardAvoidingView, Platform, Linking, Alert } from 'react-native';
+import { Text, TextInput } from '../../src/ui/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect } from 'expo-router';
-import { colors, radius, spacing } from '../../src/theme';
-import { api, apiError } from '../../src/api';
+import { useFocusEffect, useRouter } from 'expo-router';
+import { colors, radius, spacing, shadow } from '../../src/theme';
+import { api, apiError, getDriverHistory } from '../../src/api';
+import { pickAmount } from '../../src/rideFormat';
 import {
   RideStats,
   acceptanceRate,
@@ -42,6 +30,51 @@ function fmtEur(n: number) {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(n);
 }
 
+const DAY_LETTERS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+
+function startOfWeek(d: Date) {
+  const x = new Date(d);
+  const day = (x.getDay() + 6) % 7; // Monday = 0
+  x.setHours(0, 0, 0, 0);
+  x.setDate(x.getDate() - day);
+  return x;
+}
+
+function completedAt(m: any): string | undefined {
+  return m?.completed_at || m?.ended_at || m?.finished_at || m?.booking?.pickup_at || m?.pickup_at || m?.updated_at || m?.created_at;
+}
+
+/** Revenue of the current week (Mon → Sun) from completed rides, per day. */
+function useWeekEarnings() {
+  const [week, setWeek] = useState<{ total: number; count: number; perDay: number[] } | null>(null);
+  const load = useCallback(async () => {
+    const from = startOfWeek(new Date());
+    const to = new Date(from);
+    to.setDate(from.getDate() + 7);
+    try {
+      const list: any[] = await getDriverHistory(from.toISOString(), to.toISOString());
+      const perDay = [0, 0, 0, 0, 0, 0, 0];
+      let total = 0;
+      let count = 0;
+      for (const m of list) {
+        const st = String(m?.status || '').toLowerCase();
+        if (st === 'cancelled' || st === 'canceled') continue;
+        const at = new Date(completedAt(m) || 0);
+        if (!(at >= from && at < to)) continue;
+        const amt = Number(pickAmount(m));
+        if (!Number.isFinite(amt)) continue;
+        perDay[(at.getDay() + 6) % 7] += amt;
+        total += amt;
+        count += 1;
+      }
+      setWeek({ total, count, perDay });
+    } catch {
+      setWeek(null);
+    }
+  }, []);
+  return { week, load };
+}
+
 function fmtDt(s?: string) {
   if (!s) return '';
   try {
@@ -51,7 +84,9 @@ function fmtDt(s?: string) {
   }
 }
 
-export default function Wallet() {
+export default function Gains() {
+  const router = useRouter();
+  const { week, load: loadWeek } = useWeekEarnings();
   const [wallet, setWallet] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [topupOpen, setTopupOpen] = useState(false);
@@ -94,7 +129,7 @@ export default function Wallet() {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => { load(); loadWeek(); }, [load, loadWeek]));
 
   const startTopup = async () => {
     const amt = Number(amount);
@@ -143,36 +178,72 @@ export default function Wallet() {
         data={txs}
         keyExtractor={(item, i) => String(item.id ?? item._id ?? i)}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={load} tintColor={colors.primary} />}
-        contentContainerStyle={{ paddingBottom: 120 }}
+        contentContainerStyle={{ paddingBottom: 32 }}
         ListHeaderComponent={
-          <View style={{ padding: spacing.md, gap: spacing.md }}>
-            <View>
-              <Text style={styles.h1}>Portefeuille chauffeur</Text>
-              <Text style={styles.h2}>Suivi en temps réel de votre solde</Text>
+          <View style={{ padding: spacing.md, gap: 12 }}>
+            <View style={styles.headerRow}>
+              <Text style={styles.h1}>Gains</Text>
+              <TouchableOpacity
+                style={styles.headerBtn}
+                onPress={() => router.push('/(tabs)/history' as any)}
+                testID="earnings-history"
+                accessibilityLabel="Historique des courses"
+              >
+                <Ionicons name="time-outline" size={21} color={colors.text} />
+              </TouchableOpacity>
             </View>
 
-            <View style={styles.heroCard} testID="wallet-balance">
-              <Text style={styles.heroLabel}>SOLDE DU PORTEFEUILLE</Text>
-              <Text style={styles.heroValue}>{fmtEur(balance)}</Text>
-              <Text style={styles.heroSub}>disponibles</Text>
-
-              <View style={styles.actionsRow}>
-                <TouchableOpacity
-                  style={styles.primaryBtn}
-                  onPress={() => setTopupOpen(true)}
-                  testID="topup-btn"
-                >
-                  <Ionicons name="add-circle" size={18} color={colors.bg} />
-                  <Text style={styles.primaryBtnText}>RECHARGER</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.ghostBtn}
-                  onPress={load}
-                  testID="refresh-btn"
-                >
-                  <Ionicons name="refresh" size={18} color={colors.text} />
-                </TouchableOpacity>
+            {/* Revenue of the current week, from completed rides */}
+            <TouchableOpacity
+              style={styles.weekCard}
+              activeOpacity={0.85}
+              onPress={() => router.push('/(tabs)/history' as any)}
+              testID="week-earnings"
+            >
+              <Text style={styles.weekLabel}>Cette semaine</Text>
+              <Text style={styles.weekValue}>{fmtEur(week?.total ?? 0)}</Text>
+              <Text style={styles.weekSub}>
+                {week ? `${week.count} course${week.count > 1 ? 's' : ''} terminée${week.count > 1 ? 's' : ''}` : 'Chiffre d’affaires des courses terminées'}
+              </Text>
+              <View style={styles.bars}>
+                {(week?.perDay ?? [0, 0, 0, 0, 0, 0, 0]).map((v, i) => {
+                  const max = Math.max(1, ...(week?.perDay ?? [1]));
+                  const today = (new Date().getDay() + 6) % 7 === i;
+                  return (
+                    <View key={i} style={styles.barCol}>
+                      <View style={styles.barTrack}>
+                        <View
+                          style={[
+                            styles.bar,
+                            { height: `${Math.max(6, (v / max) * 100)}%` },
+                            today && styles.barToday,
+                          ]}
+                        />
+                      </View>
+                      <Text style={[styles.barDay, today && styles.barDayToday]}>{DAY_LETTERS[i]}</Text>
+                    </View>
+                  );
+                })}
               </View>
+            </TouchableOpacity>
+
+            {/* Wallet balance (commissions are debited from it) */}
+            <View style={styles.walletCard} testID="wallet-balance">
+              <View style={styles.walletIcon}>
+                <Ionicons name="wallet-outline" size={20} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.walletLabel}>Solde du portefeuille</Text>
+                <Text style={[styles.walletValue, balance < 0 && { color: colors.danger }]}>{fmtEur(balance)}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.topupBtn}
+                onPress={() => setTopupOpen(true)}
+                testID="topup-btn"
+              >
+                <Ionicons name="add" size={18} color={colors.onPrimary} />
+                <Text style={styles.topupText}>Recharger</Text>
+              </TouchableOpacity>
             </View>
 
             {balance < 0 ? (
@@ -193,7 +264,7 @@ export default function Wallet() {
                   </View>
                   <View>
                     <Text style={styles.statsTitle}>Courses immédiates</Text>
-                    <Text style={styles.statsSub}>Vos statistiques locales</Text>
+                    <Text style={styles.statsSub}>Statistiques sur ce téléphone</Text>
                   </View>
                 </View>
                 <TouchableOpacity onPress={onResetStats} style={styles.resetBtn} testID="stats-reset-btn">
@@ -206,7 +277,7 @@ export default function Wallet() {
                   {acceptanceRate(stats)}
                   <Text style={styles.ratePct}> %</Text>
                 </Text>
-                <Text style={styles.rateLabel}>TAUX D’ACCEPTATION</Text>
+                <Text style={styles.rateLabel}>Taux d’acceptation</Text>
                 <View style={styles.rateBarOuter}>
                   <View
                     style={[
@@ -237,7 +308,7 @@ export default function Wallet() {
               </View>
             </View>
 
-            <Text style={styles.sectionTitle}>Mouvements de portefeuille</Text>
+            <Text style={styles.sectionTitle}>Mouvements du portefeuille</Text>
           </View>
         }
         ListEmptyComponent={
@@ -277,7 +348,7 @@ export default function Wallet() {
           const displayAmount = isCredit ? Math.abs(rawAmount) : -Math.abs(rawAmount);
           return (
             <View style={styles.txRow} testID={`tx-${item.id ?? item._id}`}>
-              <View style={[styles.txIcon, { backgroundColor: meta.color + '22' }]}>
+              <View style={styles.txIcon}>
                 <Ionicons name={meta.icon} size={18} color={meta.color} />
               </View>
               <View style={{ flex: 1 }}>
@@ -340,11 +411,11 @@ export default function Wallet() {
               testID="topup-confirm"
             >
               {submitting ? (
-                <ActivityIndicator color={colors.bg} />
+                <ActivityIndicator color={colors.onPrimary} />
               ) : (
                 <>
-                  <Ionicons name="card" size={18} color={colors.bg} />
-                  <Text style={styles.payText}>PAYER PAR CARTE</Text>
+                  <Ionicons name="card" size={18} color={colors.onPrimary} />
+                  <Text style={styles.payText}>Payer par carte</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -361,58 +432,74 @@ export default function Wallet() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  h1: { color: colors.text, fontSize: 28, fontWeight: '900', letterSpacing: -1 },
-  h2: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
-  heroCard: {
-    backgroundColor: colors.primary, borderRadius: radius.xl, padding: spacing.lg,
-    shadowColor: colors.primary, shadowOpacity: 0.4, shadowRadius: 24, shadowOffset: { width: 0, height: 0 },
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  h1: { color: colors.text, fontSize: 30, fontWeight: '800', letterSpacing: -0.5 },
+  headerBtn: {
+    width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center',
   },
-  heroLabel: { color: colors.bg + 'CC', fontSize: 11, fontWeight: '800', letterSpacing: 1.6 },
-  heroValue: { color: colors.bg, fontSize: 44, fontWeight: '900', letterSpacing: -2, marginTop: 8 },
-  heroSub: { color: colors.bg + 'AA', fontSize: 12, fontWeight: '700' },
-  actionsRow: { flexDirection: 'row', gap: 10, marginTop: spacing.md },
-  primaryBtn: {
-    flex: 1, height: 48, backgroundColor: colors.bg, borderRadius: radius.full,
-    alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8,
+  weekCard: {
+    backgroundColor: colors.surface, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.border,
+    padding: spacing.md, ...shadow,
   },
-  primaryBtnText: { color: colors.text, fontWeight: '900', letterSpacing: 1 },
-  ghostBtn: {
-    width: 48, height: 48, borderRadius: 24,
-    backgroundColor: colors.bg + '33', alignItems: 'center', justifyContent: 'center',
+  weekLabel: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  weekValue: { color: colors.text, fontSize: 36, fontWeight: '800', letterSpacing: -1, marginTop: 2 },
+  weekSub: { color: colors.textSecondary, fontSize: 13 },
+  bars: { flexDirection: 'row', gap: 8, height: 110, marginTop: 14 },
+  barCol: { flex: 1, alignItems: 'center', gap: 6 },
+  barTrack: { flex: 1, width: '100%', justifyContent: 'flex-end' },
+  bar: { width: '100%', borderRadius: 7, backgroundColor: colors.elevated },
+  barToday: { backgroundColor: colors.primary },
+  barDay: { color: colors.textMuted, fontSize: 11, fontWeight: '600' },
+  barDayToday: { color: colors.primary, fontWeight: '800' },
+  walletCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: colors.surface, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.border,
+    padding: spacing.md, ...shadow,
   },
+  walletIcon: {
+    width: 42, height: 42, borderRadius: 13, backgroundColor: colors.primarySoft,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  walletLabel: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  walletValue: { color: colors.text, fontSize: 20, fontWeight: '800', marginTop: 1 },
+  topupBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    backgroundColor: colors.primary, borderRadius: radius.md, paddingHorizontal: 14, height: 42,
+  },
+  topupText: { color: colors.onPrimary, fontWeight: '700', fontSize: 14 },
   warnBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: colors.danger + '20', borderColor: colors.danger,
-    borderWidth: 1, borderRadius: radius.lg, padding: 12,
+    backgroundColor: colors.dangerSoft, borderRadius: radius.lg, padding: 12,
   },
-  warnText: { color: colors.danger, fontSize: 12, fontWeight: '700', flex: 1 },
+  warnText: { color: colors.danger, fontSize: 13, fontWeight: '600', flex: 1 },
 
   // Stats card (immediate rides)
   statsCard: {
     backgroundColor: colors.surface, borderRadius: radius.xl,
     borderWidth: 1, borderColor: colors.border,
-    padding: spacing.md, gap: 14,
+    padding: spacing.md, gap: 14, ...shadow,
   },
   statsHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   statsHeadLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
   statsHeadIcon: {
     width: 32, height: 32, borderRadius: 16,
-    backgroundColor: colors.primary + '22', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center',
   },
-  statsTitle: { color: colors.text, fontWeight: '800', fontSize: 14 },
-  statsSub: { color: colors.textMuted, fontSize: 11, marginTop: 2 },
+  statsTitle: { color: colors.text, fontWeight: '700', fontSize: 15 },
+  statsSub: { color: colors.textMuted, fontSize: 12, marginTop: 1 },
   resetBtn: {
     width: 32, height: 32, borderRadius: 16,
-    backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surface2,
     alignItems: 'center', justifyContent: 'center',
   },
   rateBlock: {
-    backgroundColor: colors.bg, borderRadius: radius.lg,
+    backgroundColor: colors.surface2, borderRadius: radius.lg,
     paddingVertical: 14, paddingHorizontal: 16, alignItems: 'center', gap: 6,
   },
-  rateValue: { color: colors.primary, fontSize: 36, fontWeight: '900', letterSpacing: -1 },
-  ratePct: { color: colors.primary, fontSize: 18, fontWeight: '900' },
-  rateLabel: { color: colors.textSecondary, fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },
+  rateValue: { color: colors.primary, fontSize: 34, fontWeight: '800' },
+  ratePct: { color: colors.primary, fontSize: 18, fontWeight: '800' },
+  rateLabel: { color: colors.textSecondary, fontSize: 12.5, fontWeight: '600' },
   rateBarOuter: {
     width: '100%', height: 6, borderRadius: 3,
     backgroundColor: colors.border, marginTop: 8, overflow: 'hidden',
@@ -420,15 +507,14 @@ const styles = StyleSheet.create({
   rateBarInner: { height: '100%', backgroundColor: colors.primary, borderRadius: 3 },
   statsRow: { flexDirection: 'row', gap: 8 },
   statBox: {
-    flex: 1, backgroundColor: colors.bg, borderRadius: radius.md,
+    flex: 1, backgroundColor: colors.surface2, borderRadius: radius.md,
     paddingVertical: 12, paddingHorizontal: 6, alignItems: 'center',
-    borderWidth: 1, borderColor: colors.border,
   },
-  statBoxAccent: { backgroundColor: colors.bg },
-  statBoxValue: { color: colors.text, fontSize: 20, fontWeight: '900', letterSpacing: -0.5 },
-  statBoxLabel: { color: colors.textSecondary, fontSize: 11, fontWeight: '700', marginTop: 2 },
+  statBoxAccent: {},
+  statBoxValue: { color: colors.text, fontSize: 20, fontWeight: '800' },
+  statBoxLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '600', marginTop: 2 },
 
-  sectionTitle: { color: colors.text, fontSize: 16, fontWeight: '800', marginTop: spacing.sm },
+  sectionTitle: { color: colors.textMuted, fontSize: 13, fontWeight: '700', marginTop: spacing.sm, marginLeft: 4 },
   emptyWrap: { alignItems: 'center', paddingTop: 40, gap: 8 },
   emptyTitle: { color: colors.text, fontWeight: '800', marginTop: 6 },
   emptySub: { color: colors.textSecondary, fontSize: 13, textAlign: 'center', paddingHorizontal: 40 },
@@ -437,17 +523,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md, paddingVertical: 14,
     borderBottomColor: colors.border, borderBottomWidth: 1,
   },
-  txIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  txTitle: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  txIcon: {
+    width: 40, height: 40, borderRadius: 12, backgroundColor: colors.surface2,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  txTitle: { color: colors.text, fontSize: 14.5, fontWeight: '700' },
   txDate: { color: colors.textMuted, fontSize: 12, marginTop: 2 },
   pendingTag: {
     color: colors.warning, fontSize: 10, fontWeight: '900', letterSpacing: 1,
     marginTop: 4,
   },
-  txAmt: { fontSize: 16, fontWeight: '900' },
+  txAmt: { fontSize: 15.5, fontWeight: '800' },
 
   // Modal
-  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: '#00000099' },
+  modalBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: colors.overlay },
   modalCard: {
     backgroundColor: colors.surface, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl,
     padding: spacing.lg, gap: spacing.md,
@@ -458,21 +547,21 @@ const styles = StyleSheet.create({
   modalSub: { color: colors.textSecondary, fontSize: 13, marginTop: -8 },
   amountRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1,
+    backgroundColor: colors.surface2, borderColor: colors.border, borderWidth: 1,
     borderRadius: radius.lg, paddingHorizontal: spacing.md, height: 60,
   },
-  amountSign: { color: colors.primary, fontSize: 28, fontWeight: '900' },
+  amountSign: { color: colors.primary, fontSize: 26, fontWeight: '800' },
   amountInput: { flex: 1, color: colors.text, fontSize: 26, fontWeight: '800' },
   quickRow: { flexDirection: 'row', gap: 8 },
   quickBtn: {
-    flex: 1, paddingVertical: 12, borderRadius: radius.full,
-    backgroundColor: colors.elevated, borderWidth: 1, borderColor: colors.border, alignItems: 'center',
+    flex: 1, paddingVertical: 12, borderRadius: radius.md,
+    backgroundColor: colors.surface2, alignItems: 'center',
   },
   quickText: { color: colors.text, fontWeight: '700' },
   payBtn: {
-    height: 56, backgroundColor: colors.primary, borderRadius: radius.full,
+    height: 54, backgroundColor: colors.primary, borderRadius: radius.lg,
     alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8,
   },
-  payText: { color: colors.bg, fontWeight: '900', letterSpacing: 1.2 },
+  payText: { color: colors.onPrimary, fontWeight: '700', fontSize: 16 },
   payHint: { color: colors.textMuted, fontSize: 12, textAlign: 'center' },
 });

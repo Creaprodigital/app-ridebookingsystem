@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, ScrollView, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native';
+import { Text } from '../../src/ui/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -103,7 +104,7 @@ export default function ProDashboard() {
           {/* Quick actions */}
           <View style={styles.quickRow}>
             <TouchableOpacity style={styles.quickPrimary} onPress={() => router.push('/(pro)/create' as any)}>
-              <Ionicons name="add-circle" size={20} color={colors.bg} />
+              <Ionicons name="add-circle" size={20} color={colors.onPrimary} />
               <Text style={styles.quickPrimaryTxt}>Créer une course</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.quickSecondary} onPress={() => router.push('/(pro)/map' as any)}>
@@ -171,9 +172,9 @@ const styles = StyleSheet.create({
   revenueCard: {
     backgroundColor: colors.primary, borderRadius: radius.xl, padding: spacing.lg,
   },
-  revenueLabel: { color: colors.bg, fontSize: 11, fontWeight: '900', letterSpacing: 1.5, opacity: 0.85 },
-  revenueValue: { color: colors.bg, fontSize: 36, fontWeight: '900', letterSpacing: -1, marginTop: 4 },
-  revenueSub: { color: colors.bg, fontSize: 12, fontWeight: '700', opacity: 0.85, marginTop: 4 },
+  revenueLabel: { color: colors.onPrimary, fontSize: 11, fontWeight: '900', letterSpacing: 1.5, opacity: 0.85 },
+  revenueValue: { color: colors.onPrimary, fontSize: 36, fontWeight: '900', letterSpacing: -1, marginTop: 4 },
+  revenueSub: { color: colors.onPrimary, fontSize: 12, fontWeight: '700', opacity: 0.85, marginTop: 4 },
   tilesGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   tile: {
     flexBasis: '47%', flexGrow: 1, backgroundColor: colors.surface,
@@ -188,7 +189,7 @@ const styles = StyleSheet.create({
     flex: 1.4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: colors.primary, borderRadius: radius.full, paddingVertical: 14,
   },
-  quickPrimaryTxt: { color: colors.bg, fontWeight: '900', fontSize: 14, letterSpacing: 0.5 },
+  quickPrimaryTxt: { color: colors.onPrimary, fontWeight: '900', fontSize: 14, letterSpacing: 0.5 },
   quickSecondary: {
     flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     backgroundColor: colors.surface, borderRadius: radius.full, paddingVertical: 14,

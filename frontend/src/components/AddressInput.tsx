@@ -12,7 +12,8 @@
  * which transport is alive to avoid wasting roundtrips.
  */
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Platform } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, ActivityIndicator, Platform } from 'react-native';
+import { Text, TextInput } from '../ui/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radius, spacing } from '../theme';
 import { proPlacesAutocomplete, PlacesPrediction } from '../proApi';

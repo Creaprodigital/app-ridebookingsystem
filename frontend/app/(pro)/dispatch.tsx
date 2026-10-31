@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, RefreshControl, TouchableOpacity, Modal, Alert } from 'react-native';
+import { View, StyleSheet, FlatList, ActivityIndicator, RefreshControl, TouchableOpacity, Modal, Alert } from 'react-native';
+import { Text } from '../../src/ui/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
@@ -198,7 +199,7 @@ export default function DispatchScreen() {
 
                 {(item.status || '').toLowerCase() === 'pending' ? (
                   <TouchableOpacity style={styles.assignBtn} onPress={() => setAssignTarget(item)}>
-                    <Ionicons name="person-add-outline" size={16} color={colors.bg} />
+                    <Ionicons name="person-add-outline" size={16} color={colors.onPrimary} />
                     <Text style={styles.assignBtnTxt}>Attribuer un chauffeur</Text>
                   </TouchableOpacity>
                 ) : null}
@@ -259,7 +260,7 @@ const styles = StyleSheet.create({
   },
   tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
   tabTxt: { color: colors.textSecondary, fontSize: 11, fontWeight: '800', letterSpacing: 0.3 },
-  tabTxtActive: { color: colors.bg },
+  tabTxtActive: { color: colors.onPrimary },
   badge: { backgroundColor: colors.bg, borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1 },
   badgeTxt: { color: colors.textSecondary, fontSize: 10, fontWeight: '900' },
   empty: { alignItems: 'center', paddingTop: 60, gap: 8 },
@@ -287,7 +288,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
     backgroundColor: colors.primary, borderRadius: radius.full, paddingVertical: 10,
   },
-  assignBtnTxt: { color: colors.bg, fontWeight: '900', fontSize: 13, letterSpacing: 0.4 },
+  assignBtnTxt: { color: colors.onPrimary, fontWeight: '900', fontSize: 13, letterSpacing: 0.4 },
   backdrop: { flex: 1, backgroundColor: '#000C', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: colors.surface,

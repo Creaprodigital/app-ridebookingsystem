@@ -1,25 +1,16 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  ActivityIndicator,
-  Linking,
-  Platform,
-  Alert,
-  Modal,
-  BackHandler,
-} from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Linking, Platform, Alert, Modal, BackHandler } from 'react-native';
+import { Text } from '../../src/ui/Text';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import MapView from '../../src/components/MapView';
 import SlideButton from '../../src/components/SlideButton';
 import EndOfRidePayment from '../../src/components/EndOfRidePayment';
-import { colors, radius, spacing } from '../../src/theme';
-import { fontScale, getPad, getGap } from '../../src/responsive';
+import { colors, radius, spacing, shadow } from '../../src/theme';
+import Chip, { type ChipTone } from '../../src/ui/Chip';
+import RouteStops from '../../src/ui/RouteStops';
+import { fmtEuro, fmtTime, fmtDay, pickVehicleCategory } from '../../src/rideFormat';
 import { getDriverMissions, updateMissionStatus, apiError, getMarketplaceConfig } from '../../src/api';
 import { getNavProvider, setNavProvider, buildNavUrl, type NavProvider } from '../../src/prefs';
 import { useRides } from '../../src/ridesContext';
@@ -33,13 +24,13 @@ import {
   type LatLng,
 } from '../../src/directions';
 import { getLastCoords, subscribeCoords } from '../../src/locationStore';
-import { formatPickupCountdown, countdownStyle } from '../../src/timeUtils';
+import { formatPickupCountdown } from '../../src/timeUtils';
 
 const NEXT: Record<string, { next: string; label: string; subLabel: string; color: string }> = {
-  assigned:    { next: 'en_route',    label: 'JE DÉMARRE',         subLabel: 'Glissez pour démarrer la course',     color: colors.primary },
-  en_route:    { next: 'arrived',     label: 'JE SUIS ARRIVÉ',     subLabel: 'Glissez pour confirmer votre arrivée', color: colors.success },
-  arrived:     { next: 'in_progress', label: 'CLIENT À BORD',      subLabel: 'Glissez pour démarrer le trajet',     color: colors.primary },
-  in_progress: { next: 'completed',   label: 'TERMINER LA COURSE', subLabel: 'Glissez pour terminer la course',    color: colors.success },
+  assigned:    { next: 'en_route',    label: 'Je démarre',         subLabel: 'Glissez pour démarrer la course',     color: colors.primary },
+  en_route:    { next: 'arrived',     label: 'Je suis arrivé',     subLabel: 'Glissez pour confirmer votre arrivée', color: colors.success },
+  arrived:     { next: 'in_progress', label: 'Client à bord',      subLabel: 'Glissez pour démarrer le trajet',     color: colors.primary },
+  in_progress: { next: 'completed',   label: 'Terminer la course', subLabel: 'Glissez pour terminer la course',    color: colors.success },
 };
 
 function pickAddr(m: any, t: 'pickup' | 'dropoff') {
@@ -443,14 +434,14 @@ export default function MissionDetail() {
             onPress={() => router.replace('/(tabs)/missions' as any)}
             testID="go-missions-btn"
           >
-            <Text style={styles.backTxt}>OUVRIR MES MISSIONS</Text>
+            <Text style={styles.backTxt}>Ouvrir mes courses</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.backBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, marginTop: 8 }]}
             onPress={() => load()}
             testID="retry-load-btn"
           >
-            <Text style={[styles.backTxt, { color: colors.text }]}>RÉESSAYER</Text>
+            <Text style={[styles.backTxt, { color: colors.text }]}>Réessayer</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -518,86 +509,11 @@ export default function MissionDetail() {
             <Ionicons name="chevron-back" size={24} color={colors.text} />
           </TouchableOpacity>
         )}
-        <Text style={styles.topTitle}>Détail de la mission</Text>
+        <Text style={styles.topTitle}>Détail de la course</Text>
         <View style={styles.iconBtn} />
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 260 + footerBottomPad, gap: spacing.md, paddingHorizontal: spacing.md }}>
-        {/* ── HEADER INFO CARD (Type · Countdown · Warning · Financials) ── */}
-        {(() => {
-          const immediate = isImmediateRide(mission);
-          const price = pickPrice(mission);
-          const com = pickCommissionEur(mission, configPct);
-          const net = pickDriverNetEur(mission, configPct);
-          const cd = !immediate && pickDt(mission) ? formatPickupCountdown(pickDt(mission)) : null;
-          const cs = cd ? countdownStyle(cd.kind) : null;
-          const warningTxt = immediate
-            ? "Cette course est à départ immédiat. Démarrez dès que possible. Si vous annulez, vous pourriez ne plus recevoir de nouvelles demandes immédiates à l'avenir."
-            : "Si vous annulez une course planifiée déjà acceptée, vous pourriez ne plus recevoir de nouvelles demandes de courses planifiées à l'avenir.";
-          return (
-            <View
-              style={[
-                styles.infoCard,
-                { borderColor: immediate ? colors.danger : colors.primary },
-              ]}
-              testID="mission-info-card"
-            >
-              <View style={styles.infoHeader}>
-                <View style={[
-                  styles.infoIconWrap,
-                  { backgroundColor: (immediate ? colors.danger : colors.primary) + '22' },
-                ]}>
-                  <Ionicons
-                    name={immediate ? 'flash' : 'calendar'}
-                    size={22}
-                    color={immediate ? colors.danger : colors.primary}
-                  />
-                </View>
-                <Text
-                  style={[
-                    styles.infoTitle,
-                    { color: immediate ? colors.danger : colors.primary },
-                  ]}
-                  numberOfLines={1}
-                >
-                  {immediate ? 'COURSE IMMÉDIATE' : 'RÉSERVATION'}
-                </Text>
-                {cd && cs ? (
-                  <View style={[styles.infoCd, cs.chip]} testID="info-cd">
-                    <Ionicons name="time-outline" size={13} color={cs.fg} />
-                    <Text style={[styles.infoCdTxt, { color: cs.fg }]}>{cd.label}</Text>
-                  </View>
-                ) : null}
-              </View>
-
-              <Text style={styles.infoWarning} numberOfLines={4}>
-                {warningTxt}
-              </Text>
-
-              <View style={styles.priceRowGrid}>
-                <View style={[styles.priceCell, styles.priceCellLeft]}>
-                  <Text style={styles.priceCellLbl}>Net chauffeur</Text>
-                  <Text style={[styles.priceCellVal, { color: colors.success }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} testID="info-net">
-                    {net != null ? `${Number(net).toFixed(2)} €` : '—'}
-                  </Text>
-                </View>
-                <View style={[styles.priceCell, styles.priceCellCenter]}>
-                  <Text style={styles.priceCellLbl}>Prix client</Text>
-                  <Text style={[styles.priceCellVal, { color: colors.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} testID="info-price">
-                    {price != null ? `${Number(price).toFixed(2)} €` : '—'}
-                  </Text>
-                </View>
-                <View style={[styles.priceCell, styles.priceCellRight]}>
-                  <Text style={styles.priceCellLbl}>Commission</Text>
-                  <Text style={[styles.priceCellVal, { color: colors.danger }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} testID="info-commission">
-                    {com != null ? `−${Number(com).toFixed(2)} €` : '—'}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          );
-        })()}
-
+      <ScrollView contentContainerStyle={{ paddingBottom: 200 + footerBottomPad, gap: 12, paddingHorizontal: spacing.md }}>
         <View style={styles.mapBox}>
           <MapView
             lat={centerLat}
@@ -609,108 +525,144 @@ export default function MissionDetail() {
           />
         </View>
 
-        {/* ── ROUTE BLOCK : Prise en charge & Destination ─────────────── */}
-        <View style={styles.routeCard}>
-          <View style={styles.route}>
-            <View style={styles.routeLine}>
-              <View style={styles.routeDotPickup} />
-              <View style={styles.routeVert} />
-              <View style={styles.routeDotDrop} />
-            </View>
-            <View style={{ flex: 1, gap: spacing.md }}>
-              {/* PRISE EN CHARGE */}
-              <View style={styles.routeItem}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.routeLabel, { color: colors.primary }]}>PRISE EN CHARGE</Text>
-                  <Text style={styles.addr}>{pickAddr(mission, 'pickup')}</Text>
-                </View>
-                {pickupRoute && showLegToPickup ? (
-                  <View style={styles.legChipGrey} testID="leg1-chip">
-                    <Ionicons name="car" size={13} color={colors.textSecondary} />
-                    <Text style={styles.legChipTxt}>
-                      {fmtDistanceKm(pickupRoute.distanceMeters)}{'\n'}{fmtDurationMin(pickupRoute.durationSec)}
-                    </Text>
-                  </View>
+        {(() => {
+          const immediate = isImmediateRide(mission);
+          const com = pickCommissionEur(mission, configPct);
+          const net = pickDriverNetEur(mission, configPct);
+          const cd = !immediate && pickDt(mission) ? formatPickupCountdown(pickDt(mission)) : null;
+          const cdTone: ChipTone =
+            cd?.kind === 'overdue' ? 'danger' : cd?.kind === 'soon' || cd?.kind === 'now' ? 'warning' : 'primary';
+          const payStatus = String(mission?.payment_status || mission?.booking?.payment_status || '').toLowerCase();
+          const payMethod = String(mission?.payment_method || mission?.booking?.payment_method || '').toLowerCase();
+          const paidOnline = payStatus.includes('paid') || payMethod.includes('card') || payMethod.includes('stripe') || payMethod.includes('online');
+          return (
+            <View style={styles.card} testID="mission-info-card">
+              <View style={styles.chipsRow}>
+                <Chip
+                  icon={immediate ? 'flash' : 'calendar-outline'}
+                  label={immediate ? 'Course immédiate' : 'Réservation'}
+                  tone={immediate ? 'danger' : 'primary'}
+                />
+                {cd ? <Chip icon="time-outline" label={cd.label} tone={cdTone} testID="info-cd" /> : null}
+                {payStatus || payMethod ? (
+                  <Chip
+                    icon={paidOnline ? 'card-outline' : 'cash-outline'}
+                    label={paidOnline ? 'Payée par carte' : 'Paiement à bord'}
+                    tone={paidOnline ? 'success' : 'warning'}
+                  />
                 ) : null}
               </View>
-              {/* DESTINATION */}
-              <View style={styles.routeItem}>
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.routeLabel, { color: colors.danger }]}>DESTINATION</Text>
-                  <Text style={styles.addr}>{pickAddr(mission, 'dropoff')}</Text>
+              <View style={styles.moneyRow}>
+                <View style={{ flexShrink: 1 }}>
+                  <Text style={styles.moneyLbl}>Prix client</Text>
+                  <Text style={styles.priceBig} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7} testID="info-price">
+                    {fmtEuro(price)}
+                  </Text>
                 </View>
-                {tripRoute ? (
-                  <View style={styles.legChipGrey} testID="leg2-chip">
-                    <Ionicons name="car" size={13} color={colors.textSecondary} />
-                    <Text style={styles.legChipTxt}>
-                      {fmtDistanceKm(tripRoute.distanceMeters)}{'\n'}{fmtDurationMin(tripRoute.durationSec)}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-            </View>
-          </View>
-
-          {/* ── 3 MINI STATS : Date · Pax · Total distance ──────────── */}
-          {(() => {
-            const dt = pickDt(mission);
-            let dateLine = '—';
-            let timeLine = '';
-            if (dt) {
-              try {
-                const d = new Date(dt);
-                dateLine = d.toLocaleDateString('fr-FR');
-                timeLine = d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-              } catch {}
-            }
-            const pax =
-              mission?.booking?.pax ??
-              mission?.pax ??
-              mission?.passengers ??
-              mission?.passenger_count;
-            const leg1Dist = pickupRoute && showLegToPickup ? pickupRoute.distanceMeters : 0;
-            const leg2Dist = tripRoute ? tripRoute.distanceMeters : 0;
-            const totalDist = leg1Dist + leg2Dist;
-            return (
-              <View style={styles.miniStatsRow}>
-                <View style={styles.miniStat}>
-                  <Ionicons name="calendar-outline" size={14} color={colors.textSecondary} />
-                  <View>
-                    <Text style={styles.miniStatVal}>{dateLine}</Text>
-                    {timeLine ? <Text style={styles.miniStatSub}>{timeLine}</Text> : null}
-                  </View>
-                </View>
-                <View style={styles.miniStat}>
-                  <Ionicons name="people-outline" size={14} color={colors.textSecondary} />
-                  <Text style={styles.miniStatVal}>{pax ? `${pax} pax` : '—'}</Text>
-                </View>
-                <View style={styles.miniStat}>
-                  <Ionicons name="navigate-outline" size={14} color={colors.textSecondary} />
-                  <Text style={styles.miniStatVal} testID="mini-total-dist">
-                    {totalDist > 0 ? fmtDistanceKm(totalDist) : '—'}
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={styles.moneyLbl}>Votre gain net</Text>
+                  <Text style={styles.netBig} numberOfLines={1} testID="info-net">
+                    {net != null ? fmtEuro(net) : '—'}
                   </Text>
                 </View>
               </View>
-            );
-          })()}
-        </View>
+              {com != null && com > 0 ? (
+                <Text style={styles.commissionTxt} testID="info-commission">
+                  Commission −{fmtEuro(com)}
+                </Text>
+              ) : null}
+            </View>
+          );
+        })()}
+
+        {(() => {
+          const dt = pickDt(mission);
+          const pax =
+            mission?.booking?.pax ??
+            mission?.pax ??
+            mission?.passengers ??
+            mission?.passenger_count;
+          const leg1Dist = pickupRoute && showLegToPickup ? pickupRoute.distanceMeters : 0;
+          const leg2Dist = tripRoute ? tripRoute.distanceMeters : 0;
+          const totalDist = leg1Dist + leg2Dist;
+          const tripEnd =
+            dt && tripRoute ? fmtTime(new Date(new Date(dt).getTime() + tripRoute.durationSec * 1000)) : '';
+          return (
+            <View style={styles.card}>
+              <RouteStops
+                size="lg"
+                pickup={pickAddr(mission, 'pickup')}
+                dropoff={pickAddr(mission, 'dropoff')}
+                pickupLabel={dt ? `Prise en charge · ${fmtDay(dt)} ${fmtTime(dt)}` : 'Prise en charge'}
+                dropoffLabel={tripEnd ? `Destination · arrivée vers ${tripEnd}` : 'Destination'}
+              />
+              <View style={styles.chipsRow}>
+                {pickupRoute && showLegToPickup ? (
+                  <Chip
+                    icon="navigate-outline"
+                    label={`Approche ${fmtDistanceKm(pickupRoute.distanceMeters)} · ${fmtDurationMin(pickupRoute.durationSec)}`}
+                    tone="primary"
+                    testID="leg1-chip"
+                  />
+                ) : null}
+                {tripRoute ? (
+                  <Chip
+                    icon="car-outline"
+                    label={`Trajet ${fmtDistanceKm(tripRoute.distanceMeters)} · ${fmtDurationMin(tripRoute.durationSec)}`}
+                    tone="success"
+                    testID="leg2-chip"
+                  />
+                ) : null}
+                {pax ? <Chip icon="people-outline" label={`${pax} passager${Number(pax) > 1 ? 's' : ''}`} /> : null}
+                {pickVehicleCategory(mission) ? <Chip icon="car-sport-outline" label={String(pickVehicleCategory(mission))} /> : null}
+                {totalDist > 0 ? (
+                  <Chip icon="git-commit-outline" label={`Total ${fmtDistanceKm(totalDist)}`} testID="mini-total-dist" />
+                ) : null}
+              </View>
+            </View>
+          );
+        })()}
 
         {(passenger || phone) ? (
-          <View style={styles.passengerCard}>
-            <Text style={styles.sectionTitle}>Passager</Text>
-            {passenger ? <Text style={styles.paxName}>{passenger}</Text> : null}
+          <View style={[styles.card, styles.passengerRow]}>
+            <View style={styles.avatar}>
+              <Ionicons name="person" size={20} color={colors.textSecondary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.paxLbl}>Passager</Text>
+              <Text style={styles.paxName} numberOfLines={1}>{passenger || phone}</Text>
+            </View>
             {phone ? (
-              <TouchableOpacity
-                style={styles.callBtn}
-                onPress={() => Linking.openURL(`tel:${phone}`)}
-                testID="call-btn"
-              >
-                <Ionicons name="call" size={16} color={colors.bg} />
-                <Text style={styles.callTxt}>APPELER {phone}</Text>
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity
+                  style={[styles.roundBtn, { backgroundColor: colors.successSoft }]}
+                  onPress={() => Linking.openURL(`tel:${phone}`)}
+                  testID="call-btn"
+                  accessibilityLabel={`Appeler ${phone}`}
+                >
+                  <Ionicons name="call" size={19} color={colors.success} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.roundBtn}
+                  onPress={() => Linking.openURL(`sms:${phone}`)}
+                  testID="sms-btn"
+                  accessibilityLabel={`Envoyer un SMS à ${phone}`}
+                >
+                  <Ionicons name="chatbubble-outline" size={18} color={colors.text} />
+                </TouchableOpacity>
+              </>
             ) : null}
           </View>
         ) : null}
+
+        <View style={styles.noteCard}>
+          <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
+          <Text style={styles.noteTxt}>
+            {isImmediateRide(mission)
+              ? "Course à départ immédiat : démarrez dès que possible. En cas d'annulation, vous pourriez ne plus recevoir de demandes immédiates."
+              : "En cas d'annulation d'une course planifiée déjà acceptée, vous pourriez ne plus recevoir de nouvelles demandes planifiées."}
+          </Text>
+        </View>
       </ScrollView>
 
       {/* Navigation provider chooser bottom-sheet */}
@@ -797,9 +749,9 @@ export default function MissionDetail() {
           <View style={styles.lockBanner} testID="off-shift-mission-banner">
             <Ionicons name="lock-closed" size={18} color={colors.warning} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.lockTitle}>Hors ligne</Text>
+              <Text style={styles.lockTitle}>Hors service</Text>
               <Text style={styles.lockSub}>
-                Veuillez passer en ligne depuis l’onglet Carte pour continuer la course.
+                Passez en service depuis l’Accueil pour continuer la course.
               </Text>
             </View>
             <TouchableOpacity
@@ -807,7 +759,7 @@ export default function MissionDetail() {
               onPress={() => router.push('/(tabs)')}
               testID="off-shift-mission-cta"
             >
-              <Text style={styles.lockBtnText}>EN LIGNE</Text>
+              <Text style={styles.lockBtnText}>Activer</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -821,11 +773,11 @@ export default function MissionDetail() {
             activeOpacity={0.85}
             testID="nav-cta-btn"
           >
-            <Ionicons name="navigate" size={18} color={colors.bg} />
+            <Ionicons name="navigate" size={18} color={colors.primary} />
             <Text style={styles.navCtaTxt}>
               {mission.status === 'in_progress'
-                ? 'NAVIGUER VERS LE CLIENT'
-                : 'NAVIGUER VERS LA PRISE EN CHARGE'}
+                ? 'Naviguer vers la destination'
+                : 'Naviguer vers la prise en charge'}
             </Text>
             <TouchableOpacity
               style={styles.navCtaChange}
@@ -833,7 +785,7 @@ export default function MissionDetail() {
               hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
               testID="nav-cta-change"
             >
-              <Ionicons name="chevron-down" size={14} color={colors.bg} />
+              <Ionicons name="chevron-down" size={16} color={colors.primary} />
             </TouchableOpacity>
           </TouchableOpacity>
 
@@ -850,7 +802,7 @@ export default function MissionDetail() {
         <View style={[styles.footer, { paddingBottom: footerBottomPad }]}>
           <View style={styles.doneBanner}>
             <Ionicons name="checkmark-circle" size={20} color={colors.success} />
-            <Text style={styles.doneTxt}>Mission terminée</Text>
+            <Text style={styles.doneTxt}>Course terminée</Text>
           </View>
         </View>
       )}
@@ -871,410 +823,101 @@ export default function MissionDetail() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
+  card: {
+    backgroundColor: colors.surface, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.border,
+    padding: spacing.md, gap: 12, ...shadow,
+  },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  moneyRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 12 },
+  moneyLbl: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  priceBig: { color: colors.text, fontSize: 32, fontWeight: '800', letterSpacing: -0.5 },
+  netBig: { color: colors.success, fontSize: 20, fontWeight: '800' },
+  commissionTxt: { color: colors.textMuted, fontSize: 12.5, fontWeight: '600', marginTop: -6 },
+  passengerRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  avatar: {
+    width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface2,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  paxLbl: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
+  paxName: { color: colors.text, fontSize: 16, fontWeight: '700' },
+  roundBtn: {
+    width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface2,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  noteCard: {
+    flexDirection: 'row', gap: 10, padding: 14, borderRadius: radius.lg, backgroundColor: colors.surface2,
+  },
+  noteTxt: { flex: 1, color: colors.textSecondary, fontSize: 12.5, lineHeight: 18 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
   missingTxt: { color: colors.text, fontWeight: '700', fontSize: 16 },
   missingSub: { color: colors.textSecondary, fontSize: 13, textAlign: 'center', paddingHorizontal: 40, marginTop: 4, marginBottom: 8 },
   backBtn: { marginTop: 8, paddingHorizontal: 24, height: 44, backgroundColor: colors.primary, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  backTxt: { color: colors.bg, fontWeight: '800' },
+  backTxt: { color: colors.onPrimary, fontWeight: '700' },
   topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingBottom: spacing.sm },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
-  lockedIconBtn: { backgroundColor: colors.warning + '22', borderWidth: 1, borderColor: colors.warning },
-  topTitle: { flex: 1, textAlign: 'center', color: colors.text, fontSize: 16, fontWeight: '800' },
-  mapBox: { height: 220, borderRadius: radius.xl, overflow: 'hidden', borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, position: 'relative' },
-
-  // ── New info card (top) — Type · Countdown · Warning · 3 financials ──
-  infoCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.xl,
-    borderWidth: 1.5,
-    padding: getPad(spacing.md),
-    gap: getGap(12),
+  iconBtn: {
+    width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
   },
-  infoHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    flexWrap: 'wrap',
+  lockedIconBtn: { backgroundColor: colors.warningSoft, borderColor: colors.warning },
+  topTitle: { flex: 1, textAlign: 'center', color: colors.text, fontSize: 17, fontWeight: '700' },
+  mapBox: {
+    height: 230, borderRadius: radius.xl, overflow: 'hidden', borderWidth: 1, borderColor: colors.border,
+    backgroundColor: colors.surface2, position: 'relative',
   },
-  infoIconWrap: {
-    width: 44, height: 44, borderRadius: 12,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  infoTitle: {
-    flex: 1,
-    fontSize: fontScale(18),
-    fontWeight: '900',
-    letterSpacing: 1,
-    minWidth: 140,
-  },
-  infoCd: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 10, paddingVertical: 6,
-    borderRadius: 999, borderWidth: 1,
-  },
-  infoCdTxt: { fontSize: 12, fontWeight: '900' },
-  infoWarning: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    lineHeight: 17,
-    fontWeight: '500',
-  },
-  priceRowGrid: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: 12,
-  },
-  priceCell: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 4,
-    gap: 4,
-  },
-  priceCellLeft: { borderRightWidth: 1, borderRightColor: colors.border },
-  priceCellCenter: { borderRightWidth: 1, borderRightColor: colors.border },
-  priceCellRight: {},
-  priceCellLbl: {
-    color: colors.textSecondary,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  priceCellVal: {
-    fontSize: fontScale(18),
-    fontWeight: '900',
-    letterSpacing: -0.5,
-  },
-
-  // ── New route card (PRISE EN CHARGE / DESTINATION) ──
-  routeCard: {
-    backgroundColor: colors.surface,
-    borderColor: colors.border,
-    borderWidth: 1,
-    borderRadius: radius.xl,
-    padding: spacing.md,
-    gap: spacing.md,
-  },
-  routeItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  routeDotPickup: {
-    width: 14, height: 14, borderRadius: 7,
-    borderWidth: 3,
-    borderColor: colors.primary,
-    backgroundColor: 'transparent',
-  },
-  routeDotDrop: {
-    width: 16, height: 16, borderRadius: 8,
-    backgroundColor: colors.danger,
-  },
-  legChipGrey: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12, paddingVertical: 8,
-    borderRadius: radius.lg,
-    backgroundColor: colors.elevated,
-    borderWidth: 1,
-    borderColor: colors.border,
-    minWidth: 80,
-  },
-  legChipTxt: { color: colors.text, fontSize: 11, fontWeight: '800', lineHeight: 14 },
-
-  // ── Mini stats (date · pax · total km) ──
-  miniStatsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: spacing.md,
-  },
-  miniStat: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.bg,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 10, paddingVertical: 8,
-  },
-  miniStatVal: { color: colors.text, fontSize: 12, fontWeight: '700' },
-  miniStatSub: { color: colors.textSecondary, fontSize: 10, fontWeight: '600' },
-
-  // ── Navigation CTA (Yellow primary in footer) ──
   navCtaBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: colors.primary,
-    paddingHorizontal: 16,
-    height: 56,
-    borderRadius: radius.full,
-    shadowColor: colors.primary, shadowOpacity: 0.35, shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 }, elevation: 4,
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: colors.primarySoft, paddingHorizontal: 16, height: 50, borderRadius: radius.lg,
   },
-  navCtaTxt: {
-    flex: 1,
-    color: colors.bg,
-    fontWeight: '900',
-    fontSize: 13,
-    letterSpacing: 1,
-    textAlign: 'center',
-  },
+  navCtaTxt: { flex: 1, color: colors.primary, fontWeight: '700', fontSize: 15 },
   navCtaChange: {
-    width: 28, height: 28, borderRadius: 14,
-    alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#00000022',
-  },
-
-  // ── Passenger card (kept simple — appears below map block) ──
-  passengerCard: {
-    backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
-    borderRadius: radius.xl, padding: spacing.md, gap: spacing.sm,
-  },
-
-  // Ride-kind banner (IMMÉDIATE / PLANIFIÉE)
-  kindBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    borderRadius: radius.xl, borderWidth: 1,
-    paddingHorizontal: spacing.md, paddingVertical: 12,
-  },
-  kindBannerImmediate: {
-    backgroundColor: colors.danger,
-    borderColor: colors.danger,
-    shadowColor: colors.danger, shadowOpacity: 0.35, shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 }, elevation: 4,
-  },
-  kindBannerPlanned: {
+    width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center',
     backgroundColor: colors.surface,
-    borderColor: colors.primary + '55',
   },
-  kindBannerIcon: {
-    width: 38, height: 38, borderRadius: 19,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  kindBannerTitle: { fontSize: 14, fontWeight: '900', letterSpacing: 1 },
-  kindBannerSub: { fontSize: 11, fontWeight: '700', marginTop: 2 },
-  kindBannerCd: {
-    paddingHorizontal: 10, paddingVertical: 4,
-    borderRadius: 999, borderWidth: 1,
-  },
-  kindBannerCdTxt: { fontSize: 11, fontWeight: '900', letterSpacing: 0.4 },
-  mapLegend: {
-    position: 'absolute', left: 8, bottom: 8,
-    backgroundColor: colors.bg + 'E6',
-    borderColor: colors.border, borderWidth: 1,
-    borderRadius: radius.md, paddingHorizontal: 10, paddingVertical: 8,
-    gap: 4,
-  },
-  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  legendDash: { width: 16, height: 2, borderRadius: 1, opacity: 0.85 },
-  legendSolid: { width: 16, height: 3, borderRadius: 2 },
-  legendTxt: { color: colors.text, fontSize: 10, fontWeight: '700' },
-  card: {
-    backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
-    borderRadius: radius.xl, padding: spacing.md, gap: spacing.md,
-  },
-  priceRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  priceLbl: { color: colors.textSecondary, fontSize: 11, fontWeight: '800', letterSpacing: 1.3 },
-  priceVal: { color: colors.primary, fontSize: 28, fontWeight: '900', letterSpacing: -1 },
-  priceBreakdown: {
-    backgroundColor: colors.bg,
-    borderRadius: radius.md,
-    padding: 10, gap: 6,
-    borderWidth: 1, borderColor: colors.border,
-  },
-  breakdownLbl: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  breakdownLblTxt: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
-  breakdownVal: { fontSize: 14, fontWeight: '900', letterSpacing: -0.3 },
-  divider: { height: 1, backgroundColor: colors.border },
-  route: { flexDirection: 'row', gap: 12 },
-  routeLine: { alignItems: 'center', paddingTop: 6, paddingBottom: 6, width: 14 },
-  routeDot: { width: 12, height: 12, borderRadius: 6 },
-  routeVert: { flex: 1, width: 2, backgroundColor: colors.border, marginVertical: 2 },
-  routeLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
-  routeHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  legBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 7, paddingVertical: 3,
-    borderRadius: 999, borderWidth: 1,
-  },
-  legBadgeTxt: { fontSize: 10, fontWeight: '900', letterSpacing: 0.4 },
-  addr: { color: colors.text, fontSize: 15, fontWeight: '600', marginTop: 2 },
-
-  // Total trip block — sum of leg 1 + leg 2 (distance & duration)
-  totalBlock: {
-    marginTop: spacing.sm,
-    backgroundColor: colors.bg,
-    borderColor: colors.primary + '55',
-    borderWidth: 1,
-    borderRadius: radius.md,
-    padding: 12,
-    gap: 10,
-  },
-  totalRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 8,
-    flexWrap: 'wrap',
-  },
-  totalLblWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  totalLbl: {
-    color: colors.primary,
-    fontSize: 11,
-    fontWeight: '900',
-    letterSpacing: 1.2,
-  },
-  totalValWrap: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  totalChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
-  totalChipTxt: {
-    color: colors.text,
-    fontWeight: '900',
-    fontSize: 12,
-    letterSpacing: 0.3,
-  },
-  totalBreakdown: {
-    gap: 4,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-  },
-  totalBreakdownRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  legDot: { width: 8, height: 8, borderRadius: 4 },
-  totalBreakdownLbl: {
-    flex: 1,
-    color: colors.textSecondary,
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  totalBreakdownVal: {
-    color: colors.text,
-    fontSize: 11,
-    fontWeight: '800',
-  },
-  sectionTitle: { color: colors.textSecondary, fontSize: 11, fontWeight: '800', letterSpacing: 1.3 },
-  paxName: { color: colors.text, fontSize: 18, fontWeight: '800' },
-  callBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: colors.primary, height: 48, borderRadius: radius.full,
-  },
-  callTxt: { color: colors.bg, fontWeight: '900', letterSpacing: 0.5 },
-  navBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: colors.primary, borderRadius: radius.xl,
-    paddingHorizontal: 16, paddingVertical: 14,
-    shadowColor: colors.primary, shadowOpacity: 0.35, shadowRadius: 14,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
-  },
-  navTxt: { color: colors.bg, fontWeight: '900', letterSpacing: 1.1, fontSize: 13 },
-  navSub: { color: colors.bg + 'CC', fontWeight: '700', fontSize: 11, marginTop: 2 },
-  navChange: {
-    backgroundColor: '#00000022', paddingHorizontal: 10, paddingVertical: 6,
-    borderRadius: 999,
-  },
-  navChangeTxt: { color: colors.bg, fontWeight: '800', fontSize: 11, letterSpacing: 0.8 },
-
-  // Floating nav FAB on the map
-  navFab: {
-    position: 'absolute', top: 12, right: 12,
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: colors.primary,
-    paddingLeft: 12, paddingRight: 4, paddingVertical: 8,
-    borderRadius: 999,
-    shadowColor: '#000', shadowOpacity: 0.35, shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 }, elevation: 6,
-  },
-  navFabTxt: { color: colors.bg, fontWeight: '900', fontSize: 11, letterSpacing: 1, marginLeft: 2 },
-  navFabSwitch: {
-    width: 24, height: 24, borderRadius: 12,
-    backgroundColor: '#00000022', alignItems: 'center', justifyContent: 'center',
-    marginLeft: 4,
-  },
-
-  // Bottom-sheet provider chooser
-  navSheetBackdrop: {
-    flex: 1, backgroundColor: '#000000C0', justifyContent: 'flex-end',
-  },
+  navSheetBackdrop: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'flex-end' },
   navSheet: {
     backgroundColor: colors.surface,
     borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl,
-    padding: spacing.md, paddingBottom: Platform.OS === 'ios' ? 34 : 24,
-    gap: 10,
-    borderTopColor: colors.border, borderTopWidth: 1,
+    padding: spacing.md, paddingBottom: Platform.OS === 'ios' ? 34 : 24, gap: 10,
   },
   navSheetHandle: {
-    width: 40, height: 4, borderRadius: 2,
-    backgroundColor: colors.border, alignSelf: 'center', marginBottom: 8,
+    width: 40, height: 5, borderRadius: 3, backgroundColor: colors.border, alignSelf: 'center', marginBottom: 8,
   },
-  navSheetTitle: { color: colors.text, fontSize: 18, fontWeight: '900', textAlign: 'center' },
-  navSheetSub: {
-    color: colors.textSecondary, fontSize: 12, textAlign: 'center',
-    paddingHorizontal: 20, marginBottom: 10,
-  },
+  navSheetTitle: { color: colors.text, fontSize: 18, fontWeight: '700', textAlign: 'center' },
+  navSheetSub: { color: colors.textSecondary, fontSize: 13, textAlign: 'center', paddingHorizontal: 20, marginBottom: 10 },
   navOption: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: colors.bg, borderColor: colors.border, borderWidth: 1,
+    backgroundColor: colors.surface2, borderColor: colors.border, borderWidth: 1,
     borderRadius: radius.lg, padding: 12,
   },
-  navOptionActive: { borderColor: colors.success, borderWidth: 1.5 },
-  navOptionIcon: {
-    width: 44, height: 44, borderRadius: 22,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  navOptionTitle: { color: colors.text, fontWeight: '800', fontSize: 15 },
-  navOptionSub: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
+  navOptionActive: { borderColor: colors.primary, borderWidth: 1.5 },
+  navOptionIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  navOptionTitle: { color: colors.text, fontWeight: '700', fontSize: 15 },
+  navOptionSub: { color: colors.textSecondary, fontSize: 12.5, marginTop: 2 },
   navOptionDefault: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  navOptionDefaultTxt: { color: colors.success, fontWeight: '900', fontSize: 11 },
+  navOptionDefaultTxt: { color: colors.success, fontWeight: '700', fontSize: 12 },
   navSheetCancel: {
-    height: 48, alignItems: 'center', justifyContent: 'center',
-    backgroundColor: colors.bg, borderRadius: radius.lg,
-    borderColor: colors.border, borderWidth: 1, marginTop: 4,
+    height: 50, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: colors.surface2, borderRadius: radius.lg, marginTop: 4,
   },
-  navSheetCancelTxt: { color: colors.textSecondary, fontWeight: '800', letterSpacing: 0.6 },
+  navSheetCancelTxt: { color: colors.textSecondary, fontWeight: '700', fontSize: 15 },
   footer: {
     position: 'absolute', left: 0, right: 0, bottom: 0,
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
+    paddingHorizontal: spacing.md, paddingTop: 12,
     // bottom padding is applied dynamically with safe-area insets
-    backgroundColor: colors.bg, borderTopColor: colors.border, borderTopWidth: 1,
-    // visual separation between the yellow "Naviguer" CTA and the slide button
-    gap: 14,
+    backgroundColor: colors.surface, borderTopColor: colors.border, borderTopWidth: 1,
+    gap: 10,
   },
   doneBanner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    backgroundColor: colors.success + '1A', borderColor: colors.success, borderWidth: 1,
-    height: 60, borderRadius: radius.full,
+    backgroundColor: colors.successSoft, height: 56, borderRadius: radius.lg,
   },
-  doneTxt: { color: colors.success, fontWeight: '900', letterSpacing: 1 },
+  doneTxt: { color: colors.success, fontWeight: '700', fontSize: 15 },
   lockBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: colors.warning + '15', borderColor: colors.warning, borderWidth: 1,
-    borderRadius: radius.lg, padding: 12,
+    backgroundColor: colors.warningSoft, borderRadius: radius.lg, padding: 12,
   },
-  lockTitle: { color: colors.warning, fontWeight: '900', fontSize: 13 },
-  lockSub: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
-  lockBtn: {
-    backgroundColor: colors.warning, paddingHorizontal: 12, paddingVertical: 8,
-    borderRadius: radius.full,
-  },
-  lockBtnText: { color: '#000', fontWeight: '900', fontSize: 11, letterSpacing: 0.8 },
+  lockTitle: { color: colors.text, fontWeight: '700', fontSize: 14 },
+  lockSub: { color: colors.textSecondary, fontSize: 12.5, marginTop: 2 },
+  lockBtn: { backgroundColor: colors.primary, paddingHorizontal: 14, paddingVertical: 10, borderRadius: radius.md },
+  lockBtnText: { color: colors.onPrimary, fontWeight: '700', fontSize: 13 },
 });

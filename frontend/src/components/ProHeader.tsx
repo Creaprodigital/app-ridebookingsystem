@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { Text } from '../ui/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../auth';
@@ -68,7 +69,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center', justifyContent: 'center',
   },
-  logoTxt: { color: colors.bg, fontWeight: '900', fontSize: 14, letterSpacing: 0.5 },
+  logoTxt: { color: colors.onPrimary, fontWeight: '900', fontSize: 14, letterSpacing: 0.5 },
   title: { color: colors.text, fontSize: 18, fontWeight: '900', letterSpacing: -0.3 },
   subtitle: { color: colors.textSecondary, fontSize: 12, marginTop: 1 },
   iconBtn: {

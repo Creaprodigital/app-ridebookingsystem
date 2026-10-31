@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "sharedridedriver",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
@@ -29,7 +29,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundColor": "#FFFFFF"
+        "backgroundColor": "#071731"
       },
       "edgeToEdgeEnabled": true,
       "permissions": [
@@ -64,10 +64,10 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/images/splash-driver.png",
-          "imageWidth": 380,
+          "image": "./assets/images/logo-horizontal-dark.png",
+          "imageWidth": 260,
           "resizeMode": "contain",
-          "backgroundColor": "#0A0A0A"
+          "backgroundColor": "#071731"
         }
       ],
       [
@@ -87,14 +87,13 @@
         "expo-notifications",
         {
           "icon": "./assets/images/notification-icon.png",
-          "color": "#F5B72E",
+          "color": "#0B63F6",
           "sounds": []
         }
       ],
       "./plugins/with-incoming-ride-notifications",
       "expo-font",
-      "expo-asset",
-      "expo-video"
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true

@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { StyleSheet, View, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { getActiveMapsKey } from '../mapsKey';
+import { colors, isDark } from '../theme';
 
 type Marker = { lat: number; lng: number; color?: string; label?: string };
 export type Polyline = {
@@ -33,19 +34,40 @@ type Props = {
   style?: any;
 };
 
+// Map look follows the app theme: navy map in dark mode (website's dark
+// sections), soft blue-grey map in light mode. POIs/transit are hidden so the
+// ride markers and routes stay readable.
 const darkStyle = JSON.stringify([
-  { elementType: 'geometry', stylers: [{ color: '#0a0a0a' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#0a0a0a' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#A1A1AA' }] },
-  { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#27272a' }] },
+  { elementType: 'geometry', stylers: [{ color: '#08162B' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#08162B' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#7E8FAB' }] },
+  { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#1A2E4D' }] },
   { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#27272a' }] },
-  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#71717A' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#3f3f46' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#13284A' }] },
+  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#6B7D99' }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#1C3A66' }] },
   { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#050505' }] },
-  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#52525b' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#030D1C' }] },
+  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#3E5272' }] },
 ]);
+
+const lightStyle = JSON.stringify([
+  { elementType: 'geometry', stylers: [{ color: '#EEF2F8' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#55607A' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#FFFFFF' }] },
+  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#FFFFFF' }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#DCE6F5' }] },
+  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#8A94AA' }] },
+  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#C9DCF5' }] },
+  { featureType: 'landscape.man_made', elementType: 'geometry', stylers: [{ color: '#E6ECF4' }] },
+]);
+
+const mapStyle = isDark ? darkStyle : lightStyle;
+const MAP_BG = isDark ? '#08162B' : '#EEF2F8';
+const MAP_TEXT = isDark ? '#7E8FAB' : '#55607A';
+
 
 function buildHtml(lat: number, lng: number, markers: Marker[], polylines: Polyline[], fitBounds: boolean, showDriverMarker: boolean, zoom: number, gmapsKey: string) {
   const markersJson = JSON.stringify(markers || []);
@@ -53,8 +75,8 @@ function buildHtml(lat: number, lng: number, markers: Marker[], polylines: Polyl
   return `<!DOCTYPE html><html><head>
 <meta charset="utf-8" />
 <meta name="viewport" content="initial-scale=1, maximum-scale=1" />
-<style>html,body,#map{height:100%;margin:0;padding:0;background:#0A0A0A;}
-#err{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:#A1A1AA;font:600 13px -apple-system,Inter,sans-serif;text-align:center;padding:20px;z-index:10;background:#0A0A0A}
+<style>html,body,#map{height:100%;margin:0;padding:0;background:${MAP_BG};}
+#err{position:absolute;inset:0;display:none;align-items:center;justify-content:center;color:${MAP_TEXT};font:600 13px -apple-system,Inter,sans-serif;text-align:center;padding:20px;z-index:10;background:${MAP_BG}}
 #err.show{display:flex}
 /* Hide Google branding, attribution bar, terms links and "View on Google Maps" overlay */
 .gm-style-cc,
@@ -79,18 +101,18 @@ let map, driverMarker, otherMarkers=[], otherPolys=[];
 const FIT_BOUNDS = ${fitBounds ? 'true' : 'false'};
 const DOT_ICON = {
   path: 0, // google.maps.SymbolPath.CIRCLE
-  fillColor: '#F5B72E',
+  fillColor: '${colors.primary}',
   fillOpacity: 1,
-  strokeColor: '#0A0A0A',
+  strokeColor: '#FFFFFF',
   strokeWeight: 3,
   scale: 9
 };
 function pinIcon(color){
   return {
     path: 'M12 0C7 0 3 4 3 9c0 6 9 15 9 15s9-9 9-15c0-5-4-9-9-9z',
-    fillColor: color || '#3B82F6',
+    fillColor: color || '${colors.primary}',
     fillOpacity: 1,
-    strokeColor: '#0A0A0A',
+    strokeColor: '#FFFFFF',
     strokeWeight: 2,
     scale: 1.4,
     anchor: {x:12,y:24}
@@ -101,7 +123,7 @@ function initMap(){
     map = new google.maps.Map(document.getElementById('map'),{
       center:{lat:${lat},lng:${lng}}, zoom:${zoom},
       disableDefaultUI:true, zoomControl:false, gestureHandling:'greedy',
-      styles:${darkStyle}
+      styles:${mapStyle}
     });
     driverMarker = new google.maps.Marker({
       position:{lat:${lat},lng:${lng}}, map: ${showDriverMarker ? 'map' : 'null'}, icon: DOT_ICON, title:'Vous'
@@ -155,7 +177,7 @@ function drawPolylines(list){
 
     if (p.animated && google.maps.geometry.spherical) {
       const w = p.weight || 6;
-      const col = p.color || '#22C55E';
+      const col = p.color || '${colors.success}';
 
       // Faint static ghost of the full route — keeps the original colour
       // visible so the user always sees the path.
@@ -188,7 +210,7 @@ function drawPolylines(list){
 
     const opts = {
       path: path, geodesic: true, map: map,
-      strokeColor: p.color || '#F5B72E',
+      strokeColor: p.color || '${colors.primary}',
       strokeOpacity: p.dashed ? 0 : 0.95,
       strokeWeight: p.weight || 5,
       icons: p.dashed ? [{
@@ -349,7 +371,7 @@ export default function MapView({ lat, lng, extraMarkers = [], polylines = [], f
         {/* @ts-ignore */}
         <iframe
           srcDoc={html}
-          style={{ border: 0, width: '100%', height: '100%', backgroundColor: '#0A0A0A' }}
+          style={{ border: 0, width: '100%', height: '100%', backgroundColor: MAP_BG }}
           title="map"
         />
       </View>
@@ -362,7 +384,7 @@ export default function MapView({ lat, lng, extraMarkers = [], polylines = [], f
         ref={webviewRef}
         originWhitelist={['*']}
         source={{ html, baseUrl: 'https://localhost' }}
-        style={{ backgroundColor: '#0A0A0A' }}
+        style={{ backgroundColor: MAP_BG }}
         javaScriptEnabled
         domStorageEnabled
         mixedContentMode="always"
@@ -373,5 +395,5 @@ export default function MapView({ lat, lng, extraMarkers = [], polylines = [], f
 }
 
 const styles = StyleSheet.create({
-  box: { flex: 1, backgroundColor: '#0A0A0A', overflow: 'hidden' },
+  box: { flex: 1, backgroundColor: MAP_BG, overflow: 'hidden' },
 });

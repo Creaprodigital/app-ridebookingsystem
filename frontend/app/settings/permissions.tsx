@@ -1,15 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-  Platform,
-  Linking,
-  Alert,
-} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Platform, Linking, Alert } from 'react-native';
+import { Text } from '../../src/ui/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -266,7 +257,7 @@ const styles = StyleSheet.create({
     borderRadius: 18, alignItems: 'center', justifyContent: 'center',
   },
   actionBtnDone: { backgroundColor: colors.elevated, borderWidth: 1, borderColor: colors.border },
-  actionText: { color: colors.bg, fontWeight: '800', fontSize: 12, letterSpacing: 0.8 },
+  actionText: { color: colors.onPrimary, fontWeight: '800', fontSize: 12, letterSpacing: 0.8 },
   sysBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
     backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,

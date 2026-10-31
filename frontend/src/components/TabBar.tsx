@@ -1,36 +1,36 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { Text } from '../ui/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { colors, radius } from '../theme';
+import { colors, radius, shadow } from '../theme';
+import { useRides } from '../ridesContext';
 
 type IconName = keyof typeof Ionicons.glyphMap;
 
 const ICONS: Record<string, { active: IconName; inactive: IconName }> = {
-  index: { active: 'map', inactive: 'map-outline' },
-  missions: { active: 'list', inactive: 'list-outline' },
+  index: { active: 'home', inactive: 'home-outline' },
+  missions: { active: 'car', inactive: 'car-outline' },
   earnings: { active: 'wallet', inactive: 'wallet-outline' },
-  history: { active: 'time', inactive: 'time-outline' },
-  menu: { active: 'grid', inactive: 'grid-outline' },
+  menu: { active: 'person', inactive: 'person-outline' },
 };
 
 const LABELS: Record<string, string> = {
-  index: 'Carte',
-  missions: 'Missions',
-  earnings: 'Portefeuille',
-  history: 'Historique',
-  menu: 'Menu',
+  index: 'Accueil',
+  missions: 'Courses',
+  earnings: 'Gains',
+  menu: 'Compte',
 };
 
 export default function TabBar({ state, navigation, descriptors }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { newRidesCount } = useRides();
   const bottomPad = Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 12);
 
   // Respect expo-router's `href: null` convention — a screen with a null
@@ -38,7 +38,7 @@ export default function TabBar({ state, navigation, descriptors }: BottomTabBarP
   // the tab bar. Our custom bar filters both from the descriptor options and
   // from an explicit deny list because expo-router transforms `href: null`
   // into a `tabBarButton: () => null` in newer versions, which we handle too.
-  const HIDDEN_ROUTES = new Set(['earnings']);
+  const HIDDEN_ROUTES = new Set(['history']);
   const visibleRoutes = state.routes.filter((route) => {
     if (HIDDEN_ROUTES.has(route.name)) return false;
     const opts: any = descriptors[route.key]?.options ?? {};
@@ -74,6 +74,7 @@ export default function TabBar({ state, navigation, descriptors }: BottomTabBarP
               icon={focused ? icons.active : icons.inactive}
               label={label}
               onPress={onPress}
+              badge={route.name === 'missions' ? newRidesCount : 0}
               testID={`tab-${route.name === 'index' ? 'map' : route.name}`}
             />
           );
@@ -88,30 +89,25 @@ function TabItem({
   icon,
   label,
   onPress,
+  badge = 0,
   testID,
 }: {
   focused: boolean;
   icon: IconName;
   label: string;
   onPress: () => void;
+  badge?: number;
   testID?: string;
 }) {
-  const scale = useSharedValue(focused ? 1 : 0.92);
-  const indicatorOpacity = useSharedValue(focused ? 1 : 0);
-  const indicatorWidth = useSharedValue(focused ? 24 : 0);
+  const pill = useSharedValue(focused ? 1 : 0);
 
   React.useEffect(() => {
-    scale.value = withSpring(focused ? 1 : 0.92, { damping: 18, stiffness: 220 });
-    indicatorOpacity.value = withTiming(focused ? 1 : 0, { duration: 180 });
-    indicatorWidth.value = withSpring(focused ? 24 : 0, { damping: 16, stiffness: 200 });
-  }, [focused, scale, indicatorOpacity, indicatorWidth]);
+    pill.value = withTiming(focused ? 1 : 0, { duration: 180 });
+  }, [focused, pill]);
 
-  const iconStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
-  const dotStyle = useAnimatedStyle(() => ({
-    opacity: indicatorOpacity.value,
-    width: indicatorWidth.value,
+  const pillStyle = useAnimatedStyle(() => ({
+    opacity: pill.value,
+    transform: [{ scaleX: 0.6 + pill.value * 0.4 }],
   }));
 
   return (
@@ -120,25 +116,26 @@ function TabItem({
       onPress={onPress}
       style={styles.item}
       hitSlop={{ top: 12, bottom: 12, left: 6, right: 6 }}
+      accessibilityRole="tab"
+      accessibilityState={{ selected: focused }}
+      accessibilityLabel={label}
       testID={testID}
     >
-      <Animated.View style={[styles.iconWrap, iconStyle]}>
-        <Ionicons
-          name={icon}
-          size={24}
-          color={focused ? colors.primary : colors.textSecondary}
-        />
-      </Animated.View>
+      <View style={styles.iconWrap}>
+        <Animated.View style={[styles.pill, pillStyle]} />
+        <Ionicons name={icon} size={22} color={focused ? colors.primary : colors.textMuted} />
+        {badge > 0 ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{badge > 9 ? '9+' : badge}</Text>
+          </View>
+        ) : null}
+      </View>
       <Text
         numberOfLines={1}
-        style={[
-          styles.label,
-          { color: focused ? colors.primary : colors.textSecondary, fontWeight: focused ? '800' : '600' },
-        ]}
+        style={[styles.label, focused ? styles.labelActive : null]}
       >
         {label}
       </Text>
-      <Animated.View style={[styles.indicator, dotStyle]} />
     </TouchableOpacity>
   );
 }
@@ -146,44 +143,58 @@ function TabItem({
 const styles = StyleSheet.create({
   wrap: {
     backgroundColor: colors.bg,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: colors.border,
-    paddingTop: 10,
-    paddingHorizontal: 10,
+    paddingTop: 6,
+    paddingHorizontal: 12,
   },
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
     backgroundColor: colors.surface,
-    borderRadius: radius.full,
+    borderRadius: radius.xl,
     borderWidth: 1,
     borderColor: colors.border,
     paddingVertical: 8,
     paddingHorizontal: 6,
+    ...shadow,
   },
   item: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4,
-    minHeight: 52,
-    gap: 2,
+    minHeight: 54,
+    gap: 4,
   },
   iconWrap: {
-    width: 28,
-    height: 28,
+    width: 56,
+    height: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  pill: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 16,
+    backgroundColor: colors.primarySoft,
+  },
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: 6,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 5,
+    borderRadius: 9,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.surface,
+  },
+  badgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
   label: {
-    fontSize: 11,
-    letterSpacing: 0.3,
+    fontSize: 11.5,
+    fontWeight: '600',
+    color: colors.textMuted,
   },
-  indicator: {
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: colors.primary,
-    marginTop: 2,
-  },
+  labelActive: { color: colors.text, fontWeight: '700' },
 });

@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
-  ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Image, Modal,
-} from 'react-native';
+import { View, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Image, Modal } from 'react-native';
+import { Text, TextInput } from '../../src/ui/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -463,7 +461,7 @@ export default function CreateBookingScreen() {
                       {price != null ? `${price.toFixed(2)} €` : '—'}
                     </Text>
                     <View style={[styles.radio, active && styles.radioActive]}>
-                      {active ? <Ionicons name="checkmark" size={14} color={colors.bg} /> : null}
+                      {active ? <Ionicons name="checkmark" size={14} color={colors.onPrimary} /> : null}
                     </View>
                   </View>
                 </TouchableOpacity>
@@ -570,7 +568,7 @@ export default function CreateBookingScreen() {
                     <Ionicons name={p.icon} size={18} color={active ? colors.primary : colors.textSecondary} />
                     <Text style={[styles.payTxt, active && { color: colors.primary }]}>{p.label}</Text>
                     <View style={[styles.radio, active && styles.radioActive]}>
-                      {active ? <Ionicons name="checkmark" size={12} color={colors.bg} /> : null}
+                      {active ? <Ionicons name="checkmark" size={12} color={colors.onPrimary} /> : null}
                     </View>
                   </TouchableOpacity>
                 );
@@ -586,10 +584,10 @@ export default function CreateBookingScreen() {
             disabled={!canSubmit || submitting}
             testID="create-submit"
           >
-            {submitting ? <ActivityIndicator color={colors.bg} /> : (
+            {submitting ? <ActivityIndicator color={colors.onPrimary} /> : (
               <>
                 <Text style={styles.submitTxt}>Créer la réservation</Text>
-                <Ionicons name="arrow-forward" size={20} color={colors.bg} />
+                <Ionicons name="arrow-forward" size={20} color={colors.onPrimary} />
               </>
             )}
           </TouchableOpacity>
@@ -821,7 +819,7 @@ const styles = StyleSheet.create({
 
   // Submit
   submit: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: colors.primary, borderRadius: radius.full, paddingVertical: 16, marginTop: 4 },
-  submitTxt: { color: colors.bg, fontSize: 15, fontWeight: '900', letterSpacing: 0.5 },
+  submitTxt: { color: colors.onPrimary, fontSize: 15, fontWeight: '900', letterSpacing: 0.5 },
 
   // Modal
   backdrop: { flex: 1, backgroundColor: '#000C', justifyContent: 'flex-end' },

@@ -1,17 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  FlatList,
-  ActivityIndicator,
-  RefreshControl,
-  Modal,
-  Platform,
-  Alert,
-  Share,
-} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl, Modal, Platform, Alert, Share } from 'react-native';
+import { Text } from '../../src/ui/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -508,21 +497,21 @@ export default function HistoryScreen() {
                 onPress={() => { setPeriod('today'); setAnchor(new Date()); setFiltersOpen(false); }}
                 testID="period-today"
               >
-                <Text style={[styles.periodChipTxt, period === 'today' && { color: colors.bg }]}>Aujourd’hui</Text>
+                <Text style={[styles.periodChipTxt, period === 'today' && { color: colors.onPrimary }]}>Aujourd’hui</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.periodChip, period === 'week' && styles.periodChipActive]}
                 onPress={() => { setPeriod('week'); setAnchor(new Date()); setFiltersOpen(false); }}
                 testID="period-this-week"
               >
-                <Text style={[styles.periodChipTxt, period === 'week' && { color: colors.bg }]}>Cette semaine</Text>
+                <Text style={[styles.periodChipTxt, period === 'week' && { color: colors.onPrimary }]}>Cette semaine</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.periodChip, period === 'month' && styles.periodChipActive]}
                 onPress={() => { setPeriod('month'); setAnchor(new Date()); setFiltersOpen(false); }}
                 testID="period-this-month"
               >
-                <Text style={[styles.periodChipTxt, period === 'month' && { color: colors.bg }]}>Ce mois</Text>
+                <Text style={[styles.periodChipTxt, period === 'month' && { color: colors.onPrimary }]}>Ce mois</Text>
               </TouchableOpacity>
             </View>
 

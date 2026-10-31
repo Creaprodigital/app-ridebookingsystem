@@ -1,12 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Switch,
-} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, ScrollView, Switch } from 'react-native';
+import { Text } from '../../src/ui/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -221,7 +215,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   chipText: { color: colors.textSecondary, fontWeight: '700', fontSize: 13 },
-  chipTextActive: { color: colors.bg, fontWeight: '900' },
+  chipTextActive: { color: colors.onPrimary, fontWeight: '900' },
   hintRow: {
     flexDirection: 'row', alignItems: 'flex-start', gap: 6,
     paddingHorizontal: spacing.md, paddingBottom: 12,

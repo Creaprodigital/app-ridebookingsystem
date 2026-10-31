@@ -1,15 +1,6 @@
 import React, { useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  Modal,
-  TouchableOpacity,
-  ScrollView,
-  Pressable,
-  Platform,
-  Linking,
-} from 'react-native';
+import { View, StyleSheet, Modal, TouchableOpacity, ScrollView, Pressable, Platform, Linking } from 'react-native';
+import { Text } from '../ui/Text';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radius, spacing } from '../theme';
 import { ProBooking, ProDriver } from '../proApi';
@@ -243,7 +234,7 @@ export default function BookingDetailsSheet({ booking, driver, onClose, onAssign
                 <View style={styles.contactBar}>
                   {client.phone ? (
                     <TouchableOpacity style={styles.contactBtn} onPress={callClient} activeOpacity={0.85}>
-                      <Ionicons name="call" size={16} color={colors.bg} />
+                      <Ionicons name="call" size={16} color={colors.onPrimary} />
                       <Text style={styles.contactBtnTxt}>Appeler</Text>
                     </TouchableOpacity>
                   ) : null}
@@ -329,7 +320,7 @@ export default function BookingDetailsSheet({ booking, driver, onClose, onAssign
                 onPress={() => { haptic('medium'); onAssign(booking); }}
                 activeOpacity={0.85}
               >
-                <Ionicons name="person-add-outline" size={18} color={colors.bg} />
+                <Ionicons name="person-add-outline" size={18} color={colors.onPrimary} />
                 <Text style={styles.primaryBtnTxt}>Attribuer un chauffeur</Text>
               </TouchableOpacity>
             ) : null}
@@ -500,7 +491,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
   },
   contactBtnAlt: { backgroundColor: colors.elevated, borderColor: colors.border, borderWidth: 1 },
-  contactBtnTxt: { color: colors.bg, fontWeight: '800', fontSize: 13 },
+  contactBtnTxt: { color: colors.onPrimary, fontWeight: '800', fontSize: 13 },
 
   breakdown: { borderTopColor: colors.border, borderTopWidth: 1, paddingTop: 8, gap: 6 },
   breakdownRow: { flexDirection: 'row', justifyContent: 'space-between' },
@@ -515,5 +506,5 @@ const styles = StyleSheet.create({
     height: 52, borderRadius: radius.full, backgroundColor: colors.primary,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
   },
-  primaryBtnTxt: { color: colors.bg, fontWeight: '900', fontSize: 14, letterSpacing: 0.8 },
+  primaryBtnTxt: { color: colors.onPrimary, fontWeight: '900', fontSize: 14, letterSpacing: 0.8 },
 });

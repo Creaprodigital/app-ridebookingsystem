@@ -1,24 +1,18 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  RefreshControl,
-  ActivityIndicator,
-  Alert,
-  Platform,
-} from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { View, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, Alert, Platform, Modal } from 'react-native';
+import { Text } from '../../src/ui/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useFocusEffect } from 'expo-router';
-import { Modal } from 'react-native';
-import { colors, radius, spacing } from '../../src/theme';
+import { colors, radius, spacing, shadow } from '../../src/theme';
+import Chip, { type ChipTone } from '../../src/ui/Chip';
+import RouteStops from '../../src/ui/RouteStops';
+import { fmtPrice, fmtEuro, fmtTime, fmtDay } from '../../src/rideFormat';
 import { haptic, playSound, ensureNotifPermission, notifyNewRide } from '../../src/feedback';
 import { NOTIF_SOUNDS, getNotifSoundId } from '../../src/prefs';
 import { isImmediateRide, pickPickupCoords, haversineKm, estimateEtaMin } from '../../src/rideTypes';
 import { useRides } from '../../src/ridesContext';
-import { formatPickupCountdown, countdownStyle, useTicker } from '../../src/timeUtils';
+import { formatPickupCountdown, useTicker } from '../../src/timeUtils';
 import { getLastCoords, subscribeCoords } from '../../src/locationStore';
 import AssignedMissionCard from '../../src/components/AssignedMissionCard';
 import {
@@ -42,11 +36,6 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
   cancelled: { label: 'Annulée', color: colors.danger },
 };
 
-function fmtMoney(v: any) {
-  const n = Number(v);
-  if (Number.isFinite(n)) return `${n.toFixed(2)} €`;
-  return '—';
-}
 
 function pickAddress(m: any, type: 'pickup' | 'dropoff') {
   const b = m?.booking || {};
@@ -157,15 +146,6 @@ function pickDistance(m: any) {
   );
 }
 
-function fmtDate(dt?: string) {
-  if (!dt) return '';
-  try {
-    const d = new Date(dt);
-    return d.toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' });
-  } catch {
-    return dt;
-  }
-}
 
 export default function MissionsScreen() {
   const router = useRouter();
@@ -392,8 +372,15 @@ export default function MissionsScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.h1}>Missions</Text>
-        <Text style={styles.h2}>Gérez vos courses en temps réel</Text>
+        <Text style={styles.h1}>Courses</Text>
+        <TouchableOpacity
+          style={styles.headerBtn}
+          onPress={() => router.push('/(tabs)/history')}
+          testID="open-history"
+          accessibilityLabel="Historique des courses"
+        >
+          <Ionicons name="time-outline" size={21} color={colors.text} />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.tabsRow}>
@@ -403,24 +390,28 @@ export default function MissionsScreen() {
             t === 'immediate' ? visibleImmediate.length :
             visibleAvailable.length;
           const label =
-            t === 'assigned' ? 'Mes missions' :
+            t === 'assigned' ? 'Mes courses' :
             t === 'immediate' ? 'Immédiates' :
             'Planifiées';
-          // Visual accent for the Immédiates tab: thin red dot when items
-          // are waiting, so the driver notices new immediate rides even
-          // without the full-screen modal.
-          const showPulse = t === 'immediate' && visibleImmediate.length > 0 && tab !== 'immediate';
+          const active = tab === t;
+          // Red badge on Immédiates while rides are waiting there, so the
+          // driver notices them even without the full-screen modal.
+          const urgent = t === 'immediate' && count > 0;
           return (
             <TouchableOpacity
               key={t}
               onPress={() => setTab(t)}
-              style={[styles.tab, tab === t && styles.tabActive]}
+              style={[styles.tab, active && styles.tabActive]}
               testID={`tab-${t}`}
             >
-              {showPulse ? <View style={styles.tabPulse} /> : null}
-              <Text style={[styles.tabText, tab === t && styles.tabTextActive]} numberOfLines={1}>
-                {label} ({count})
+              <Text style={[styles.tabText, active && styles.tabTextActive]} numberOfLines={1}>
+                {label}
               </Text>
+              {count > 0 ? (
+                <View style={[styles.tabCount, urgent && styles.tabCountUrgent]}>
+                  <Text style={[styles.tabCountText, urgent && styles.tabCountTextUrgent]}>{count}</Text>
+                </View>
+              ) : null}
             </TouchableOpacity>
           );
         })}
@@ -430,16 +421,16 @@ export default function MissionsScreen() {
         data={data}
         keyExtractor={(item, i) => String(item.id ?? item._id ?? i)}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={() => load()} tintColor={colors.primary} />}
-        contentContainerStyle={{ padding: spacing.md, paddingBottom: 120, gap: spacing.md }}
+        contentContainerStyle={{ paddingHorizontal: spacing.md, paddingTop: 4, paddingBottom: 32 }}
         ListHeaderComponent={
           <View style={{ gap: 8 }}>
             {onShift === false ? (
               <View style={styles.offShiftBanner} testID="off-shift-banner">
-                <Ionicons name="lock-closed" size={18} color={colors.warning} />
+                <Ionicons name="pause-circle" size={22} color={colors.warning} />
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.offShiftTitle}>Vous êtes hors ligne</Text>
+                  <Text style={styles.offShiftTitle}>Vous êtes hors service</Text>
                   <Text style={styles.offShiftSub}>
-                    Veuillez passer en ligne pour accéder aux courses et démarrer une mission.
+                    Passez en service pour accepter des courses et démarrer une mission.
                   </Text>
                 </View>
                 <TouchableOpacity
@@ -447,7 +438,7 @@ export default function MissionsScreen() {
                   onPress={() => router.push('/(tabs)')}
                   testID="off-shift-cta"
                 >
-                  <Text style={styles.offShiftBtnText}>EN LIGNE</Text>
+                  <Text style={styles.offShiftBtnText}>Activer</Text>
                 </TouchableOpacity>
               </View>
             ) : null}
@@ -490,7 +481,7 @@ export default function MissionsScreen() {
                       onPress={() => setShowTopupModal(true)}
                       testID="low-balance-recharge"
                     >
-                      <Text style={styles.lowBalanceBtnText}>RECHARGER</Text>
+                      <Text style={styles.lowBalanceBtnText}>Recharger</Text>
                     </TouchableOpacity>
                   </View>
                 ) : null}
@@ -508,7 +499,7 @@ export default function MissionsScreen() {
                 {available.length > 0 ? (
                   <View style={styles.liveRow}>
                     <View style={styles.liveDot} />
-                    <Text style={styles.liveText}>EN DIRECT — Mises à jour automatiques</Text>
+                    <Text style={styles.liveText}>En direct · mise à jour automatique</Text>
                   </View>
                 ) : null}
 
@@ -534,13 +525,13 @@ export default function MissionsScreen() {
                 color={colors.textMuted}
               />
               <Text style={styles.emptyTitle}>
-                {tab === 'assigned' ? 'Aucune mission assignée' :
+                {tab === 'assigned' ? 'Aucune course prévue' :
                  tab === 'immediate' ? 'Aucune course immédiate' :
                  'Aucune course disponible'}
               </Text>
               <Text style={styles.emptySub}>
                 {tab === 'assigned'
-                  ? 'Passez en ligne pour recevoir des courses.'
+                  ? 'Vos prochaines courses apparaîtront ici.'
                   : tab === 'immediate'
                   ? 'Aucune course à départ immédiat pour le moment. Quand une nouvelle arrive, une fenêtre prioritaire s\'affiche automatiquement. Cette page se rafraîchit toutes les 20 s.'
                   : 'Aucune course dans le marketplace pour le moment. Cette page se rafraîchit automatiquement toutes les 20 secondes.'}
@@ -610,241 +601,133 @@ export default function MissionsScreen() {
           // has effectively started (no point counting down anymore).
           const hideCountdown = ['arrived', 'in_progress', 'completed', 'cancelled'].includes(String(status).toLowerCase());
           const cd = hideCountdown ? null : formatPickupCountdown(pickDt(item));
-          const cdStyles = cd ? countdownStyle(cd.kind) : null;
+          const id = item.id ?? item._id;
+          const dt = pickDt(item);
+          const cdTone: ChipTone =
+            cd?.kind === 'overdue' ? 'danger' : cd?.kind === 'soon' || cd?.kind === 'now' ? 'warning' : 'primary';
+          const km = Number(pickDistance(item));
           return (
-            <TouchableOpacity
-              activeOpacity={1}
-              style={[
-                styles.card,
-                // Left-edge accent band — red for immediate, primary-yellow for planned.
-                immediate ? styles.cardImmediate : styles.cardPlanned,
-                onShift === false && styles.cardDimmed,
-              ]}
-              testID={`mission-card-${item.id ?? item._id}`}
+            <View
+              style={[styles.card, onShift === false && styles.cardDimmed]}
+              testID={`mission-card-${id}`}
             >
-              {/* Kind ribbon — first thing the eye catches */}
-              <View
-                style={[
-                  styles.kindRibbon,
-                  immediate ? styles.kindRibbonImmediate : styles.kindRibbonPlanned,
-                ]}
-                testID={`kind-ribbon-${item.id ?? item._id}`}
-              >
-                <Ionicons
-                  name={immediate ? 'flash' : 'calendar'}
-                  size={14}
-                  color={immediate ? '#fff' : colors.primary}
-                />
-                <Text
-                  style={[
-                    styles.kindRibbonTxt,
-                    { color: immediate ? '#fff' : colors.primary },
-                  ]}
-                >
-                  {immediate ? 'COURSE IMMÉDIATE' : 'COURSE PLANIFIÉE'}
-                </Text>
-                {isMarketplace ? (
-                  <>
-                    <View style={styles.kindRibbonSep} />
-                    <Text
-                      style={[
-                        styles.kindRibbonSubTxt,
-                        { color: immediate ? '#ffffffCC' : colors.textSecondary },
-                      ]}
-                    >
-                      {item.auto_posted ? 'AUTO' : 'COMPAGNIE'}
-                    </Text>
-                  </>
-                ) : null}
-              </View>
-
               <View style={styles.cardHead}>
-                {isMarketplace ? null : (
-                  <>
-                    <View style={[styles.statusDot, { backgroundColor: meta.color }]} />
-                    <Text style={styles.statusText}>{meta.label.toUpperCase()}</Text>
-                  </>
+                <View style={styles.timeWrap}>
+                  <Text style={styles.time}>{fmtTime(dt) || '—'}</Text>
+                  <Text style={styles.day}>{fmtDay(dt)}</Text>
+                </View>
+                <Text style={styles.price}>{fmtPrice(price)}</Text>
+              </View>
+
+              <View style={styles.chipsRow} testID={`kind-ribbon-${id}`}>
+                <Chip
+                  icon={immediate ? 'flash' : 'calendar-outline'}
+                  label={immediate ? 'Immédiate' : 'Planifiée'}
+                  tone={immediate ? 'danger' : 'primary'}
+                />
+                {isMarketplace ? (
+                  <Chip label={item.auto_posted ? 'Automatique' : 'Compagnie'} />
+                ) : (
+                  <Chip label={meta.label} />
                 )}
-                {cd && cdStyles ? (
-                  <View
-                    style={[styles.countdownChip, cdStyles.chip]}
-                    testID={`countdown-${item.id ?? item._id}`}
-                  >
-                    {cd.kind === 'now' ? (
-                      <View style={styles.countdownDot} />
-                    ) : (
-                      <Ionicons
-                        name={cd.kind === 'overdue' ? 'alert-circle' : 'time-outline'}
-                        size={11}
-                        color={cdStyles.fg}
-                      />
-                    )}
-                    <Text style={[styles.countdownTxt, { color: cdStyles.fg }]}>
-                      {cd.label}
-                    </Text>
-                  </View>
+                {cd ? (
+                  <Chip
+                    icon={cd.kind === 'overdue' ? 'alert-circle' : 'time-outline'}
+                    label={cd.label}
+                    tone={cdTone}
+                    testID={`countdown-${id}`}
+                  />
                 ) : null}
-                <View style={{ flex: 1 }} />
-                <View style={{ alignItems: 'flex-end' }}>
-                  <Text style={styles.priceLbl}>PRIX DE LA COURSE</Text>
-                  <Text style={styles.price}>{fmtMoney(price)}</Text>
-                  {commissionEur != null && commissionEur > 0 ? (
-                    <View style={styles.priceBreakdownRow}>
-                      <Ionicons name="business-outline" size={11} color={colors.danger} />
-                      <Text style={styles.priceCommissionTxt} testID={`commission-${item.id ?? item._id}`}>
-                        Commission société : −{Number(commissionEur).toFixed(2)} €
-                      </Text>
-                    </View>
-                  ) : null}
-                  {driverNet != null ? (
-                    <View style={styles.priceBreakdownRow}>
-                      <Ionicons name="cash-outline" size={11} color={colors.success} />
-                      <Text style={styles.priceNetTxt} testID={`driver-net-${item.id ?? item._id}`}>
-                        Net chauffeur : {Number(driverNet).toFixed(2)} €
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
               </View>
 
-              <View style={styles.route}>
-                <View style={styles.routeLine}>
-                  <View style={[styles.routeDot, { backgroundColor: colors.primary }]} />
-                  <View style={styles.routeVert} />
-                  <View style={[styles.routeDot, { backgroundColor: colors.danger }]} />
-                </View>
-                <View style={{ flex: 1, gap: spacing.sm }}>
-                  <View>
-                    <Text style={styles.routeLabel}>DÉPART</Text>
-                    <Text style={styles.addr} numberOfLines={2}>{pickAddress(item, 'pickup')}</Text>
-                  </View>
-                  <View>
-                    <Text style={styles.routeLabel}>ARRIVÉE</Text>
-                    <Text style={styles.addr} numberOfLines={2}>{pickAddress(item, 'dropoff')}</Text>
-                  </View>
-                </View>
-              </View>
+              <RouteStops pickup={pickAddress(item, 'pickup')} dropoff={pickAddress(item, 'dropoff')} />
 
-              <View style={styles.cardFoot}>
-                {/* IMMÉDIATES: prominent driver→pickup badges (À X km · Y min) */}
+              <View style={styles.chipsRow}>
                 {tab === 'immediate' && pickupKm != null ? (
-                  <View
-                    style={[styles.metaChipPrimary, styles.metaChipPrimaryAccent]}
-                    testID={`pickup-distance-${item.id ?? item._id}`}
-                  >
-                    <Ionicons name="navigate" size={13} color={colors.primary} />
-                    <Text style={styles.metaChipPrimaryTxt}>
-                      À {pickupKm < 10 ? pickupKm.toFixed(1) : Math.round(pickupKm)} km
-                    </Text>
-                  </View>
+                  <Chip
+                    icon="navigate"
+                    label={`À ${pickupKm < 10 ? pickupKm.toFixed(1).replace('.', ',') : Math.round(pickupKm)} km`}
+                    tone="primary"
+                    testID={`pickup-distance-${id}`}
+                  />
                 ) : null}
                 {tab === 'immediate' && pickupEta != null ? (
-                  <View
-                    style={[styles.metaChipPrimary, styles.metaChipPrimaryAccent]}
-                    testID={`pickup-eta-${item.id ?? item._id}`}
-                  >
-                    <Ionicons name="time" size={13} color={colors.primary} />
-                    <Text style={styles.metaChipPrimaryTxt}>
-                      {pickupEta} min
-                    </Text>
-                  </View>
+                  <Chip icon="time" label={`${pickupEta} min`} tone="primary" testID={`pickup-eta-${id}`} />
                 ) : null}
-                {/* Hint shown when GPS is not yet available */}
                 {tab === 'immediate' && pickupKm == null ? (
-                  <View style={styles.metaChip} testID={`pickup-distance-pending-${item.id ?? item._id}`}>
-                    <Ionicons name="locate-outline" size={13} color={colors.textMuted} />
-                    <Text style={[styles.metaText, { color: colors.textMuted }]}>
-                      Position en attente…
-                    </Text>
-                  </View>
+                  <Chip icon="locate-outline" label="Position en attente…" testID={`pickup-distance-pending-${id}`} />
                 ) : null}
-                <View style={styles.metaChip}>
-                  <Ionicons name="calendar-outline" size={13} color={colors.textSecondary} />
-                  <Text style={styles.metaText}>{fmtDate(pickDt(item)) || '—'}</Text>
-                </View>
-                {vehicleCat ? (
-                  <View style={styles.metaChip} testID={`vehicle-cat-${item.id ?? item._id}`}>
-                    <Ionicons name="car-outline" size={13} color={colors.textSecondary} />
-                    <Text style={styles.metaText}>{vehicleCat}</Text>
-                  </View>
-                ) : null}
-                {pax ? (
-                  <View style={styles.metaChip} testID={`pax-${item.id ?? item._id}`}>
-                    <Ionicons name="people-outline" size={13} color={colors.textSecondary} />
-                    <Text style={styles.metaText}>{pax} pax</Text>
-                  </View>
-                ) : null}
-                {pickDistance(item) ? (
-                  <View style={styles.metaChip}>
-                    <Ionicons name="navigate-outline" size={13} color={colors.textSecondary} />
-                    <Text style={styles.metaText}>
-                      {Number(pickDistance(item)).toFixed(1)} km
-                    </Text>
-                  </View>
+                {vehicleCat ? <Chip icon="car-outline" label={String(vehicleCat)} testID={`vehicle-cat-${id}`} /> : null}
+                {pax ? <Chip icon="people-outline" label={String(pax)} testID={`pax-${id}`} /> : null}
+                {Number.isFinite(km) && km > 0 ? (
+                  <Chip icon="git-commit-outline" label={`${km < 10 ? km.toFixed(1).replace('.', ',') : Math.round(km)} km`} />
                 ) : null}
               </View>
+
+              {driverNet != null || (commissionEur != null && commissionEur > 0) ? (
+                <View style={styles.moneyRow}>
+                  {commissionEur != null && commissionEur > 0 ? (
+                    <Text style={styles.moneyTxt} testID={`commission-${id}`}>
+                      Commission −{fmtEuro(commissionEur)}
+                    </Text>
+                  ) : <View />}
+                  {driverNet != null ? (
+                    <Text style={styles.moneyTxt} testID={`driver-net-${id}`}>
+                      Net chauffeur <Text style={styles.netVal}>{fmtEuro(driverNet)}</Text>
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
 
               {tab === 'available' ? (
                 <TouchableOpacity
                   style={[styles.claimBtn, onShift === false && styles.claimBtnDisabled]}
-                  onPress={() => claim(item.id ?? item._id)}
-                  disabled={claimingId === (item.id ?? item._id)}
-                  testID={`claim-${item.id ?? item._id}`}
+                  onPress={() => claim(id)}
+                  disabled={claimingId === id}
+                  testID={`claim-${id}`}
                 >
-                  {claimingId === (item.id ?? item._id) ? (
-                    <ActivityIndicator color={colors.bg} />
+                  {claimingId === id ? (
+                    <ActivityIndicator color={colors.onPrimary} />
                   ) : (
                     <>
-                      <Ionicons name={onShift === false ? 'lock-closed' : 'flash'} size={16} color={colors.bg} />
+                      <Ionicons name={onShift === false ? 'lock-closed' : 'checkmark'} size={18} color={colors.onPrimary} />
                       <Text style={styles.claimText}>
-                        {onShift === false ? 'PASSEZ EN LIGNE' : 'ACCEPTER LA COURSE'}
+                        {onShift === false ? 'Passez en service' : 'Accepter la course'}
                       </Text>
                     </>
                   )}
                 </TouchableOpacity>
               ) : tab === 'immediate' ? (
-                // Immediate tab: Accept + Refuse side-by-side
                 <View style={styles.immediateActions}>
                   <TouchableOpacity
                     style={[styles.refuseBtn, onShift === false && styles.refuseBtnDisabled]}
-                    onPress={() => refuseImmediate(String(item.id ?? item._id))}
-                    disabled={onShift === false || claimingId === (item.id ?? item._id)}
-                    testID={`refuse-${item.id ?? item._id}`}
+                    onPress={() => refuseImmediate(String(id))}
+                    disabled={onShift === false || claimingId === id}
+                    testID={`refuse-${id}`}
                   >
-                    <Ionicons name="close-circle" size={16} color={colors.danger} />
-                    <Text style={styles.refuseText}>REFUSER</Text>
+                    <Ionicons name="close" size={18} color={colors.danger} />
+                    <Text style={styles.refuseText}>Refuser</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.acceptBtn, onShift === false && styles.claimBtnDisabled]}
-                    onPress={() => claim(item.id ?? item._id)}
-                    disabled={claimingId === (item.id ?? item._id) || onShift === false}
-                    testID={`accept-${item.id ?? item._id}`}
+                    onPress={() => claim(id)}
+                    disabled={claimingId === id || onShift === false}
+                    testID={`accept-${id}`}
                   >
-                    {claimingId === (item.id ?? item._id) ? (
-                      <ActivityIndicator color={colors.bg} />
+                    {claimingId === id ? (
+                      <ActivityIndicator color="#fff" />
                     ) : (
                       <>
-                        <Ionicons name={onShift === false ? 'lock-closed' : 'flash'} size={16} color={colors.bg} />
-                        <Text style={styles.claimText}>
-                          {onShift === false ? 'HORS LIGNE' : 'ACCEPTER'}
+                        <Ionicons name={onShift === false ? 'lock-closed' : 'checkmark'} size={18} color="#fff" />
+                        <Text style={styles.acceptText}>
+                          {onShift === false ? 'Hors service' : 'Accepter'}
                         </Text>
                       </>
                     )}
                   </TouchableOpacity>
                 </View>
-              ) : (
-                <View style={styles.openHint}>
-                  <Text style={[styles.openHintText, onShift === false && { color: colors.textMuted }]}>
-                    {onShift === false ? 'Passez en ligne pour ouvrir' : 'Voir détails'}
-                  </Text>
-                  <Ionicons
-                    name={onShift === false ? 'lock-closed' : 'arrow-forward'}
-                    size={16}
-                    color={onShift === false ? colors.textMuted : colors.primary}
-                  />
-                </View>
-              )}
-            </TouchableOpacity>
+              ) : null}
+            </View>
           );
         }}
       />
@@ -864,13 +747,13 @@ export default function MissionsScreen() {
 
             <View style={styles.modalRow}>
               <View style={styles.modalCell}>
-                <Text style={styles.modalCellLbl}>SOLDE ACTUEL</Text>
+                <Text style={styles.modalCellLbl}>Solde actuel</Text>
                 <Text style={[styles.modalCellVal, { color: colors.danger }]}>
                   {walletBal.toFixed(2)} €
                 </Text>
               </View>
               <View style={styles.modalCell}>
-                <Text style={styles.modalCellLbl}>SEUIL REQUIS</Text>
+                <Text style={styles.modalCellLbl}>Seuil requis</Text>
                 <Text style={[styles.modalCellVal, { color: colors.primary }]}>
                   {requiredMinBalance.toFixed(2)} €
                 </Text>
@@ -885,8 +768,8 @@ export default function MissionsScreen() {
               }}
               testID="modal-recharge-btn"
             >
-              <Ionicons name="add-circle" size={18} color={colors.bg} />
-              <Text style={styles.modalPrimaryText}>RECHARGER LE PORTEFEUILLE</Text>
+              <Ionicons name="add-circle" size={18} color={colors.onPrimary} />
+              <Text style={styles.modalPrimaryText}>Recharger le portefeuille</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.modalGhostBtn}
@@ -904,227 +787,148 @@ export default function MissionsScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.bg },
-  header: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.sm },
-  h1: { color: colors.text, fontSize: 28, fontWeight: '900', letterSpacing: -1 },
-  h2: { color: colors.textSecondary, fontSize: 13, marginTop: 2 },
-  tabsRow: { flexDirection: 'row', paddingHorizontal: spacing.md, gap: 6, marginBottom: spacing.sm },
+  header: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: 12,
+  },
+  h1: { color: colors.text, fontSize: 30, fontWeight: '800', letterSpacing: -0.5 },
+  headerBtn: {
+    width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surface,
+    borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center',
+  },
+  tabsRow: {
+    flexDirection: 'row', marginHorizontal: spacing.md, marginBottom: 12, padding: 4, gap: 4,
+    backgroundColor: colors.surface2, borderRadius: 14,
+  },
   tab: {
-    flex: 1, paddingVertical: 10, paddingHorizontal: 4, borderRadius: radius.full, alignItems: 'center',
-    backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border,
-    position: 'relative',
-  },
-  tabActive: { backgroundColor: colors.primary, borderColor: colors.primary },
-  tabText: { color: colors.textSecondary, fontWeight: '700', fontSize: 11, letterSpacing: 0.3 },
-  tabTextActive: { color: colors.bg },
-  tabPulse: {
-    position: 'absolute', top: 6, right: 8,
-    width: 8, height: 8, borderRadius: 4,
-    backgroundColor: colors.danger,
-    shadowColor: colors.danger, shadowOpacity: 0.6, shadowRadius: 4,
-    shadowOffset: { width: 0, height: 0 },
-  },
-  immediateInfo: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: colors.danger + '14',
-    borderWidth: 1, borderColor: colors.danger + '55',
-    borderRadius: radius.lg,
-    paddingHorizontal: spacing.md, paddingVertical: 10,
-  },
-  immediateInfoTxt: { color: colors.text, fontSize: 12, fontWeight: '700', flex: 1 },
-  empty: { alignItems: 'center', paddingTop: 80, gap: 10 },
-  emptyTitle: { color: colors.text, fontSize: 16, fontWeight: '800', marginTop: 4 },
-  emptySub: { color: colors.textSecondary, fontSize: 13, textAlign: 'center', paddingHorizontal: 40 },
-  liveRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: spacing.sm, paddingVertical: 6,
-    backgroundColor: colors.success + '15', borderRadius: radius.full,
-    borderWidth: 1, borderColor: colors.success + '40', alignSelf: 'flex-start',
-  },
-  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
-  liveText: { color: colors.success, fontWeight: '800', fontSize: 11, letterSpacing: 1 },
-  errorBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: colors.danger + '20', borderColor: colors.danger,
-    borderWidth: 1, borderRadius: radius.lg, padding: 10,
-  },
-  errorText: { color: colors.danger, fontSize: 12, fontWeight: '600', flex: 1 },
-  retryBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    paddingHorizontal: 12, paddingVertical: 6, borderRadius: radius.full,
-    backgroundColor: colors.primary + '22', borderWidth: 1, borderColor: colors.primary,
-    marginTop: 8,
-  },
-  retryText: { color: colors.primary, fontSize: 12, fontWeight: '800' },
-  warnBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: colors.warning + '15', borderColor: colors.warning,
-    borderWidth: 1, borderRadius: radius.lg, padding: 10,
-  },
-  warnText: { color: colors.warning, fontSize: 12, fontWeight: '600', flex: 1 },
-  debugTxt: {
-    color: colors.textMuted, fontSize: 10, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    backgroundColor: colors.surface, padding: 6, borderRadius: 6,
-  },
-  lowBalanceBanner: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: colors.danger + '15', borderColor: colors.danger,
-    borderWidth: 1, borderRadius: radius.lg, padding: 12,
-  },
-  lowBalanceTitle: { color: colors.danger, fontWeight: '900', fontSize: 13 },
-  lowBalanceSub: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
-  lowBalanceBtn: {
-    backgroundColor: colors.danger, paddingHorizontal: 12, paddingVertical: 8,
-    borderRadius: radius.full,
-  },
-  lowBalanceBtnText: { color: '#fff', fontWeight: '900', fontSize: 11, letterSpacing: 0.8 },
-  modalBackdrop: {
-    flex: 1, justifyContent: 'center', alignItems: 'center',
-    backgroundColor: '#000000CC', padding: spacing.lg,
-  },
-  modalCard: {
-    width: '100%', maxWidth: 420, backgroundColor: colors.surface,
-    borderRadius: radius.xl, padding: spacing.lg, gap: spacing.md, alignItems: 'center',
-    borderColor: colors.border, borderWidth: 1,
-  },
-  modalIconWrap: {
-    width: 76, height: 76, borderRadius: 38, backgroundColor: colors.danger + '22',
+    flex: 1, flexDirection: 'row', gap: 6, paddingVertical: 9, borderRadius: 11,
     alignItems: 'center', justifyContent: 'center',
   },
-  modalTitle: { color: colors.text, fontSize: 22, fontWeight: '900', textAlign: 'center' },
-  modalText: { color: colors.textSecondary, fontSize: 14, textAlign: 'center', lineHeight: 20 },
-  modalRow: { flexDirection: 'row', gap: 10, alignSelf: 'stretch', marginVertical: 6 },
-  modalCell: {
-    flex: 1, backgroundColor: colors.bg, borderRadius: radius.lg,
-    padding: 12, alignItems: 'center', borderWidth: 1, borderColor: colors.border,
+  tabActive: { backgroundColor: colors.surface, ...shadow },
+  tabText: { color: colors.textSecondary, fontWeight: '600', fontSize: 13.5 },
+  tabTextActive: { color: colors.text, fontWeight: '700' },
+  tabCount: {
+    minWidth: 20, height: 20, paddingHorizontal: 6, borderRadius: 10,
+    backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center',
   },
-  modalCellLbl: { color: colors.textMuted, fontSize: 10, fontWeight: '800', letterSpacing: 1.2 },
-  modalCellVal: { fontSize: 22, fontWeight: '900', marginTop: 4 },
-  modalPrimaryBtn: {
-    alignSelf: 'stretch', height: 56, borderRadius: radius.full, backgroundColor: colors.primary,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    shadowColor: colors.primary, shadowOpacity: 0.4, shadowRadius: 16, shadowOffset: { width: 0, height: 0 },
-  },
-  modalPrimaryText: { color: colors.bg, fontWeight: '900', fontSize: 14, letterSpacing: 1 },
-  modalGhostBtn: { paddingVertical: 8 },
-  modalGhostText: { color: colors.textSecondary, fontWeight: '600' },
-  card: {
-    backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1,
-    borderRadius: radius.xl, padding: spacing.md, gap: spacing.md,
-  },
-  cardImmediate: {
-    borderLeftColor: colors.danger, borderLeftWidth: 4,
-  },
-  cardPlanned: {
-    borderLeftColor: colors.primary, borderLeftWidth: 4,
-  },
-
-  // Kind ribbon (IMMÉDIATE / PLANIFIÉE) at the very top of each card
-  kindRibbon: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10, paddingVertical: 5,
-    borderRadius: 999, borderWidth: 1,
-  },
-  kindRibbonImmediate: {
-    backgroundColor: colors.danger,
-    borderColor: colors.danger,
-  },
-  kindRibbonPlanned: {
-    backgroundColor: colors.primary + '1A',
-    borderColor: colors.primary + '66',
-  },
-  kindRibbonTxt: { fontSize: 11, fontWeight: '900', letterSpacing: 0.9 },
-  kindRibbonSep: {
-    width: 1, height: 10, backgroundColor: '#ffffff55', marginHorizontal: 2,
-  },
-  kindRibbonSubTxt: { fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
-  cardHead: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    borderBottomColor: colors.border, borderBottomWidth: 1, paddingBottom: spacing.sm,
-  },
-  countdownChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    paddingHorizontal: 8, paddingVertical: 4,
-    borderRadius: 999, borderWidth: 1,
-  },
-  countdownTxt: { fontSize: 11, fontWeight: '900', letterSpacing: 0.3 },
-  countdownDot: {
-    width: 6, height: 6, borderRadius: 3, backgroundColor: colors.success,
-  },
-  statusDot: { width: 8, height: 8, borderRadius: 4 },
-  statusText: { color: colors.textSecondary, fontWeight: '800', fontSize: 11, letterSpacing: 1 },
-  price: { color: colors.primary, fontSize: 22, fontWeight: '900', letterSpacing: -0.8 },
-  priceLbl: { color: colors.textMuted, fontSize: 9, fontWeight: '800', letterSpacing: 1.2 },
-  priceBreakdownRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  priceCommissionTxt: { color: colors.danger, fontSize: 11, fontWeight: '700' },
-  priceNetTxt: { color: colors.success, fontSize: 11, fontWeight: '800' },
-  badge: {
-    paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, borderWidth: 1,
-  },
-  badgeText: { fontSize: 10, fontWeight: '800', letterSpacing: 0.8 },
-  route: { flexDirection: 'row', gap: 12, alignItems: 'stretch' },
-  routeLine: { alignItems: 'center', paddingTop: 6, paddingBottom: 6, width: 14 },
-  routeDot: { width: 10, height: 10, borderRadius: 5 },
-  routeVert: { flex: 1, width: 2, backgroundColor: colors.border, marginVertical: 2 },
-  routeLabel: { color: colors.textMuted, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
-  addr: { color: colors.text, fontSize: 14, fontWeight: '600', marginTop: 2 },
-  cardFoot: { flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' },
-  metaChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    backgroundColor: colors.bg, borderRadius: radius.md,
-    paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1, borderColor: colors.border,
-  },
-  metaText: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
-  // Prominent variant used by the immediate-tab "À X km" / "Y min" badges
-  metaChipPrimary: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    borderRadius: radius.md,
-    paddingHorizontal: 10, paddingVertical: 6, borderWidth: 1,
-  },
-  metaChipPrimaryAccent: {
-    backgroundColor: colors.primary + '1F',
-    borderColor: colors.primary + '88',
-  },
-  metaChipPrimaryTxt: { color: colors.primary, fontSize: 12, fontWeight: '900', letterSpacing: 0.3 },
-  claimBtn: {
-    height: 52, backgroundColor: colors.primary, borderRadius: radius.full,
-    alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8,
-  },
-  claimBtnDisabled: { backgroundColor: colors.textMuted, opacity: 0.6 },
-  claimText: { color: colors.bg, fontWeight: '900', fontSize: 13, letterSpacing: 1.2 },
-
-  // Immediate-tab action row (Refuse + Accept)
-  immediateActions: { flexDirection: 'row', gap: 8 },
-  acceptBtn: {
-    flex: 2,
-    height: 52, backgroundColor: colors.primary, borderRadius: radius.full,
-    alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6,
-  },
-  refuseBtn: {
-    flex: 1,
-    height: 52,
-    backgroundColor: colors.danger + '15',
-    borderColor: colors.danger, borderWidth: 1,
-    borderRadius: radius.full,
-    alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6,
-  },
-  refuseBtnDisabled: { opacity: 0.4 },
-  refuseText: { color: colors.danger, fontWeight: '900', fontSize: 12, letterSpacing: 1 },
-  cardDimmed: { opacity: 0.55 },
-  offShiftBanner: {
+  tabCountUrgent: { backgroundColor: colors.danger },
+  tabCountText: { color: colors.primary, fontSize: 11.5, fontWeight: '800' },
+  tabCountTextUrgent: { color: '#fff' },
+  immediateInfo: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: colors.warning + '15', borderColor: colors.warning,
-    borderWidth: 1, borderRadius: radius.lg, padding: 12,
+    backgroundColor: colors.dangerSoft, borderRadius: radius.lg,
+    paddingHorizontal: spacing.md, paddingVertical: 12,
   },
-  offShiftTitle: { color: colors.warning, fontWeight: '900', fontSize: 13 },
-  offShiftSub: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
+  immediateInfoTxt: { color: colors.text, fontSize: 13, fontWeight: '500', flex: 1, lineHeight: 18 },
+  empty: { alignItems: 'center', paddingTop: 70, gap: 10 },
+  emptyTitle: { color: colors.text, fontSize: 17, fontWeight: '700', marginTop: 4 },
+  emptySub: { color: colors.textSecondary, fontSize: 14, textAlign: 'center', paddingHorizontal: 36, lineHeight: 20 },
+  liveRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 12, paddingVertical: 6,
+    backgroundColor: colors.successSoft, borderRadius: radius.full, alignSelf: 'flex-start',
+  },
+  liveDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.success },
+  liveText: { color: colors.success, fontWeight: '700', fontSize: 12 },
+  errorBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.dangerSoft, borderRadius: radius.lg, padding: 12,
+  },
+  errorText: { color: colors.danger, fontSize: 13, fontWeight: '600', flex: 1 },
+  warnBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: colors.warningSoft, borderRadius: radius.lg, padding: 12,
+  },
+  warnText: { color: colors.text, fontSize: 13, fontWeight: '500', flex: 1, lineHeight: 18 },
+  retryBtn: {
+    flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'center',
+    paddingHorizontal: 14, paddingVertical: 8, borderRadius: radius.full,
+    backgroundColor: colors.primarySoft,
+  },
+  retryText: { color: colors.primary, fontWeight: '700', fontSize: 13 },
+  debugTxt: { color: colors.textMuted, fontSize: 10 },
+  offShiftBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: colors.warningSoft, borderRadius: radius.lg, padding: 14,
+  },
+  offShiftTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  offShiftSub: { color: colors.textSecondary, fontSize: 13, marginTop: 2, lineHeight: 18 },
   offShiftBtn: {
-    backgroundColor: colors.warning, paddingHorizontal: 12, paddingVertical: 8,
-    borderRadius: radius.full,
+    backgroundColor: colors.primary, borderRadius: radius.md,
+    paddingHorizontal: 14, paddingVertical: 10,
   },
-  offShiftBtnText: { color: '#000', fontWeight: '900', fontSize: 11, letterSpacing: 0.8 },
-  openHint: {
-    flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 6,
+  offShiftBtnText: { color: colors.onPrimary, fontWeight: '700', fontSize: 13 },
+  lowBalanceBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: colors.dangerSoft, borderRadius: radius.lg, padding: 14,
   },
-  openHintText: { color: colors.primary, fontWeight: '700', fontSize: 13 },
+  lowBalanceTitle: { color: colors.danger, fontSize: 14, fontWeight: '700' },
+  lowBalanceSub: { color: colors.text, fontSize: 12.5, marginTop: 2, lineHeight: 17 },
+  lowBalanceBtn: {
+    backgroundColor: colors.danger, borderRadius: radius.md,
+    paddingHorizontal: 12, paddingVertical: 10,
+  },
+  lowBalanceBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+  card: {
+    backgroundColor: colors.surface, borderRadius: radius.xl, borderWidth: 1, borderColor: colors.border,
+    padding: spacing.md, gap: 12, marginBottom: 10, ...shadow,
+  },
+  cardDimmed: { opacity: 0.55 },
+  cardHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 8 },
+  timeWrap: { flexDirection: 'row', alignItems: 'baseline', gap: 8, flexShrink: 1 },
+  time: { color: colors.text, fontSize: 22, fontWeight: '800' },
+  day: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  price: { color: colors.text, fontSize: 22, fontWeight: '800' },
+  chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  moneyRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    borderTopWidth: 1, borderTopColor: colors.border, paddingTop: 10,
+  },
+  moneyTxt: { color: colors.textSecondary, fontSize: 13, fontWeight: '600' },
+  netVal: { color: colors.success, fontSize: 14, fontWeight: '800' },
+  claimBtn: {
+    height: 50, borderRadius: radius.lg, backgroundColor: colors.primary,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+  },
+  claimBtnDisabled: { backgroundColor: colors.textMuted },
+  claimText: { color: colors.onPrimary, fontWeight: '700', fontSize: 15.5 },
+  immediateActions: { flexDirection: 'row', gap: 10 },
+  refuseBtn: {
+    flex: 1, height: 50, borderRadius: radius.lg, backgroundColor: colors.surface2,
+    borderWidth: 1, borderColor: colors.border,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+  },
+  refuseBtnDisabled: { opacity: 0.5 },
+  refuseText: { color: colors.danger, fontWeight: '700', fontSize: 15.5 },
+  acceptBtn: {
+    flex: 2, height: 50, borderRadius: radius.lg, backgroundColor: colors.success,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+  },
+  acceptText: { color: '#fff', fontWeight: '700', fontSize: 15.5 },
+  modalBackdrop: {
+    flex: 1, backgroundColor: colors.overlay, padding: spacing.lg, justifyContent: 'center',
+  },
+  modalCard: {
+    backgroundColor: colors.surface, borderRadius: radius.xl, padding: spacing.lg,
+    alignItems: 'center', gap: 12,
+  },
+  modalIconWrap: {
+    width: 68, height: 68, borderRadius: 34, backgroundColor: colors.dangerSoft,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  modalTitle: { color: colors.text, fontSize: 20, fontWeight: '800' },
+  modalText: { color: colors.textSecondary, fontSize: 14, textAlign: 'center', lineHeight: 20 },
+  modalRow: { flexDirection: 'row', gap: 10, alignSelf: 'stretch' },
+  modalCell: {
+    flex: 1, backgroundColor: colors.surface2, borderRadius: radius.lg, padding: 12, alignItems: 'center',
+  },
+  modalCellLbl: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
+  modalCellVal: { fontSize: 20, fontWeight: '800', marginTop: 2 },
+  modalPrimaryBtn: {
+    alignSelf: 'stretch', height: 52, borderRadius: radius.lg, backgroundColor: colors.primary,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+  },
+  modalPrimaryText: { color: colors.onPrimary, fontWeight: '700', fontSize: 15.5 },
+  modalGhostBtn: { paddingVertical: 10 },
+  modalGhostText: { color: colors.textSecondary, fontWeight: '600', fontSize: 14 },
 });
