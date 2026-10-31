@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { StyleSheet, View, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { getActiveMapsKey } from '../mapsKey';
-import { colors, isDark } from '../theme';
+import { colors } from '../theme';
 
 type Marker = { lat: number; lng: number; color?: string; label?: string };
 export type Polyline = {
@@ -34,40 +34,25 @@ type Props = {
   style?: any;
 };
 
-// Map look follows the app theme: navy map in dark mode (website's dark
-// sections), soft blue-grey map in light mode. POIs/transit are hidden so the
-// ride markers and routes stay readable.
+// Black map in both themes (the original look, kept on purpose). POIs and
+// transit are hidden so the ride markers and routes stay readable.
 const darkStyle = JSON.stringify([
-  { elementType: 'geometry', stylers: [{ color: '#08162B' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#08162B' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#7E8FAB' }] },
-  { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#1A2E4D' }] },
+  { elementType: 'geometry', stylers: [{ color: '#0a0a0a' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#0a0a0a' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#A1A1AA' }] },
+  { featureType: 'administrative', elementType: 'geometry', stylers: [{ color: '#27272a' }] },
   { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#13284A' }] },
-  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#6B7D99' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#1C3A66' }] },
+  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#27272a' }] },
+  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#71717A' }] },
+  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#3f3f46' }] },
   { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#030D1C' }] },
-  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#3E5272' }] },
+  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#050505' }] },
+  { featureType: 'water', elementType: 'labels.text.fill', stylers: [{ color: '#52525b' }] },
 ]);
 
-const lightStyle = JSON.stringify([
-  { elementType: 'geometry', stylers: [{ color: '#EEF2F8' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#55607A' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#FFFFFF' }] },
-  { featureType: 'poi', stylers: [{ visibility: 'off' }] },
-  { featureType: 'road', elementType: 'geometry', stylers: [{ color: '#FFFFFF' }] },
-  { featureType: 'road.highway', elementType: 'geometry', stylers: [{ color: '#DCE6F5' }] },
-  { featureType: 'road', elementType: 'labels.text.fill', stylers: [{ color: '#8A94AA' }] },
-  { featureType: 'transit', stylers: [{ visibility: 'off' }] },
-  { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#C9DCF5' }] },
-  { featureType: 'landscape.man_made', elementType: 'geometry', stylers: [{ color: '#E6ECF4' }] },
-]);
-
-const mapStyle = isDark ? darkStyle : lightStyle;
-const MAP_BG = isDark ? '#08162B' : '#EEF2F8';
-const MAP_TEXT = isDark ? '#7E8FAB' : '#55607A';
-
+const mapStyle = darkStyle;
+const MAP_BG = '#0A0A0A';
+const MAP_TEXT = '#A1A1AA';
 
 function buildHtml(lat: number, lng: number, markers: Marker[], polylines: Polyline[], fitBounds: boolean, showDriverMarker: boolean, zoom: number, gmapsKey: string) {
   const markersJson = JSON.stringify(markers || []);
