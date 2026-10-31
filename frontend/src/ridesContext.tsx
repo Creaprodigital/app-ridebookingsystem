@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
+import { fmtEuro } from './rideFormat';
 import { AppState, Platform } from 'react-native';
 import { getMarketplace, getDriverMissions, getDriverProfile, claimMarketplace } from './api';
 import { haptic, playSound, notifyNewRide } from './feedback';
@@ -177,7 +178,7 @@ export function RidesProvider({ children }: { children: React.ReactNode }) {
           if (toAddr) parts.push(toAddr);
           let body = parts.join(' → ');
           if (amt != null) {
-            const price = `${Number(amt).toFixed(2)} €`;
+            const price = fmtEuro(amt);
             body = body ? `${body}\n${price}` : price;
           }
           if (!body) body = 'Tap pour voir';

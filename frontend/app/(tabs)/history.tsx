@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { colors, radius, spacing } from '../../src/theme';
+import { fmtEuro } from '../../src/rideFormat';
 import { getDriverHistory, getMarketplaceConfig } from '../../src/api';
 import { haptic } from '../../src/feedback';
 
@@ -379,8 +380,8 @@ export default function HistoryScreen() {
                   <Ionicons name="wallet" size={18} color={colors.primary} />
                 </View>
                 <View style={{ alignItems: 'center' }}>
-                  <Text style={styles.statLabel}>Chiffre d'affaires</Text>
-                  <Text style={styles.statValue} testID="stat-revenue">{stats.revenue.toFixed(2)} €</Text>
+                  <Text style={styles.statLabel}>Chiffre d’affaires</Text>
+                  <Text style={styles.statValue} testID="stat-revenue">{fmtEuro(stats.revenue)}</Text>
                 </View>
               </View>
               <View style={styles.statSep} />
@@ -391,7 +392,7 @@ export default function HistoryScreen() {
                 <View style={{ alignItems: 'center' }}>
                   <Text style={styles.statLabel}>Net chauffeur</Text>
                   <Text style={[styles.statValue, { color: colors.success }]} testID="stat-net">
-                    {stats.net.toFixed(2)} €
+                    {fmtEuro(stats.net)}
                   </Text>
                 </View>
               </View>
@@ -465,10 +466,10 @@ export default function HistoryScreen() {
               </View>
               {/* Right: price + net + pay chip */}
               <View style={styles.rowRight}>
-                <Text style={styles.rowAmount}>{amount != null ? `${amount.toFixed(2)} €` : '—'}</Text>
+                <Text style={styles.rowAmount}>{amount != null ? fmtEuro(amount) : '—'}</Text>
                 {net != null ? (
                   <Text style={styles.rowNet} testID={`history-net-${item?.id ?? item?._id}`}>
-                    Net {net.toFixed(2)} €
+                    Net {fmtEuro(net)}
                   </Text>
                 ) : null}
                 <View style={styles.payChip}>

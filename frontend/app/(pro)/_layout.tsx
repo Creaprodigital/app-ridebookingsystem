@@ -3,7 +3,7 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform, View, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors } from '../../src/theme';
+import { colors, shadow } from '../../src/theme';
 import { ProNotificationsProvider } from '../../src/proNotifications';
 
 function FabIcon() {
@@ -31,11 +31,12 @@ export default function ProLayout() {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
           borderTopWidth: 1,
-          height: 64 + bottomPad,
-          paddingTop: 6,
+          height: 66 + bottomPad,
+          paddingTop: 8,
           paddingBottom: bottomPad,
+          ...shadow,
         },
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },
+        tabBarLabelStyle: { fontSize: 11.5, fontFamily: 'Manrope_700Bold' },
         sceneStyle: { backgroundColor: colors.bg },
       }}
     >
@@ -62,7 +63,7 @@ export default function ProLayout() {
         options={{
           title: 'Créer',
           tabBarIcon: () => <FabIcon />,
-          tabBarLabelStyle: { fontSize: 10, fontWeight: '800', letterSpacing: 0.3, color: colors.primary },
+          tabBarLabelStyle: { fontSize: 11.5, fontFamily: 'Manrope_700Bold', color: colors.primary },
         }}
       />
       <Tabs.Screen
@@ -92,10 +93,11 @@ export default function ProLayout() {
 
 const styles = StyleSheet.create({
   fabIcon: {
-    width: 38, height: 38, borderRadius: 19,
+    width: 44, height: 44, borderRadius: 14,
     backgroundColor: colors.primary,
     alignItems: 'center', justifyContent: 'center',
-    marginTop: -8,
+    marginTop: -10,
+    shadowColor: colors.primary, shadowOpacity: 0.35, shadowRadius: 10, shadowOffset: { width: 0, height: 4 },
     elevation: 6,
   },
 });

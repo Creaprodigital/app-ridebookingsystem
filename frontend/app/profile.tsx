@@ -84,7 +84,7 @@ export default function Profile() {
           {rating != null ? (
             <View style={styles.ratingRow}>
               <Ionicons name="star" size={14} color={colors.primary} />
-              <Text style={styles.ratingTxt}>{Number(rating).toFixed(2)}</Text>
+              <Text style={styles.ratingTxt}>{Number(rating).toFixed(1).replace('.', ',')}</Text>
             </View>
           ) : null}
         </View>

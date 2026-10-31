@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from 'expo-router';
 import { colors, radius, spacing } from '../../src/theme';
+import { fmtEuro } from '../../src/rideFormat';
 import ProHeader from '../../src/components/ProHeader';
 import { getProDispatch, assignBookingToDriver, ProBooking, ProDriver } from '../../src/proApi';
 import { haptic } from '../../src/feedback';
@@ -158,7 +159,7 @@ export default function DispatchScreen() {
                     <View style={[styles.statusDot, { backgroundColor: statusColor(item.status) }]} />
                     <Text style={[styles.statusPillTxt, { color: statusColor(item.status) }]}>{statusLabel(item.status)}</Text>
                   </View>
-                  <Text style={styles.cardPrice}>{(item?.pricing?.final ?? item?.pricing?.total ?? 0).toFixed(2)} €</Text>
+                  <Text style={styles.cardPrice}>{fmtEuro(item?.pricing?.final ?? item?.pricing?.total ?? 0)}</Text>
                 </View>
 
                 <View style={styles.route}>

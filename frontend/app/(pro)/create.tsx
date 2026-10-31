@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { colors, radius, spacing } from '../../src/theme';
+import { fmtEuro } from '../../src/rideFormat';
 import ProHeader from '../../src/components/ProHeader';
 import { useAuth } from '../../src/auth';
 import {
@@ -458,7 +459,7 @@ export default function CreateBookingScreen() {
                   </View>
                   <View style={styles.vehicleRight}>
                     <Text style={[styles.vehiclePrice, active && { color: colors.primary }]}>
-                      {price != null ? `${price.toFixed(2)} €` : '—'}
+                      {price != null ? fmtEuro(price) : '—'}
                     </Text>
                     <View style={[styles.radio, active && styles.radioActive]}>
                       {active ? <Ionicons name="checkmark" size={14} color={colors.onPrimary} /> : null}
@@ -472,12 +473,12 @@ export default function CreateBookingScreen() {
               <View style={styles.summaryLeft}>
                 <Ionicons name="git-network-outline" size={14} color={colors.textSecondary} />
                 <Text style={styles.summaryLeftTxt}>
-                  {quote ? `${(quote.distance_km ?? 0).toFixed(2)} km · ${Math.round(quote.duration_min ?? 0)} min` : (quoting ? 'Calcul…' : 'Renseignez les adresses')}
+                  {quote ? `${(quote.distance_km ?? 0).toFixed(1).replace('.', ',')} km · ${Math.round(quote.duration_min ?? 0)} min` : (quoting ? 'Calcul…' : 'Renseignez les adresses')}
                 </Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={styles.summaryKicker}>Tarif estimé</Text>
-                <Text style={styles.summaryValue}>{selectedPrice != null ? `${selectedPrice.toFixed(2)} €` : '—'}</Text>
+                <Text style={styles.summaryValue}>{selectedPrice != null ? fmtEuro(selectedPrice) : '—'}</Text>
               </View>
             </View>
 

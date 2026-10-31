@@ -472,8 +472,8 @@ export default function MissionsScreen() {
                     <View style={{ flex: 1 }}>
                       <Text style={styles.lowBalanceTitle}>Portefeuille sous le seuil requis</Text>
                       <Text style={styles.lowBalanceSub}>
-                        Vous devez avoir au moins {requiredMinBalance.toFixed(2)} € pour prendre une course.
-                        Solde actuel : {walletBal.toFixed(2)} €.
+                        Vous devez avoir au moins {fmtEuro(requiredMinBalance)} pour prendre une course.
+                        Solde actuel : {fmtEuro(walletBal)}.
                       </Text>
                     </View>
                     <TouchableOpacity
@@ -749,13 +749,13 @@ export default function MissionsScreen() {
               <View style={styles.modalCell}>
                 <Text style={styles.modalCellLbl}>Solde actuel</Text>
                 <Text style={[styles.modalCellVal, { color: colors.danger }]}>
-                  {walletBal.toFixed(2)} €
+                  {fmtEuro(walletBal)}
                 </Text>
               </View>
               <View style={styles.modalCell}>
                 <Text style={styles.modalCellLbl}>Seuil requis</Text>
                 <Text style={[styles.modalCellVal, { color: colors.primary }]}>
-                  {requiredMinBalance.toFixed(2)} €
+                  {fmtEuro(requiredMinBalance)}
                 </Text>
               </View>
             </View>

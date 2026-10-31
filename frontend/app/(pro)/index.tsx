@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { colors, radius, spacing } from '../../src/theme';
+import { fmtEuro } from '../../src/rideFormat';
 import ProHeader from '../../src/components/ProHeader';
 import { getProDashboard, ProBooking, ProDashboardStats } from '../../src/proApi';
 import { useAuth } from '../../src/auth';
@@ -84,7 +85,7 @@ export default function ProDashboard() {
           {/* Revenue card */}
           <View style={styles.revenueCard}>
             <Text style={styles.revenueLabel}>Revenus</Text>
-            <Text style={styles.revenueValue}>{(stats?.revenue ?? 0).toFixed(2)} €</Text>
+            <Text style={styles.revenueValue}>{fmtEuro(stats?.revenue ?? 0)}</Text>
             <Text style={styles.revenueSub}>{stats?.completed ?? 0} course{(stats?.completed ?? 0) > 1 ? 's' : ''} terminée{(stats?.completed ?? 0) > 1 ? 's' : ''}</Text>
           </View>
 
@@ -141,7 +142,7 @@ export default function ProDashboard() {
                     <Text style={styles.bookingTo} numberOfLines={1}>{b.dropoff_address || '—'}</Text>
                     <Text style={styles.bookingMeta}>{fmt(b.pickup_at)} • {statusLabel(b.status)}</Text>
                   </View>
-                  <Text style={styles.bookingPrice}>{(b?.pricing?.final ?? b?.pricing?.total ?? 0).toFixed(2)} €</Text>
+                  <Text style={styles.bookingPrice}>{fmtEuro(b?.pricing?.final ?? b?.pricing?.total ?? 0)}</Text>
                   <Ionicons name="chevron-forward" size={14} color={colors.textMuted} style={{ marginLeft: 4 }} />
                 </TouchableOpacity>
               ))

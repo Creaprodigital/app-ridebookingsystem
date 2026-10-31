@@ -12,6 +12,7 @@ import {
   NotifEntry,
 } from '../src/notificationsHistory';
 import { colors, radius, spacing } from '../src/theme';
+import { fmtEuro } from '../src/rideFormat';
 
 const ICONS: Record<string, any> = {
   new_ride: 'flash',
@@ -138,7 +139,7 @@ export default function NotificationsHistoryScreen() {
                   <View style={styles.rowFoot}>
                     <Text style={styles.rowDate}>{fmt(item.created_at)}</Text>
                     {item.amount != null ? (
-                      <Text style={[styles.rowAmount, { color }]}>+{item.amount.toFixed(2)} €</Text>
+                      <Text style={[styles.rowAmount, { color }]}>+{fmtEuro(item.amount)}</Text>
                     ) : null}
                   </View>
                 </View>
